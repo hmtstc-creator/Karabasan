@@ -6,6 +6,7 @@ umask 077
 cat > /root/karabasan.env <<'SON'
 TELEGRAM_TOKEN=BURAYA_TELEGRAM_KODU
 SON
+chmod 600 /root/karabasan.env
 umask 022
 exec >> /var/log/karabasan-baslat.log 2>&1
 export HOME=/root DEBIAN_FRONTEND=noninteractive
