@@ -23,9 +23,19 @@ KOK = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(KOK))
 
 from karabasan.botlar import BOTLAR, ILK_PORT, ayarlari_yukle  # noqa: E402
-from karabasan.kural import kural_yukle  # noqa: E402
+
+try:
+    from karabasan.kural import kural_yukle  # noqa: E402
+except ImportError:
+    # Sunucunun kendi Python'unda numpy ve pandas yoktur. Kural dosyalarının tam
+    # doğrulaması testlerde, uyum denemesinde ve her botun açılışında yapılır;
+    # burada yalnız dosyanın yerinde ve okunur olduğuna bakılır.
+    def kural_yukle(kod):
+        yol = KOK / "karabasan" / "stratejiler" / f"{kod}.json"
+        return json.loads(yol.read_text(encoding="utf-8"))
 
 GORUNTU = "freqtradeorg/freqtrade:stable"
+PANEL_PORTU = 8080
 
 # 1. katman (uygunluk): alım satımı anlamsız ya da riskli olanlar.
 SABIT_COINLER = (
@@ -179,6 +189,36 @@ def compose_metni() -> str:
         "      - ./user_data:/freqtrade/user_data",
         "      - ./karabasan:/freqtrade/karabasan:ro",
         "    entrypoint: [\"python3\", \"-m\", \"karabasan.kayitci\"]",
+        *GUNLUK_SINIRI,
+        "",
+    ]
+    # Türkçe sonuç sayfası. Kayıtları yalnız okur.
+    satirlar += [
+        "  panel:",
+        f"    image: {GORUNTU}",
+        "    container_name: kb-panel",
+        "    restart: unless-stopped",
+        "    volumes:",
+        "      - ./user_data:/freqtrade/user_data",
+        "      - ./karabasan:/freqtrade/karabasan:ro",
+        "    ports:",
+        f"      - \"127.0.0.1:{PANEL_PORTU}:8080\"",
+        "    entrypoint: [\"python3\", \"-m\", \"karabasan.panel\"]",
+        *GUNLUK_SINIRI,
+        "",
+    ]
+    # Telegram habercisi: günlük özet, uyarılar, telefondan komutlar.
+    # Telegram kodunu yalnız bu servis görür (telegram.env); botlar görmez.
+    satirlar += [
+        "  haberci:",
+        f"    image: {GORUNTU}",
+        "    container_name: kb-haberci",
+        "    restart: unless-stopped",
+        "    env_file: telegram.env",
+        "    volumes:",
+        "      - ./user_data:/freqtrade/user_data",
+        "      - ./karabasan:/freqtrade/karabasan:ro",
+        "    entrypoint: [\"python3\", \"-m\", \"karabasan.haberci\", \"servis\"]",
         *GUNLUK_SINIRI,
         "",
     ]

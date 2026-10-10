@@ -207,7 +207,43 @@ class Yapilandirma(unittest.TestCase):
             self.assertIn(f'"127.0.0.1:{botlar.ILK_PORT + sira}:8080"', metin)
         # Hiçbir port dış ağa açılmamalı
         self.assertNotIn('"0.0.0.0:', metin)
-        self.assertEqual(metin.count("127.0.0.1:"), len(botlar.BOTLAR))
+        self.assertEqual(metin.count("127.0.0.1:"), len(botlar.BOTLAR) + 1)  # botlar ve sonuç sayfası
+
+    def test_compose_sonuc_sayfasi_ve_haberci(self):
+        metin = self.uret.compose_metni()
+        self.assertIn('"127.0.0.1:8080:8080"', metin)
+        self.assertIn('entrypoint: ["python3", "-m", "karabasan.panel"]', metin)
+        self.assertIn('entrypoint: ["python3", "-m", "karabasan.haberci", "servis"]', metin)
+        # Telegram kodunu yalnız haberci görür.
+        self.assertEqual(metin.count("env_file: telegram.env"), 1)
+        haberci = metin.split("  haberci:")[1].split("\n\n")[0]
+        self.assertIn("env_file: telegram.env", haberci)
+        self.assertNotIn("ports:", haberci)
+        # Hiçbir kapı dışarıya açılmaz.
+        import re
+
+        for kapi in re.findall(r'- "([^"]+:\d+:\d+)"', metin):
+            self.assertTrue(kapi.startswith("127.0.0.1:"), kapi)
+
+    def test_uretec_pandas_olmadan_calisir(self):
+        """Sunucunun kendi Python'unda pandas yok; yapılandırma yine de üretilebilmeli."""
+        import subprocess
+        import sys
+
+        kod = (
+            "import sys\n"
+            "sys.modules['pandas'] = None\nsys.modules['numpy'] = None\n"
+            "sys.path.insert(0, 'araclar')\n"
+            "import yapilandirma_uret as u\n"
+            "from karabasan.botlar import BOTLAR, ayarlari_yukle\n"
+            "a = ayarlari_yukle()\n"
+            "for bot, _s, kural, piyasa in BOTLAR:\n"
+            "    assert u.bot_yapilandirmasi(bot, kural, piyasa, a)['dry_run'] is True\n"
+            "assert 'kb-panel' in u.compose_metni()\n"
+        )
+        kok = Path(__file__).resolve().parent.parent
+        sonuc = subprocess.run([sys.executable, "-c", kod], capture_output=True, text=True, cwd=kok)
+        self.assertEqual(sonuc.returncode, 0, sonuc.stderr)
 
     def test_geri_test_sabit_liste(self):
         spot = self.uret.geri_test_yapilandirmasi("spot")
@@ -266,3 +302,36 @@ class BagimsizKarsilastirma(unittest.TestCase):
                 contextlib.redirect_stdout(cikti):
             self.assertEqual(karsilastir.main(), 1)
         self.assertIn("UYARI", cikti.getvalue())
+
+
+class KurulumBetikleriTesti(unittest.TestCase):
+    """Sunucu betikleri burada çalıştırılamaz; yalnız yazım ve temel güvenlik denetlenir."""
+
+    BETIKLER = ["kur.sh", "guncelle.sh", "araclar/oto_guncelle.sh", "araclar/ozel_ag.sh",
+                "araclar/uyum_denemesi.sh", "kurulum/sunucu_blogu.sh"]
+
+    def test_betikler_yazim_denetiminden_gecer(self):
+        import subprocess
+
+        for betik in self.BETIKLER:
+            sonuc = subprocess.run(["bash", "-n", str(KOK / betik)], capture_output=True, text=True)
+            self.assertEqual(sonuc.returncode, 0, f"{betik}: {sonuc.stderr}")
+
+    def test_sunucu_blogunda_gercek_kod_yok(self):
+        metin = (KOK / "kurulum" / "sunucu_blogu.sh").read_text(encoding="utf-8")
+        self.assertIn("TELEGRAM_TOKEN=BURAYA_TELEGRAM_KODU\n", metin)
+        self.assertTrue(metin.startswith("#!/bin/bash\n"))  # sağlayıcı bunu ilk açılışta betik olarak çalıştırır
+
+    def test_betiklerde_gercek_para_ayari_yok(self):
+        for betik in self.BETIKLER:
+            metin = (KOK / betik).read_text(encoding="utf-8").lower()
+            for yasak in ("dry_run", "api_key", "binance_key", "secret="):
+                self.assertNotIn(yasak, metin, f"{betik}: {yasak}")
+
+    def test_hicbir_betik_disariya_kapi_acmaz(self):
+        import re
+
+        for betik in self.BETIKLER:
+            metin = (KOK / betik).read_text(encoding="utf-8")
+            for satir in re.findall(r"^\s*ufw allow.*$", metin, flags=re.M):
+                self.assertTrue("tailscale0" in satir or "22/tcp" in satir, f"{betik}: {satir.strip()}")

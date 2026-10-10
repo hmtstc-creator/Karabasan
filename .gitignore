@@ -20,3 +20,8 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+telegram.env
+user_data/kurulum_tamam
+user_data/telegram_sohbet.txt
+user_data/haberci.json
+user_data/gecmis_test.json
