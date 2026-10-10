@@ -4,8 +4,11 @@ Binance için sık ve küçük kârlı işlem botu. Ne zaman çalışacağına "
 adlı piyasa ortamı motoru karar verir. Tasarımın tamamı tasarım raporundadır;
 bu depo o raporun koda dökülmüş halidir.
 
-**Şu anki aşama: laboratuvar sürümü, 1. parça.** Bu sürüm yalnız sanal işlem
-yapar. Binance API anahtarı istemez, borsaya emir gönderemez.
+**Şu anki aşama: laboratuvar sürümü.** Bu sürüm yalnız sanal işlem yapar.
+Binance API anahtarı istemez, borsaya emir gönderemez.
+
+Her şey telefondan yönetilir: sunucu kendini kurar, her adımı Telegram'dan
+bildirir, yeni kodu kendisi alır. Bilgisayar ve terminal gerekmez.
 
 ## Bu sürümde ne var
 
@@ -21,76 +24,98 @@ yapar. Binance API anahtarı istemez, borsaya emir gönderemez.
 | Dominans ve TOTAL2 kaydedicisi | `karabasan/kayitci.py` | Yazıldı; ağ bağlantısı sunucuda sınanacak |
 | Hazır motor bağlantısı | `user_data/strategies/karabasan_stratejileri.py` | Yazıldı; gerçek motorla sunucuda sınanacak |
 | On sanal botun yapılandırması | `araclar/yapilandirma_uret.py` | Yazıldı, test edildi |
-| Kurulum ve uyum denemesi | `kur.sh`, `araclar/uyum_denemesi.sh` | Yazıldı; sunucuda ilk kez çalışacak |
+| Sonuç özeti ve Türkçe sonuç sayfası | `karabasan/sonuc.py`, `sayfa.py`, `panel.py` | Yazıldı, sahte kayıtlarla test edildi; gerçek kayıtlarla sunucuda sınanacak |
+| Telegram habercisi ve komutlar | `karabasan/haberci.py` | Yazıldı, taklit Telegram ile test edildi |
+| Kurulum ve uyum denemesi | `kurulum/sunucu_blogu.sh`, `kur.sh`, `araclar/uyum_denemesi.sh` | Yazıldı, taklit komutlarla prova edildi; sunucuda ilk kez çalışacak |
+| Kendiliğinden güncelleme, özel ağ | `araclar/oto_guncelle.sh`, `araclar/ozel_ag.sh` | Yazıldı, taklit komutlarla prova edildi |
 
 Henüz yok (sıradaki parçalar): Karabasan'ın canlı ölçüm servisi, sanal
-işlemlerin Karabasan durumuyla etiketlenmesi, haftalık Telegram raporu,
-12 aylık geçmiş testi raporu, Türkçe panel. Gerçek para ile ilgili hiçbir
-kod (emir yürütücü, risk yöneticisi) bu aşamada yoktur.
+işlemlerin Karabasan durumuyla etiketlenmesi, haftalık rapor ve 30. gün karar
+raporu, 12 aylık geçmiş testi raporu. Gerçek para ile ilgili hiçbir kod (emir
+yürütücü, risk yöneticisi) bu aşamada yoktur.
 
 ## Dürüst not: nerede sınandı, nerede sınanmadı
 
-Çekirdek mantık 122 otomatik testten geçiyor. Testler arasında şunlar var:
-göstergelerin ve altı stratejinin geleceğe bakmadığı, kâr hedefi ve stop
-hesabı, Karabasan'ın "açılması yavaş, kapanması hızlı" davranışı, veto
-süreleri, filtrenin elenme nedenleri ve sınavın yedi karar ölçütü.
+Kod 198 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
+ve altı stratejinin geleceğe bakmadığı, kâr hedefi ve stop hesabı,
+Karabasan'ın "açılması yavaş, kapanması hızlı" davranışı, veto süreleri,
+filtrenin elenme nedenleri, sınavın yedi karar ölçütü, sonuç sayfasının sahte
+kayıt dosyalarından doğru sayıları çıkarması, Telegram habercisinin yalnız
+sahibini dinlemesi.
 
 Kodun yazıldığı ortamdan paket deposuna, Docker'a ve Binance'e erişim yoktu.
-Bu yüzden üç şey ancak sunucuda sınanabilir:
+Bu yüzden şunlar ancak sunucuda sınanabilir:
 
 1. Hazır motorun (Freqtrade) strateji sınıflarımızı yükleyip çalıştırması.
-2. Kurulum betiğinin Ubuntu'da baştan sona çalışması.
-3. Binance ve CoinGecko'dan canlı veri akışı.
+2. Kurulum betiğinin Ubuntu'da baştan sona çalışması. Betik burada yalnız
+   taklit komutlarla (sahte `docker`, `tailscale`, `apt-get`) prova edildi.
+3. Binance, CoinGecko ve Telegram ile gerçek bağlantı.
+4. Sonuç sayfasının hazır motorun gerçek kayıt dosyalarını okuması.
 
-Kurulumun 8. adımı olan **uyum denemesi** tam bunun içindir: botları
+Kurulumun 9. adımı olan **uyum denemesi** ilk madde içindir: botları
 başlatmadan önce her stratejiyi gerçek Binance verisinde hazır motorla
 geçmiş testinden geçirir, aynı veride bizim bağımsız benzetimimizi de
-çalıştırır ve sonucu bir dosyaya yazar. Bir adım kalırsa botlar başlamaz.
+çalıştırır ve sonucu bir dosyaya yazar. Bir adım kalırsa botlar başlamaz;
+rapor Telegram'dan gelir.
 
-## İlk kurulum
+## İlk kurulum (telefondan)
 
-Hazırlık adımları (repo, giriş anahtarı, sunucu, Tailscale, Telegram)
-tasarım raporunun "Kurulum ve yol haritası" bölümündedir. Sunucu hazır
-olunca, sunucuya bağlan:
+Hazırlık: Telegram'da `@BotFather` ile bir bot aç ve verdiği kodu not et;
+telefona Tailscale uygulamasını kurup giriş yap.
 
-```
-ssh root@SUNUCU_IP_ADRESI
-```
+1. Hetzner'de sunucu oluştur: Ubuntu 24.04, CX33 (4 çekirdek, 8 GB), konum
+   Almanya ya da Finlandiya, SSH anahtarı yok. "Cloud config" kutusuna
+   [`kurulum/sunucu_blogu.sh`](kurulum/sunucu_blogu.sh) dosyasının içeriğini
+   yapıştır ve `BURAYA_TELEGRAM_KODU` yazısını botun koduyla değiştir.
+2. Telegram'da botunu aç, "Başlat"a bas.
+3. Sunucu her adımı Telegram'a yazar. Bir Tailscale bağlantısı yollar; ona
+   dokunup onayla.
+4. Uyum denemesi raporu dosya olarak gelir (10-20 dakika sürer).
+5. "Kurulum tamam" mesajı gelince on sanal bot çalışıyordur.
 
-ve şu üç bloğu sırayla yapıştır.
-
-**1. Sunucuya depoyu okuma anahtarı üret:**
-
-```
-apt-get update -y && apt-get install -y git
-ssh-keygen -t ed25519 -N "" -f /root/.ssh/karabasan_depo -C karabasan-sunucu
-cat /root/.ssh/karabasan_depo.pub
-```
-
-Ekrana çıkan tek satırı kopyala. GitHub'da depoyu aç: Settings, Deploy keys,
-Add deploy key. Satırı yapıştır, "Allow write access" kutusunu İŞARETLEME, kaydet.
-
-**2. Depoyu indir:**
-
-```
-export GIT_SSH_COMMAND="ssh -i /root/.ssh/karabasan_depo -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-git clone git@github.com:hmtstc-creator/Karabasan.git /opt/karabasan-bot
-git -C /opt/karabasan-bot config core.sshCommand "ssh -i /root/.ssh/karabasan_depo -o IdentitiesOnly=yes"
-```
-
-**3. Kur:**
-
-```
-bash /opt/karabasan-bot/kur.sh
-```
-
-Betik dokuz adımdır. 4. adımda bir Tailscale bağlantısı gösterir; onu
-tarayıcında açıp onaylarsın. 8. adım (uyum denemesi) 10-20 dakika sürer.
-Bir yerde durursa ekranda hangi dosyayı göndermen gerektiği yazar.
+Kurulum on adımdır ve 30-40 dakika sürer. Bir adımda durursa bot kurulum
+kaydını dosya olarak yollar; düzeltme ana dala işlenince sunucu 5 dakika
+içinde kendiliğinden yeniden dener.
 
 Kurulum bitince botlar bir **ısınma haftasına** girer: sanal işlem yaparlar
 ama 30 günlük sınavın saati henüz başlamaz. Bu hafta, tesisatın gerçek
-veride doğru çalıştığını görmek ve sıradaki parçaları eklemek içindir.
+veride doğru çalıştığını görmek içindir. Sınavın saatini Telegram'da
+`/sinav_baslat` komutu başlatır; saat bir kez başlar, geri alınamaz.
+
+## Sonuçlar nerede
+
+| Nerede | Ne |
+| --- | --- |
+| Telegram, `/durum` | Kaç bot çalışıyor, kaç işlem kapandı, toplam sanal sonuç |
+| Telegram, her sabah 09:00 | Günlük özet (Bükreş saati) |
+| `http://karabasan:8080` | Sonuç sayfası; yalnız Tailscale açıkken açılır |
+| Telegram, `/sayfa` | Aynı sayfa, dosya olarak |
+
+Sonuç sayfası her botun işlem sayısını, kazanma ve başabaş oranını, net
+sonucunu, en büyük düşüşünü ve sınavın yedi ölçütünün ara durumunu gösterir.
+
+## Telegram komutları
+
+| Komut | Ne yapar |
+| --- | --- |
+| `/durum` | Genel durum |
+| `/botlar` | Her botun sonucu |
+| `/sayfa` | Sonuç sayfasını dosya olarak yollar |
+| `/gunluk` | On botun son kayıt satırları; `/gunluk s1-spot` tek bot |
+| `/uyum` | Uyum denemesi raporu |
+| `/kurulum` | Kurulum kaydı |
+| `/sinav_baslat` | 30 günlük sınavın saatini başlatır (onay ister) |
+| `/yardim` | Komut listesi |
+
+Bot yalnız "Başlat"a ilk basan kişiyi dinler. Komutlar yalnız okur ve
+bildirir; hiçbiri borsaya emir göndermez ya da ayar değiştirmez.
+
+## Güncelleme
+
+Sunucu 5 dakikada bir bu deponun `main` dalını denetler. Yeni kod varsa alır,
+yalnız değişenle ilgili servisleri yeniden başlatır ve Telegram'dan haber
+verir. Sanal işlem kayıtları silinmez. Hazır motorun sürümü kendiliğinden
+yenilenmez; sınav boyunca aynı kalır.
 
 ## Komisyon oranları
 
@@ -102,28 +127,12 @@ Başlangıç değerleri `karabasan/botlar.py` içindedir:
 
 Değerler yüzdedir ve taraf başınadır: 0.075, %0,075 demektir. Sınavda tüm
 emirler piyasa emri olduğu için alıcı (taker) oranı kullanılır. Hesabındaki
-oranlar farklıysa Claude'a yaz; değeri depoda o günceller, sen sunucuda
-şunu çalıştırırsın:
+oranlar farklıysa Claude'a yaz; değeri depoda o günceller, sunucu kendisi alır.
 
-```
-bash /opt/karabasan-bot/guncelle.sh
-```
-
-## Günlük kullanım
-
-| İş | Komut |
-| --- | --- |
-| Botların durumu | `cd /opt/karabasan-bot && docker compose ps` |
-| Bir botun kayıtları | `docker compose logs --tail 50 s1-spot` |
-| Hepsini durdur | `docker compose stop` |
-| Yeniden başlat | `docker compose up -d` |
-| Yeni kodu al | `bash /opt/karabasan-bot/guncelle.sh` |
-| Uyum denemesini yeniden çalıştır | `bash araclar/uyum_denemesi.sh` |
-
-Bot ekranları, Tailscale açıkken `http://karabasan:8081` ile
-`http://karabasan:8090` arasındadır (hazır motorun kendi İngilizce ekranı;
-Türkçe panel sıradaki parçalardandır). Kullanıcı adı `karabasan`, parola
-`.env` dosyasındadır.
+Bot ekranları (hazır motorun kendi İngilizce ekranı), Tailscale açıkken
+`http://karabasan:8081` ile `http://karabasan:8090` arasındadır. Kullanıcı adı
+`karabasan`, parola sunucudaki `.env` dosyasındadır. Günlük kullanımda
+gerekmez; sonuç sayfası ve Telegram yeterlidir.
 
 ## On sanal bot
 
@@ -195,8 +204,15 @@ python3 -m unittest discover -s testler -t .
 ## Güvenlik
 
 - Bu sürümde Binance API anahtarı yoktur ve gerekmez.
-- `.env` dosyası (bot ekranlarının parolası) depoya girmez.
-- Bot ekranları yalnız sunucunun kendisine açılır (`127.0.0.1`); dışarıdan
-  erişimi yalnız Tailscale özel ağı taşır.
-- Kurulum betiği parolayla SSH girişini kapatır ve güvenlik duvarını açar.
-- Sunucudaki depo anahtarı salt okunurdur; sunucu depoya yazamaz.
+- Depo herkese açıktır; içinde parola, anahtar ya da sunucu adresi yoktur.
+  `.env` (bot ekranlarının parolası) ve `telegram.env` (Telegram kodu) yalnız
+  sunucuda durur, yalnız root okur.
+- Sunucu internete hiçbir kapı açmaz. Giriş anahtarı tanımlı değilse SSH de
+  kapalıdır. Sonuç sayfası ve bot ekranları yalnız sunucunun kendisini
+  (`127.0.0.1`) ve Tailscale özel ağ adresini dinler.
+- Telegram botu yalnız sahibinin sohbetini dinler ve yalnız okuma komutları
+  tanır. Telegram kodunu yalnız haberci servisi görür; botlar görmez.
+- Sunucu, bu deponun `main` dalına işlenen kodu kendiliğinden çalıştırır.
+  Bu yüzden GitHub hesabının güvenliği sunucunun güvenliğidir: hesapta iki
+  adımlı doğrulama açık olmalıdır. Gerçek paraya geçilirse kendiliğinden
+  güncelleme yeniden değerlendirilir.

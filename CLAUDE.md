@@ -14,9 +14,33 @@ bizim kodumuz onun üstündedir.
 
 ## Kullanıcı
 
-Ahmet. Kod bilmiyor. Türkçe yaz. Ona verilen her komut kopyala-yapıştır
-hazır olmalı; ne yaptığını bir cümleyle açıkla. Teknik terim kullanacaksan
-ilk geçtiği yerde açıkla. Önceliği para kazanmak değil, parayı kaybetmemek.
+Ahmet. Kod bilmiyor. Türkçe yaz. Teknik terim kullanacaksan ilk geçtiği yerde
+açıkla. Önceliği para kazanmak değil, parayı kaybetmemek.
+
+**Yalnız telefon kullanıyor; bilgisayarı ve terminali yok.** Ondan isteyeceğin
+her şey telefondan yapılabilir olmalı: Telegram'da bir komut yazmak, bir
+bağlantıya dokunmak, bir dosyayı bu sohbete iletmek, Hetzner'in web panelinde
+bir düğmeye basmak. Ona asla SSH ya da terminal komutu verme. Sunucuda bir şey
+değişecekse kodu değiştirip ana dala işle; sunucu kendisi alır.
+
+**GitHub'da onay beklenmez.** Ahmet açıkça istedi: değişiklikleri doğrudan
+`main` dalına işle, birleştirme isteği açıp onay bekleme.
+
+## Ana dal canlıdır
+
+Sunucu 5 dakikada bir `main` dalını denetler, yeni kodu alır ve `kur.sh`'ı
+yeniden çalıştırır (`araclar/oto_guncelle.sh`). Yani `main`'e işlediğin her
+şey birkaç dakika içinde sunucuda çalışır ve Ahmet'e Telegram'dan bildirilir.
+
+- Testler geçmeden `main`'e işleme. Yarım iş işleme.
+- `karabasan/stratejiler/`, `kural.py`, `gostergeler.py`, `botlar.py` ya da
+  `user_data/strategies/` değişirse on bot yeniden başlar. Sınav sürerken
+  bunlara yalnız hata düzeltmek için dokun (3. kural).
+- `kur.sh` her güncellemede baştan sona çalışır; her adımı yeniden
+  çalıştırılabilir (yapılmışı atlayan) biçimde yaz.
+- Kurulum yarım kaldıysa sunucu aynı kodla yeniden denemez; yeni bir sürüm
+  gelince dener. Düzeltmeyi işlemen yeterlidir.
+- Depo herkese açıktır. Gizli hiçbir şey, sunucu adresi dahil, depoya girmez.
 
 ## Değişmez kurallar
 
@@ -53,6 +77,20 @@ Docker'a ve Binance'e erişim yoktur. Freqtrade burada kurulamaz. Bu yüzden
 motorla uyumu sınamaz. Gerçek sınama sunucuda `araclar/uyum_denemesi.sh` ile
 yapılır ve çıktısı `user_data/logs/uyum_denemesi.txt` dosyasına yazılır.
 
+**Sunucunun kendi Python'unda numpy ve pandas yoktur.** `kur.sh`'ın doğrudan
+çağırdığı kod (`karabasan/haberci.py`'nin `gonder`, `belge`, `bekle` işleri,
+`karabasan/botlar.py`, `araclar/yapilandirma_uret.py`) yalnız standart
+kütüphaneyle çalışmalıdır. Bunu sınayan testler var; bozma.
+
+**Sunucu betikleri burada çalıştırılamaz.** `kur.sh`, `oto_guncelle.sh` ve
+`ozel_ag.sh` yalnız taklit komutlarla (sahte `docker`, `tailscale`, `apt-get`,
+`systemctl` ve sahte bir Telegram sunucusu) prova edildi. Bir betiği
+değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine de
+"gerçek sunucuda ilk kez çalışacak" de.
+
+**Sunucudan bilgi almak:** Ahmet Telegram'da `/kurulum`, `/uyum` ya da
+`/gunluk` yazar, gelen dosyayı bu sohbete iletir. Başka yolun yok.
+
 ## Yapı
 
 | Yol | İçerik |
@@ -66,30 +104,49 @@ yapılır ve çıktısı `user_data/logs/uyum_denemesi.txt` dosyasına yazılır
 | `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim |
 | `karabasan/botlar.py` | On sanal botun listesi, komisyon başlangıç değerleri |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder |
+| `karabasan/sonuc.py` | Botların SQLite kayıtlarını salt okunur okuyup özet çıkarır; dönem (ısınma, sınav, bitti) |
+| `karabasan/sayfa.py`, `karabasan/panel.py` | Türkçe sonuç sayfası ve sunucusu (8080; `/`, `/veri.json`, `/saglik`) |
+| `karabasan/haberci.py` | Telegram: kurulum bildirimleri, günlük özet, susan bot uyarısı, komutlar |
 | `user_data/strategies/karabasan_stratejileri.py` | Freqtrade bağlantı katmanı |
 | `araclar/yapilandirma_uret.py` | Bot yapılandırmalarını ve `docker-compose.yml`'i üretir |
 | `araclar/uyum_denemesi.sh`, `araclar/karsilastir.py` | Sunucudaki uyum denemesi |
-| `kur.sh`, `guncelle.sh` | Sunucu kurulumu ve güncelleme |
+| `kurulum/sunucu_blogu.sh` | Ahmet'in sunucuyu oluştururken "Cloud config" kutusuna yapıştırdığı blok |
+| `kur.sh` | Kurulum; soru sormaz, her adımı Telegram'a yazar, her güncellemede yeniden çalışır |
+| `araclar/oto_guncelle.sh` | 5 dakikada bir `main`'i denetler, yeni kodu alır, `kur.sh`'ı çalıştırır |
+| `araclar/ozel_ag.sh` | Tailscale onay bağlantısını Telegram'dan yollar; kapıları özel ağ adresine taşır |
 
-Üretilen dosyalar (`docker-compose.yml`, `user_data/config/`, `.env`) depoya
-girmez; sunucuda `araclar/yapilandirma_uret.py` ve `kur.sh` üretir.
+Üretilen dosyalar (`docker-compose.yml`, `user_data/config/`, `.env`,
+`telegram.env`) depoya girmez; sunucuda `araclar/yapilandirma_uret.py` ve
+`kur.sh` üretir.
+
+Sunucudaki durum dosyaları: `user_data/isinma_baslangici.txt` (botların ilk
+başladığı an), `user_data/sinav_baslangici.txt` (Ahmet Telegram'da
+`/sinav_baslat evet` yazınca oluşur; bir kez yazılır, değiştirilmez),
+`user_data/kurulum_tamam`, `user_data/logs/uyum_gecti`,
+`user_data/telegram_sohbet.txt` (botun dinlediği tek sohbet).
+
+Telegram komutları yalnız okur ve bildirir. Emir gönderen, ayar değiştiren ya
+da sunucuda serbest komut çalıştıran bir Telegram komutu ekleme.
 
 ## Durum
 
-Laboratuvar sürümünün 1. parçası yazıldı; çekirdek 122 testten geçiyor.
-Henüz hiçbir şey sunucuda çalışmadı.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 198 test geçiyor.
+2. parça: sonuç sayfası, Telegram habercisi, telefondan kurulum ve
+kendiliğinden güncelleme. Ahmet sunucuyu (Hetzner CX33) 10 Ekim 2026'da
+kiralıyordu; kurulumun gerçek sunucudaki ilk sonucu henüz görülmedi.
 
 Sıradaki işler, öncelik sırasıyla:
 
-1. Ahmet sunucuyu kurunca uyum denemesi raporunu incele; hazır motorla
-   uyumsuzluk çıkarsa bağlantı katmanını düzelt.
+1. Ahmet'in ileteceği kurulum kaydını ve uyum denemesi raporunu incele;
+   kurulum betiği ya da bağlantı katmanı bir yerde takıldıysa düzelt.
 2. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).
 3. Sanal işlemlerin açıldıkları andaki Karabasan durumu ve filtre puanlarıyla
    etiketlenmesi (botların SQLite kayıtları ile Karabasan kaydının birleşimi).
 4. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
-5. 12 aylık geçmiş testi ve raporu.
-6. Türkçe panel (tek adres; şimdilik Freqtrade'in kendi ekranı kullanılıyor).
+5. 12 aylık geçmiş testi ve raporu (sonucu `user_data/gecmis_test.json`'a
+   yazılır; 7. ölçüt bunu okur).
+6. Sonuç sayfasına Karabasan durumu, filtre hunisi ve strateji ayrıntıları.
 
 ## Sunucuda doğrulanacak varsayımlar
 
@@ -101,5 +158,15 @@ Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
   (`botlar.net_hedef_orani` bu varsayıma göre çevirir).
 - Sanal modda vadeli işlemlerde fonlama ücretinin işlenmesi.
 - Vadeli veri dosyalarının adı (`araclar/karsilastir.py` içindeki desen).
-- `tailscale serve --bg --tcp` ile bot ekranlarının özel ağa açılması.
 - Kapsayıcıdaki kullanıcının kimliğinin 1000 olması (`chown` buna göre).
+- Hetzner'in "Cloud config" kutusuna yapıştırılan `#!/bin/bash` ile başlayan
+  metni ilk açılışta root olarak çalıştırması.
+- Freqtrade'in `trades` tablosundaki sütun adları (`sonuc.py`: `pair`,
+  `is_open`, `open_date`, `close_date`, `stake_amount`, `close_profit_abs`,
+  `close_profit`, `exit_reason`, `is_short`, `enter_tag`).
+- Freqtrade'in çalışırken günlük dosyasına en az 15 dakikada bir satır
+  yazması (susan bot uyarısı ve sayfadaki "çalışıyor" bilgisi buna dayanır).
+- `tailscale status --json` çıktısındaki `BackendState` ve `AuthURL` alanları.
+- `socat` köprüsünün sunucunun Tailscale adresinde dinleyebilmesi ve
+  telefonun `http://karabasan:8080` adını çözebilmesi (MagicDNS).
+- Motor görüntüsünde saat dilimi verisinin bulunması (yoksa sayfa UTC gösterir).
