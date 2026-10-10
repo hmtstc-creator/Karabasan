@@ -205,6 +205,11 @@ def bot_ozeti(
         "ad": kural["ad"],
         "piyasa": piyasa,
         "yon": kural["yon"],
+        "aciklama": kural.get("aciklama", ""),
+        "hedef_yuzde": kural["cikis"].get("kar_hedefi_yuzde"),
+        "stop_yuzde": kural["cikis"].get("zarar_durdur_yuzde"),
+        "sure_asimi_dakika": kural["cikis"].get("sure_asimi_dakika"),
+        "izinli_durumlar": list(kural.get("izinli_durumlar", [])),
         "hata": kayit["hata"],
         "gunluk_yasi_dakika": None,
         "calisiyor": None,
@@ -246,7 +251,7 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
     )
     gecmis_test = _gecmis_test_oku(veri_klasoru / "gecmis_test.json")
 
-    botlar, son_islemler = [], []
+    botlar, son_islemler, acik_islemler = [], [], []
     for bot, _sinif, kural_kodu, piyasa in BOTLAR:
         kayit = islemleri_oku(veri_klasoru / "db" / f"{bot}.sqlite")
         ozet = bot_ozeti(bot, kural_kodu, piyasa, kayit, donem, ayar, gecmis_test)
@@ -256,8 +261,11 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
         botlar.append(ozet)
         for i in kayit["kapali"]:
             if donem["baslangic"] is None or i["giris_zamani"] >= donem["baslangic"]:
-                son_islemler.append({**i, "bot": bot})
+                son_islemler.append({**i, "bot": bot, "kod": kural_kodu})
+        for i in kayit["acik"]:
+            acik_islemler.append({**i, "bot": bot, "kod": kural_kodu})
     son_islemler.sort(key=lambda i: i["cikis_zamani"], reverse=True)
+    acik_islemler.sort(key=lambda i: i["giris_zamani"], reverse=True)
 
     calisan = [b for b in botlar if b["calisiyor"]]
     bir_gun_once = simdi - timedelta(days=1)
@@ -284,8 +292,33 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
             "son_24s_islem": len(son_gun),
             "son_24s_net_tutar": sum(i["net_tutar"] for i in son_gun),
         },
-        "son_islemler": son_islemler[:15],
+        "son_islemler": son_islemler[:SON_ISLEM_SAYISI],
+        "acik_islemler": acik_islemler,
+        "egri": birikimli_egri(
+            [i for i in son_islemler if donem["bitis"] is None or i["cikis_zamani"] <= donem["bitis"]]
+        ),
     }
+
+
+SON_ISLEM_SAYISI = 30
+EGRI_NOKTA = 160
+
+
+def birikimli_egri(islemler: list, en_fazla: int = EGRI_NOKTA) -> list:
+    """Toplam sanal sonucun seyri: işlemler kapandıkça biriken net tutar (USDT).
+
+    Sıfırdan başlar, son değeri toplam net sonuca eşittir. Çok işlem varsa
+    eşit aralıklı noktalar seçilir; ilk ve son nokta her zaman korunur.
+    """
+    sirali = sorted(islemler, key=lambda i: i["cikis_zamani"])
+    toplam, egri = 0.0, [0.0]
+    for i in sirali:
+        toplam += float(i["net_tutar"])
+        egri.append(toplam)
+    if len(egri) <= en_fazla:
+        return egri
+    adim = (len(egri) - 1) / (en_fazla - 1)
+    return [egri[round(k * adim)] for k in range(en_fazla)]
 
 
 def _gecmis_test_oku(yol: Path) -> dict:

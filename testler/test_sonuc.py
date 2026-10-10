@@ -145,10 +145,44 @@ class GenelOzetTesti(unittest.TestCase):
         self.assertEqual(b["olcutler"][0]["durum"], "saglandi")       # 130 işlem
         self.assertEqual(b["olcutler"][6]["durum"], "veri_yok")       # geçmiş testi yok
 
-    def test_son_islemler_yeniden_eskiye_ve_en_fazla_on_bes(self):
+    def test_son_islemler_yeniden_eskiye_ve_en_fazla_otuz(self):
         zamanlar = [i["cikis_zamani"] for i in self.ozet["son_islemler"]]
-        self.assertEqual(len(zamanlar), 15)
+        self.assertEqual(len(zamanlar), sonuc.SON_ISLEM_SAYISI)
         self.assertEqual(zamanlar, sorted(zamanlar, reverse=True))
+        self.assertEqual(self.ozet["son_islemler"][0]["kod"], self.ozet["son_islemler"][0]["bot"].split("-")[0].upper())
+
+    def test_egri_sifirdan_baslar_toplam_sonucta_biter(self):
+        egri = self.ozet["egri"]
+        self.assertEqual(egri[0], 0.0)
+        self.assertLessEqual(len(egri), sonuc.EGRI_NOKTA)
+        self.assertAlmostEqual(egri[-1], self.ozet["toplam"]["net_tutar"])
+
+    def test_egri_sinav_bitince_de_toplamla_ayni_yerde_biter(self):
+        ozet = sonuc.genel_ozet(self.klasor, SIMDI + timedelta(days=25))
+        self.assertAlmostEqual(ozet["egri"][-1], ozet["toplam"]["net_tutar"])
+
+    def test_egri_seyreltilince_ilk_ve_son_nokta_korunur(self):
+        islemler = [
+            {"cikis_zamani": SIMDI + timedelta(minutes=k), "net_tutar": 0.5 if k % 3 else -1.0}
+            for k in range(1000)
+        ]
+        egri = sonuc.birikimli_egri(islemler, en_fazla=50)
+        self.assertEqual(len(egri), 50)
+        self.assertEqual(egri[0], 0.0)
+        self.assertAlmostEqual(egri[-1], sum(i["net_tutar"] for i in islemler))
+
+    def test_acik_islemler_listelenir(self):
+        aciklar = self.ozet["acik_islemler"]
+        self.assertEqual(len(aciklar), self.ozet["toplam"]["acik_pozisyon"])
+        zamanlar = [i["giris_zamani"] for i in aciklar]
+        self.assertEqual(zamanlar, sorted(zamanlar, reverse=True))
+
+    def test_bot_ozeti_kural_ayrintisini_tasir(self):
+        b = self.botlar["s6-vadeli"]
+        self.assertEqual(b["kod"], "S6")
+        self.assertIn("RSI", b["aciklama"])
+        self.assertEqual((b["hedef_yuzde"], b["stop_yuzde"], b["sure_asimi_dakika"]), (1.2, 0.7, 180))
+        self.assertEqual(b["izinli_durumlar"], ["YESIL", "SARI"])
 
     def test_gunluk_dosyasi_olmayan_bot_calisiyor_sayilmaz(self):
         self.assertEqual(self.ozet["toplam"]["calisan_bot"], 0)

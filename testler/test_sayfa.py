@@ -1,6 +1,9 @@
 """Sonuç sayfası ve sunucusu."""
 
+import base64
+import hashlib
 import json
+import re
 import tempfile
 import threading
 import unittest
@@ -30,6 +33,22 @@ class BicimTesti(unittest.TestCase):
 
     def test_yuzde_isareti_basta(self):
         self.assertEqual(sayfa.yuzde(64.62), "%64,6")
+
+    def test_isaretli_yuzde_isaret_onde(self):
+        self.assertEqual(sayfa.isaretli_yuzde(1.05), "+%1,05")
+        self.assertEqual(sayfa.isaretli_yuzde(-1.14), "−%1,14")
+        self.assertEqual(sayfa.isaretli_yuzde(0.0), "%0,00")
+
+    def test_kisa_yuzde_gereksiz_sifir_yazmaz(self):
+        self.assertEqual(sayfa.kisa_yuzde(1.2), "%1,2")
+        self.assertEqual(sayfa.kisa_yuzde(1.0), "%1")
+        self.assertEqual(sayfa.kisa_yuzde(0.75), "%0,75")
+
+    def test_selam_saate_gore(self):
+        self.assertEqual(sayfa.selam(7), "Günaydın efendim.")
+        self.assertEqual(sayfa.selam(14), "İyi günler efendim.")
+        self.assertEqual(sayfa.selam(20), "İyi akşamlar efendim.")
+        self.assertEqual(sayfa.selam(2), "İyi geceler efendim.")
 
     def test_yerel_saat_bukres(self):
         yerel, ad = sayfa.yerel_zaman(SIMDI)
@@ -61,8 +80,63 @@ class SayfaTesti(unittest.TestCase):
 
     def test_dis_kaynak_yok(self):
         html = sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI))
-        for yasak in ("http://", "https://", "<script", "@import", "url("):
+        for yasak in ("http://", "https://", "@import", "url(", " src=", "<link", "<iframe", "<object"):
             self.assertNotIn(yasak, html)
+        # Tek bir satır içi betik vardır ve o da sayfa.betik()'in ürettiği metindir.
+        self.assertEqual(re.findall(r"<script>(.*?)</script>", html, re.S), [sayfa.betik(60)])
+
+    def test_dosya_hali_betiksizdir_ve_kendini_yenilemez(self):
+        html = sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI), yenile_saniye=0)
+        self.assertNotIn("<script", html)
+        self.assertNotIn("http-equiv", html)
+        self.assertIn("kendini tazelemez", html)
+
+    def test_dort_ekran_ve_gezinti(self):
+        html = sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI))
+        for kimlik, _ad in sayfa.EKRANLAR:
+            self.assertEqual(html.count(f'<section id="{kimlik}" class="ekran">'), 1)
+            self.assertIn(f'<a href="#{kimlik}">', html)
+            self.assertIn(f"'{kimlik}'", sayfa.betik(60))   # betik de aynı ekranları tanır
+
+    def test_halkada_her_bot_bir_dilimdir(self):
+        ozet = sonuc.genel_ozet(self.klasor, SIMDI)
+        html = sayfa.html_uret(ozet)
+        self.assertEqual(html.count('class="r-bot '), 10)
+        self.assertEqual(html.count('class="r-gun'), 30)
+        self.assertEqual(html.count('class="r-gun gecti"'), 11)
+        self.assertEqual(html.count('class="r-gun bugun"'), 1)
+        for b in ozet["botlar"]:
+            self.assertIn(f'<a href="#bot-{b["bot"]}" tabindex="-1">', html)
+            self.assertIn(f'<article class="kart kose" id="bot-{b["bot"]}">', html)
+        # Kaydı olmayan bot artıda ya da ekside görünmez.
+        self.assertIn('class="r-bot yok"', html)
+        # Ortadaki sayı toplam sanal sonuçtur.
+        self.assertIn(f'>{sayfa.isaretli(ozet["toplam"]["net_tutar"])}</text>', html)
+
+    def test_isinmada_sinav_halkasi_bostur(self):
+        with tempfile.TemporaryDirectory() as gecici:
+            klasor = Path(gecici)
+            (klasor / "isinma_baslangici.txt").write_text((SIMDI - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+            html = sayfa.html_uret(sonuc.genel_ozet(klasor, SIMDI))
+        self.assertEqual(html.count('class="r-gun"'), 30)
+        self.assertIn("Sınav başlayınca her botun yedi ölçütteki durumu", html)
+
+    def test_strateji_ayrintisi_bot_kartinda(self):
+        html = sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI))
+        self.assertIn("MACD yukarı kesip", html)                      # S5'in açıklaması
+        self.assertIn("<dt>Kâr hedefi</dt><dd>%0,9</dd>", html)        # S5'in hedefi
+        self.assertIn("Tasarlandığı piyasa durumu: Kırmızı, Sarı.", html)
+
+    def test_karabasan_olculmedigi_acikca_yazar(self):
+        duz = " ".join(sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI)).split())
+        self.assertIn("henüz canlı ölçülmüyor", duz)
+        self.assertIn("botlar şimdilik her piyasa durumunda işlem açıyor", duz)
+
+    def test_acik_pozisyonlar_ve_vadeli_parite_adi(self):
+        ozet = sonuc.genel_ozet(self.klasor, SIMDI)
+        html = sayfa.html_uret(ozet)
+        self.assertEqual(html.count("önce açıldı"), ozet["toplam"]["acik_pozisyon"])
+        self.assertNotIn(":USDT", html)   # SOL/USDT:USDT yerine SOL/USDT yazar
 
     def test_bos_sunucu_sayfasi(self):
         with tempfile.TemporaryDirectory() as bos:
@@ -128,6 +202,18 @@ class SunucuTesti(unittest.TestCase):
         veri = json.loads(govde)
         self.assertEqual(veri["donem"], "sinav")
         self.assertEqual(len(veri["botlar"]), 10)
+
+    def test_guvenlik_basligi_yalniz_sayfadaki_betige_izin_verir(self):
+        _kod, baslik, govde = self._al("/")
+        betik = re.findall(r"<script>(.*?)</script>", govde, re.S)
+        self.assertEqual(len(betik), 1)
+        ozet = base64.b64encode(hashlib.sha256(betik[0].encode("utf-8")).digest()).decode("ascii")
+        izin = baslik["Content-Security-Policy"]
+        self.assertIn(f"script-src 'sha256-{ozet}'", izin)
+        self.assertIn("default-src 'none'", izin)
+        self.assertIn("connect-src 'self'", izin)
+        self.assertNotIn("unsafe-eval", izin)
+        self.assertNotIn("script-src 'unsafe-inline'", izin)
 
     def test_saglik(self):
         self.assertEqual(self._al("/saglik")[2], "tamam\n")

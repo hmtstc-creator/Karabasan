@@ -37,7 +37,7 @@ yürütücü, risk yöneticisi) bu aşamada yoktur.
 
 ## Dürüst not: nerede sınandı, nerede sınanmadı
 
-Kod 249 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
+Kod 265 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
 ve altı stratejinin geleceğe bakmadığı, kâr hedefi ve stop hesabı,
 Karabasan'ın "açılması yavaş, kapanması hızlı" davranışı, veto süreleri,
 filtrenin elenme nedenleri, sınavın yedi karar ölçütü, sonuç sayfasının sahte
@@ -97,8 +97,21 @@ veride doğru çalıştığını görmek içindir. Sınavın saatini Telegram'da
 | `http://karabasan:8080` | Sonuç sayfası; yalnız Tailscale açıkken açılır |
 | Telegram, `/sayfa` | Aynı sayfa, dosya olarak |
 
-Sonuç sayfası her botun işlem sayısını, kazanma ve başabaş oranını, net
-sonucunu, en büyük düşüşünü ve sınavın yedi ölçütünün ara durumunu gösterir.
+Sonuç sayfasında dört ekran var; telefonda altta, bilgisayarda üstte duran
+şeritten geçilir:
+
+- **Ana ekran:** ortada bir gösterge halkası. Dış halkadaki on dilim on bottur
+  (yeşil artıda, kırmızı ekside, sarı kesikli "ses yok"); iç halka sınavın 30
+  günüdür; ortadaki sayı toplam sanal sonuçtur. Altında görevdeki bot sayısı,
+  son 24 saat, toplam sonucun seyri ve botların sıralaması durur.
+- **Botlar:** her stratejinin ne yaptığı düz Türkçeyle, kâr hedefi, stop, en
+  uzun süre, işlem sayısı, kazanma ve başabaş oranı, net sonuç, çıkış nedenleri.
+- **İşlemler:** açık pozisyonlar ve son kapanan 30 işlem.
+- **Sınav:** 30 günlük cetvel, yedi ölçüt ve her botun ölçütlerdeki durumu.
+
+Sayfa dakikada bir kendini tazeler; sunucuya ulaşamazsa bunu üstte sarı bir
+şeritle söyler. Karabasan piyasa durumu henüz canlı ölçülmediği için ana
+ekranda "henüz canlı ölçülmüyor" yazar.
 
 ## Telegram komutları
 

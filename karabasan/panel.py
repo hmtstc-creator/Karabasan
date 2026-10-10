@@ -15,6 +15,8 @@ Yalnız Python standart kütüphanesi ile karabasan paketini kullanır.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import logging
 import os
@@ -23,10 +25,26 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .sayfa import html_uret
+from .sayfa import betik, html_uret
 from .sonuc import genel_ozet, json_icin
 
 ONBELLEK_SANIYE = 20
+YENILE_SANIYE = 60
+
+
+def guvenlik_basligi(yenile_saniye: int = YENILE_SANIYE) -> str:
+    """Tarayıcıya neye izin verildiğini söyler (Content-Security-Policy).
+
+    Sayfa yalnız kendi içindeki biçimi ve tek bir betiği kullanabilir; betik
+    metninin özeti (sha256) burada yazdığı için başka hiçbir betik çalışmaz.
+    Betik yalnız bu sunucudan veri çekebilir. Dış kaynak, çerçeve ve form yok.
+    """
+    ozet = base64.b64encode(hashlib.sha256(betik(yenile_saniye).encode("utf-8")).digest()).decode("ascii")
+    return (
+        "default-src 'none'; style-src 'unsafe-inline'; "
+        f"script-src 'sha256-{ozet}'; connect-src 'self'; "
+        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    )
 
 gunluk = logging.getLogger("karabasan.panel")
 
@@ -65,6 +83,8 @@ Sorun sürerse şu satırı Claude'a gönder:</p><pre style="white-space:pre-wra
 
 
 def isleyici_uret(onbellek: Onbellek):
+    guvenlik = guvenlik_basligi()
+
     class Isleyici(BaseHTTPRequestHandler):
         server_version = "Karabasan"
         sys_version = ""
@@ -76,7 +96,7 @@ def isleyici_uret(onbellek: Onbellek):
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+            self.send_header("Content-Security-Policy", guvenlik)
             self.end_headers()
             if self.command != "HEAD":
                 self.wfile.write(govde)
@@ -90,7 +110,10 @@ def isleyici_uret(onbellek: Onbellek):
                     govde = json.dumps(json_icin(onbellek.ozet()), ensure_ascii=False, indent=1)
                     self._yanit(200, "application/json; charset=utf-8", govde.encode("utf-8"))
                 elif yol in ("/", "/index.html"):
-                    self._yanit(200, "text/html; charset=utf-8", html_uret(onbellek.ozet()).encode("utf-8"))
+                    self._yanit(
+                        200, "text/html; charset=utf-8",
+                        html_uret(onbellek.ozet(), yenile_saniye=YENILE_SANIYE).encode("utf-8"),
+                    )
                 else:
                     self._yanit(404, "text/plain; charset=utf-8", "Böyle bir sayfa yok.\n".encode("utf-8"))
             except Exception as hata:  # noqa: BLE001 - sayfa her durumda bir yanıt vermeli

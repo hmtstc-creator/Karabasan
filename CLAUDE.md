@@ -106,7 +106,7 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder |
 | `karabasan/gecmis_olcum.py` | Karabasan puanını geçmiş mumlardan geriye dönük hesaplar (yaklaşık: dominans ve TOTAL2 yerine altcoin vekili); işlemleri açıldıkları andaki durumla etiketler |
 | `karabasan/sonuc.py` | Botların SQLite kayıtlarını salt okunur okuyup özet çıkarır; dönem (ısınma, sınav, bitti) |
-| `karabasan/sayfa.py`, `karabasan/panel.py` | Türkçe sonuç sayfası ve sunucusu (8080; `/`, `/veri.json`, `/saglik`) |
+| `karabasan/sayfa.py`, `karabasan/panel.py` | Türkçe sonuç sayfası ve sunucusu (8080; `/`, `/veri.json`, `/saglik`). Dört ekran: ana ekran (gösterge halkası), botlar, işlemler, sınav. Sunucudan açılan hali tek bir satır içi betik taşır (ekran geçişi, dakikada bir yerinde tazeleme); `panel.py` izin başlığını (CSP) o betiğin özetinden üretir. Telegram'ın `/sayfa` ile yolladığı dosya betiksizdir, dört ekran alt alta görünür |
 | `karabasan/haberci.py` | Telegram: kurulum bildirimleri, günlük özet, susan bot uyarısı, komutlar |
 | `user_data/strategies/karabasan_stratejileri.py` | Freqtrade bağlantı katmanı |
 | `araclar/yapilandirma_uret.py` | Bot yapılandırmalarını ve `docker-compose.yml`'i üretir |
@@ -168,7 +168,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 249 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 265 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -243,7 +243,8 @@ Sıradaki işler, öncelik sırasıyla:
 5. Sunucudaki Claude oturumunun (`claude remote-control`) gerçekte açıldığını
    doğrula; takılırsa Ahmet `/gunluk claude` dosyasını iletir.
 6. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
-7. Sonuç sayfasına Karabasan durumu, filtre hunisi ve strateji ayrıntıları.
+7. Sonuç sayfasına Karabasan durumu ve filtre hunisi (strateji ayrıntıları 11 Ekim'de eklendi; ana ekranda
+   Karabasan için "henüz canlı ölçülmüyor" yazan bir şerit var, 2. iş bitince gerçek durumla değişecek).
 
 ## Sunucuda doğrulanacak varsayımlar
 
@@ -284,3 +285,6 @@ Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
   ("Enable Remote Control? (y/n)", "Trust ...? [y/N]") metni ve oturum
   adresini ekrana yazması (`araclar/claude_sunucu.sh` bunlara göre yazıldı).
 - `.claude/settings.json` içindeki izin kurallarının yazımı.
+- Yeni sonuç sayfası (11 Ekim 2026) yalnız buradaki Chromium'da, telefon ve masaüstü genişliğinde
+  denendi: ekran geçişi, halkadaki dilime dokunma, yerinde tazeleme, bağlantı kopunca uyarı, betiksiz dosya
+  hali. Ahmet'in telefonundaki tarayıcıda (Safari) ve Telegram'ın dosya görüntüleyicisinde denenmedi.
