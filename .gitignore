@@ -13,6 +13,7 @@ user_data/data/
 user_data/kayit/
 user_data/backtest_results/
 user_data/sinav_baslangici.txt
+user_data/isinma_baslangici.txt
 
 # Python
 __pycache__/

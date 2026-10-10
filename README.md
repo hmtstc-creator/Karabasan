@@ -89,6 +89,10 @@ Betik dokuz adımdır. 4. adımda bir Tailscale bağlantısı gösterir; onu
 tarayıcında açıp onaylarsın. 8. adım (uyum denemesi) 10-20 dakika sürer.
 Bir yerde durursa ekranda hangi dosyayı göndermen gerektiği yazar.
 
+Kurulum bitince botlar bir **ısınma haftasına** girer: sanal işlem yaparlar
+ama 30 günlük sınavın saati henüz başlamaz. Bu hafta, tesisatın gerçek
+veride doğru çalıştığını görmek ve sıradaki parçaları eklemek içindir.
+
 ## Komisyon oranları
 
 `user_data/ayarlar.json` dosyasında durur (ilk kurulumda başlangıç

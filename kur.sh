@@ -129,7 +129,9 @@ chown -R 1000:1000 user_data
 # ---------------------------------------------------------------- 9
 adim "9/9 Sanal botlar başlatılıyor"
 docker compose up -d
-[ -f user_data/sinav_baslangici.txt ] || date -u '+%Y-%m-%dT%H:%M:%SZ' > user_data/sinav_baslangici.txt
+# Bu tarih ısınma döneminin başlangıcıdır. 30 günlük sınavın saati, ısınma
+# haftası sorunsuz geçince ayrıca başlatılır.
+[ -f user_data/isinma_baslangici.txt ] || date -u '+%Y-%m-%dT%H:%M:%SZ' > user_data/isinma_baslangici.txt
 
 # Bot ekranlarını yalnız özel ağdan erişilir kıl.
 PORTLAR=$(python3 -c "
@@ -144,7 +146,8 @@ done
 echo
 echo "============================================================"
 echo "KURULUM TAMAM. On sanal bot çalışıyor; hiçbir emir borsaya gitmez."
-echo "Sınav başlangıcı: $(cat user_data/sinav_baslangici.txt)"
+echo "Isınma dönemi başladı: $(cat user_data/isinma_baslangici.txt)"
+echo "30 günlük sınavın saati henüz başlamadı; ısınma haftasından sonra başlatılır."
 echo
 if [ "$ERISIM" -eq 1 ]; then
     echo "Bot ekranları (Tailscale açıkken tarayıcıdan):"
