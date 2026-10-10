@@ -16,8 +16,29 @@ INDIRILECEK_GUN=45
 mkdir -p user_data/logs
 : > "$RAPOR"
 
+GECICI="$(mktemp)"
+trap 'rm -f "$GECICI"' EXIT
+
 yaz() { echo "$@" | tee -a "$RAPOR"; }
-calistir() { docker compose run --rm -T arac "$@" 2>&1 | tee -a "$RAPOR"; return "${PIPESTATUS[0]}"; }
+
+# Hazır motor bazı hatalarda (örneğin ayar hatası) çıkış koduyla haber vermeyebilir.
+# Bu yüzden bir adım ancak hem çıkış kodu temizse hem de çıktısında hata satırı
+# yoksa geçmiş sayılır. İlk kurulumda bu denetim yoktu ve on geçmiş testi ayar
+# hatasıyla durduğu halde "geçti" yazıldı.
+HATA_DESENI='CRITICAL|Configuration error|Traceback \(most recent call last\)|Fatal exception'
+
+# calistir KOMUT...: hazır motoru çalıştırır, çıktıyı rapora ve $GECICI dosyasına yazar.
+# Dönüş: 0 temiz, 1 çıkış kodu hatalı, 2 çıktıda hata satırı var.
+calistir() {
+    docker compose run --rm -T arac "$@" > "$GECICI" 2>&1
+    local KOD=$?
+    cat "$GECICI" >> "$RAPOR"
+    echo "  (çıkış kodu: $KOD)" >> "$RAPOR"
+    if [ "$KOD" -ne 0 ]; then return 1; fi
+    if grep -Eq "$HATA_DESENI" "$GECICI"; then return 2; fi
+    return 0
+}
+hata_satiri() { grep -E "$HATA_DESENI|ERROR" "$GECICI" | head -1 | cut -c1-200; }
 
 HATA=0
 gecti() { yaz "  [GEÇTİ] $1"; }
@@ -29,15 +50,17 @@ yaz ""
 
 # ---------------------------------------------------------------- 1
 yaz "1/5 Strateji sınıfları yükleniyor"
-CIKTI=$(docker compose run --rm -T arac list-strategies --strategy-path /freqtrade/user_data/strategies 2>&1)
-echo "$CIKTI" >> "$RAPOR"
+calistir list-strategies
+LISTE=$?
 EKSIK=""
 for SINIF in S1Spot S2Spot S3Spot S4Spot S1Vadeli S2Vadeli S3Vadeli S4Vadeli S1KVadeli S2KVadeli; do
-    echo "$CIKTI" | grep -q "$SINIF" || EKSIK="$EKSIK $SINIF"
+    grep -q "$SINIF" "$GECICI" || EKSIK="$EKSIK $SINIF"
 done
-if [ -n "$EKSIK" ]; then
+if [ "$LISTE" -ne 0 ]; then
+    kaldi "Strateji listesi alınamadı: $(hata_satiri)"
+elif [ -n "$EKSIK" ]; then
     kaldi "Bulunamayan sınıflar:$EKSIK"
-elif echo "$CIKTI" | grep -q "LOAD FAILED"; then
+elif grep -q "LOAD FAILED" "$GECICI"; then
     kaldi "Bazı strateji dosyaları yüklenemedi (ayrıntı raporda)"
 else
     gecti "On strateji sınıfı bulundu ve yüklendi"
@@ -48,10 +71,10 @@ yaz ""
 yaz "2/5 Spot geçmiş verisi indiriliyor ($INDIRILECEK_GUN gün, 5 parite)"
 if calistir download-data --exchange binance --trading-mode spot \
         --pairs BTC/USDT ETH/USDT SOL/USDT XRP/USDT DOGE/USDT \
-        --timeframes 5m 15m --days "$INDIRILECEK_GUN" > /dev/null; then
+        --timeframes 5m 15m --days "$INDIRILECEK_GUN"; then
     gecti "Spot verisi indirildi"
 else
-    kaldi "Spot verisi indirilemedi"
+    kaldi "Spot verisi indirilemedi: $(hata_satiri)"
 fi
 
 # ---------------------------------------------------------------- 3
@@ -59,10 +82,10 @@ yaz ""
 yaz "3/5 Vadeli geçmiş verisi indiriliyor ($INDIRILECEK_GUN gün, 5 parite)"
 if calistir download-data --exchange binance --trading-mode futures \
         --pairs BTC/USDT:USDT ETH/USDT:USDT SOL/USDT:USDT XRP/USDT:USDT DOGE/USDT:USDT \
-        --timeframes 5m 15m --days "$INDIRILECEK_GUN" > /dev/null; then
+        --timeframes 5m 15m --days "$INDIRILECEK_GUN"; then
     gecti "Vadeli verisi indirildi"
 else
-    kaldi "Vadeli verisi indirilemedi"
+    kaldi "Vadeli verisi indirilemedi: $(hata_satiri)"
 fi
 
 # ---------------------------------------------------------------- 4
@@ -76,22 +99,34 @@ for SATIR in $BOTLAR; do
     BOT=${SATIR%%:*}; KALAN=${SATIR#*:}; SINIF=${KALAN%%:*}; PIYASA=${KALAN#*:}
     yaz ""
     yaz "--- $BOT ($SINIF) ---"
-    if calistir backtesting \
-            --config "/freqtrade/user_data/config/$BOT.json" \
-            --config "/freqtrade/user_data/config/geri_test_$PIYASA.json" \
-            --strategy "$SINIF" --timerange "$BASLANGIC-" \
-            --enable-protections --export none > /dev/null; then
+    calistir backtesting \
+        --config "/freqtrade/user_data/config/$BOT.json" \
+        --config "/freqtrade/user_data/config/geri_test_$PIYASA.json" \
+        --strategy "$SINIF" --timerange "$BASLANGIC-" \
+        --enable-protections --export none
+    SONUC=$?
+    if [ "$SONUC" -ne 0 ]; then
+        kaldi "$BOT geçmiş testi hata verdi: $(hata_satiri)"
+    elif grep -q "BACKTESTING REPORT" "$GECICI"; then
         gecti "$BOT geçmiş testi tamamlandı"
+        # Karşılaştırmayı kolaylaştıran satırlar (bulunursa).
+        grep -E "TOTAL|Total/Daily Avg Trades|Absolute profit|Total profit %" "$GECICI" \
+            | head -6 | sed 's/^/    > /' >> "$RAPOR"
+    elif grep -q "No trades made" "$GECICI"; then
+        gecti "$BOT geçmiş testi tamamlandı, ama hiç işlem açmadı"
     else
-        kaldi "$BOT geçmiş testi hata verdi"
+        # Hata satırı yok ama sonuç tablosu da yok: geçti sayılmaz.
+        kaldi "$BOT geçmiş testinin sonuç tablosu çıktıda bulunamadı"
     fi
 done
 
 # ---------------------------------------------------------------- 5
 yaz ""
 yaz "5/5 Bağımsız karşılaştırma (aynı veride kendi benzetimimiz)"
-docker compose run --rm -T --entrypoint python3 arac /freqtrade/araclar/karsilastir.py "$GUN" 2>&1 | tee -a "$RAPOR"
-if [ "${PIPESTATUS[0]}" -eq 0 ]; then
+docker compose run --rm -T --entrypoint python3 arac /freqtrade/araclar/karsilastir.py "$GUN" > "$GECICI" 2>&1
+KOD=$?
+cat "$GECICI" | tee -a "$RAPOR"
+if [ "$KOD" -eq 0 ] && ! grep -q "Traceback (most recent call last)" "$GECICI"; then
     gecti "Bağımsız benzetim çalıştı"
 else
     # Bu adım yalnız bir çapraz kontroldür; botların başlamasını engellemez.

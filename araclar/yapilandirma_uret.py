@@ -173,6 +173,10 @@ def compose_metni() -> str:
         "  arac:",
         f"    image: {GORUNTU}",
         "    profiles: [\"arac\"]",
+        # Bot yapılandırmalarındaki ekran parolası ve anahtar alanları yer tutucudur;
+        # gerçek değerler .env'den gelir. Bu satır olmadan hazır motor yapılandırmayı
+        # geçersiz sayar ve geçmiş testi hiç başlamaz (ilk kurulumda böyle oldu).
+        "    env_file: .env",
         "    volumes:",
         "      - ./user_data:/freqtrade/user_data",
         "      - ./karabasan:/freqtrade/karabasan:ro",

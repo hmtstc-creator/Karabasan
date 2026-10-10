@@ -236,25 +236,36 @@ PY
 
     # ------------------------------------------------------------ 9
     adim "9/10 Uyum denemesi"
-    local SURUM
+    # Uyum denemesinin içeriği değişince bu sayı artırılır; sunucu denemeyi bir
+    # sonraki güncellemede kendiliğinden yeniden çalıştırır.
+    local UYUM_SURUMU=2 SURUM
     SURUM="$(git rev-parse HEAD 2> /dev/null || echo bilinmiyor)"
-    if [ ! -f user_data/logs/uyum_gecti ]; then
-        bildir "Adım 9/10: uyum denemesi başladı. Hazır motorun stratejilerimizle doğru çalıştığını gerçek Binance verisinde sınıyor. 10-20 dakika sürer; bitince raporu yollarım."
+    if [ "$(cat user_data/logs/uyum_gecti 2> /dev/null)" != "surum-$UYUM_SURUMU" ]; then
+        if [ "$ILK" -eq 1 ]; then
+            bildir "Adım 9/10: uyum denemesi başladı. Hazır motorun stratejilerimizle doğru çalıştığını gerçek Binance verisinde sınıyor. 10-20 dakika sürer; bitince raporu yollarım."
+        else
+            bildir "Uyum denemesi yeniden çalışıyor (denetimi düzeltildi). Botlar bu sırada çalışmaya devam eder. 10-20 dakika sürer; bitince raporu yollarım."
+        fi
         trap - ERR
         local UYUM=0
         bash araclar/uyum_denemesi.sh || UYUM=$?
         trap 'dur "beklenmeyen hata (adım: $ADIM, satır $LINENO)"' ERR
         chown -R 1000:1000 user_data
-        if [ "$UYUM" -ne 0 ]; then
+        if [ "$UYUM" -eq 0 ]; then
+            echo "surum-$UYUM_SURUMU" > user_data/logs/uyum_gecti
+            belge "$KLASOR/user_data/logs/uyum_denemesi.txt" "Uyum denemesi geçti. Sayıları karşılaştırması için bu dosyayı Claude'a ilet."
+        elif [ "$ILK" -eq 1 ]; then
             echo "$SURUM" > "$DURUM_KLASORU/son_deneme"
             bildir "Uyum denemesi geçmedi; sanal botlar başlatılmadı. Bu beklenen bir olasılıktı: kod ilk kez gerçek motorla buluşuyor.
 
 Birazdan gelecek raporu Claude'a ilet. Claude düzeltmeyi gönderince sunucu 5 dakika içinde kendiliğinden yeniden dener."
             belge "$KLASOR/user_data/logs/uyum_denemesi.txt" "Uyum denemesi raporu (geçmedi). Bu dosyayı Claude'a ilet."
             exit 1
+        else
+            # Botlar zaten çalışıyor: durdurulmaz, kurulumun kalanı da sürer.
+            bildir "Uyum denemesi bu kez geçmedi. Botlar çalışmaya devam ediyor. Birazdan gelecek raporu Claude'a ilet."
+            belge "$KLASOR/user_data/logs/uyum_denemesi.txt" "Uyum denemesi raporu (geçmedi). Bu dosyayı Claude'a ilet."
         fi
-        echo "$SURUM" > user_data/logs/uyum_gecti
-        belge "$KLASOR/user_data/logs/uyum_denemesi.txt" "Uyum denemesi geçti. Sayıları karşılaştırması için bu dosyayı Claude'a ilet."
     else
         echo "Uyum denemesi daha önce geçti, atlandı."
     fi

@@ -345,3 +345,86 @@ class KurulumBetikleriTesti(unittest.TestCase):
             metin = (KOK / betik).read_text(encoding="utf-8")
             for satir in re.findall(r"^\s*ufw allow.*$", metin, flags=re.M):
                 self.assertTrue("tailscale0" in satir or "22/tcp" in satir, f"{betik}: {satir.strip()}")
+
+
+class UyumDenemesiTesti(unittest.TestCase):
+    """Uyum denemesi betiği taklit bir 'docker' ile çalıştırılır.
+
+    İlk kurulumda hazır motor on geçmiş testinde de ayar hatası verdi, ama çıkış
+    kodu temiz göründüğü için betik "geçti" yazdı. Bu testler o deliği kapalı tutar.
+    """
+
+    SAHTE_DOCKER = r'''#!/bin/bash
+case "$*" in
+  *list-strategies*) echo "S1Spot S2Spot S3Spot S4Spot S1Vadeli S2Vadeli S3Vadeli S4Vadeli S1KVadeli S2KVadeli";;
+  *"--version"*) echo "freqtrade 2026.9";;
+  *download-data*) echo "Downloaded data";;
+  *karsilastir.py*) echo "Bot  İşlem"; echo "s1-spot 73";;
+  *backtesting*)
+    case "$SAHTE_MOD" in
+      ayar_hatasi) echo "freqtrade.configuration.config_validation - CRITICAL - Invalid configuration. Reason: 'X' is too short"
+                   echo "freqtrade - ERROR - Configuration error: 'X' is too short"; exit 0;;
+      cikis_kodu) echo "bir seyler ters gitti"; exit 1;;
+      tablo_yok) echo "freqtrade - INFO - bitti";;
+      islem_yok) echo "No trades made. Your starting balance was 1000 USDT";;
+      *) echo "                 BACKTESTING REPORT"; echo "│ TOTAL │ 73 │ -0.29 │ -10.7 │";;
+    esac;;
+esac
+exit 0
+'''
+
+    def _calistir(self, mod):
+        import os
+        import shutil
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = Path(gecici)
+            (kok / "araclar").mkdir()
+            (kok / "bin").mkdir()
+            shutil.copy(KOK / "araclar" / "uyum_denemesi.sh", kok / "araclar" / "uyum_denemesi.sh")
+            docker = kok / "bin" / "docker"
+            docker.write_text(self.SAHTE_DOCKER, encoding="utf-8")
+            docker.chmod(0o755)
+            ortam = {**os.environ, "PATH": f"{kok / 'bin'}:{os.environ['PATH']}", "SAHTE_MOD": mod}
+            sonuc = subprocess.run(["bash", str(kok / "araclar" / "uyum_denemesi.sh")],
+                                   capture_output=True, text=True, env=ortam)
+            rapor = (kok / "user_data" / "logs" / "uyum_denemesi.txt").read_text(encoding="utf-8")
+            return sonuc.returncode, rapor
+
+    def test_her_sey_yolundaysa_gecer(self):
+        kod, rapor = self._calistir("iyi")
+        self.assertEqual(kod, 0, rapor)
+        self.assertIn("SONUÇ: Tüm adımlar geçti.", rapor)
+        self.assertEqual(rapor.count("geçmiş testi tamamlandı"), 10)
+        self.assertIn("> │ TOTAL │ 73", rapor)
+
+    def test_ayar_hatasi_cikis_kodu_temiz_olsa_da_kalir(self):
+        kod, rapor = self._calistir("ayar_hatasi")
+        self.assertEqual(kod, 1)
+        self.assertEqual(rapor.count("[KALDI]"), 10)
+        self.assertIn("SONUÇ: 10 adım kaldı.", rapor)
+        self.assertNotIn("geçmiş testi tamamlandı", rapor)
+
+    def test_hatali_cikis_kodu_kalir(self):
+        kod, rapor = self._calistir("cikis_kodu")
+        self.assertEqual(kod, 1)
+        self.assertEqual(rapor.count("[KALDI]"), 10)
+
+    def test_sonuc_tablosu_yoksa_gecti_sayilmaz(self):
+        kod, rapor = self._calistir("tablo_yok")
+        self.assertEqual(kod, 1)
+        self.assertIn("sonuç tablosu çıktıda bulunamadı", rapor)
+
+    def test_hic_islem_acmayan_strateji_hata_degildir(self):
+        kod, rapor = self._calistir("islem_yok")
+        self.assertEqual(kod, 0, rapor)
+        self.assertEqual(rapor.count("ama hiç işlem açmadı"), 10)
+
+    def test_arac_servisi_gizli_degerleri_okur(self):
+        """Yer tutucu parolalarla hazır motor yapılandırmayı reddeder; arac da .env okumalı."""
+        sys.path.insert(0, str(KOK / "araclar"))
+        import yapilandirma_uret
+
+        arac = yapilandirma_uret.compose_metni().split("  arac:")[1].split("\n\n")[0]
+        self.assertIn("env_file: .env", arac)

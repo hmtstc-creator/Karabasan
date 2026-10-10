@@ -37,7 +37,7 @@ yürütücü, risk yöneticisi) bu aşamada yoktur.
 
 ## Dürüst not: nerede sınandı, nerede sınanmadı
 
-Kod 206 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
+Kod 212 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
 ve altı stratejinin geleceğe bakmadığı, kâr hedefi ve stop hesabı,
 Karabasan'ın "açılması yavaş, kapanması hızlı" davranışı, veto süreleri,
 filtrenin elenme nedenleri, sınavın yedi karar ölçütü, sonuç sayfasının sahte
@@ -52,6 +52,11 @@ Bu yüzden şunlar ancak sunucuda sınanabilir:
    taklit komutlarla (sahte `docker`, `tailscale`, `apt-get`) prova edildi.
 3. Binance, CoinGecko ve Telegram ile gerçek bağlantı.
 4. Sonuç sayfasının hazır motorun gerçek kayıt dosyalarını okuması.
+
+Sunucu 10 Ekim 2026'da kuruldu; ikinci ve üçüncü madde doğrulandı, on sanal
+bot çalışıyor. İlk madde hâlâ açık: ilk uyum denemesi hazır motorun geçmiş
+testini bir ayar hatası yüzünden çalıştıramadı ve bunu fark etmeyip "geçti"
+yazdı. Denetim düzeltildi; karşılaştırma yeniden çalıştırılacak.
 
 Kurulumun 9. adımı olan **uyum denemesi** ilk madde içindir: botları
 başlatmadan önce her stratejiyi gerçek Binance verisinde hazır motorla

@@ -166,33 +166,50 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 206 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 212 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
-blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona geçti
-(uyum denemesi dahil) ve on sanal bot başladı. Isınma dönemi 10 Ekim'de
-başladı; 30 günlük sınavın saati henüz başlatılmadı.
+blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
+on sanal bot başladı (motor: freqtrade 2026.9). Isınma dönemi 10 Ekim'de
+başladı; 30 günlük sınavın saati henüz başlatılmadı ve aşağıdaki ilk iki iş
+bitmeden başlatılmamalı.
 
-Henüz görülmeyenler: uyum denemesi raporunun içeriği (hazır motorun sayıları
-ile bağımsız benzetimin sayıları karşılaştırılmadı), botların gerçek işlem
-kayıtları, sonuç sayfasının gerçek veriyle hali. Ahmet 11 Ekim'de Tailscale
-bağlantısını henüz onaylamamıştı. Sunucudaki Claude oturumu 11 Ekim'de
-eklendi; gerçek girişle henüz denenmedi.
+**İlk uyum denemesinin "geçti" sonucu yanlıştı.** Hazır motorun on geçmiş
+testi de ayar hatasıyla durmuştu (yer tutucu `jwt_secret_key` çok kısa; `arac`
+servisi `.env` okumuyordu), ama çıkış kodu temiz göründüğü için betik "geçti"
+yazdı. 11 Ekim'de düzeltildi: `arac` artık `.env` okuyor, betik çıktıda hata
+satırı ve sonuç tablosu arıyor, `kur.sh` denemeyi sunucuda yeniden çalıştırıyor
+(`UYUM_SURUMU`). Hazır motorun sayıları ile bağımsız benzetimin sayıları hâlâ
+karşılaştırılmadı.
+
+**İlk gerçek sonuçlar olumsuz.** Bağımsız benzetim, son 30 günün gerçek
+verisinde (BTC, ETH, SOL, XRP, DOGE; komisyon dahil; Karabasan süzgeci yok):
+S1 spot 73 işlem %37 kazanma −10,72 USDT; S2 194 / %40 / −9,32; S3 183 / %55 /
+−4,12; S4 42 / %57 / +0,07; S1K 104 / %45 / −2,01; S2K 189 / %31 / −17,61;
+vadeli sonuçlar spot ile neredeyse aynı. Canlı sanal botların ilk 6 saati:
+36 işlem, −10,44 USDT, on botun onu da ekside. Ahmet'e söylendi. Bu veriye
+bakarak strateji ayarı değiştirme (geçmişe ezber); önce karşılaştırma,
+Karabasan ölçümü ve 12 aylık geçmiş testi.
+
+Ahmet 11 Ekim'de Tailscale bağlantısını henüz onaylamamıştı. Sunucudaki
+Claude oturumu 11 Ekim'de eklendi; gerçek girişle henüz denenmedi.
 
 Sıradaki işler, öncelik sırasıyla:
 
-1. Uyum denemesi raporunu incele: 4. adım (hazır motor) ile 5. adımın
-   (bağımsız benzetim) işlem sayıları ve sonuçları birbirine yakın mı?
-   Değilse bağlantı katmanını düzelt. Sınav saati başlamadan bitmeli.
-2. Sunucudaki Claude girişinin ve oturumunun gerçekte çalıştığını doğrula;
-   takılırsa Ahmet `/gunluk claude` dosyasını iletir.
-3. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
+1. Yeniden çalışan uyum denemesinin raporunu incele: 4. adım (hazır motor) ile
+   5. adımın (bağımsız benzetim) işlem sayıları ve sonuçları birbirine yakın
+   mı? Değilse bağlantı katmanını düzelt. Sınav saati başlamadan bitmeli.
+2. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).
-4. Sanal işlemlerin açıldıkları andaki Karabasan durumu ve filtre puanlarıyla
+   Asıl soru bununla yanıtlanır: stratejiler yalnız "Yeşil" dönemde
+   çalışsaydı sonuç artıya döner miydi?
+3. Sanal işlemlerin açıldıkları andaki Karabasan durumu ve filtre puanlarıyla
    etiketlenmesi (botların SQLite kayıtları ile Karabasan kaydının birleşimi).
-5. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
-6. 12 aylık geçmiş testi ve raporu (sonucu `user_data/gecmis_test.json`'a
+4. 12 aylık geçmiş testi ve raporu (sonucu `user_data/gecmis_test.json`'a
    yazılır; 7. ölçüt bunu okur).
+5. Sunucudaki Claude girişinin ve oturumunun gerçekte çalıştığını doğrula;
+   takılırsa Ahmet `/gunluk claude` dosyasını iletir.
+6. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
 7. Sonuç sayfasına Karabasan durumu, filtre hunisi ve strateji ayrıntıları.
 
 ## Sunucuda doğrulanacak varsayımlar
@@ -200,24 +217,27 @@ Sıradaki işler, öncelik sırasıyla:
 Sunucudaki ilk kurulumla doğrulananlar (10 Ekim 2026): Hetzner'in "Cloud
 config" kutusundaki betiği ilk açılışta çalıştırması; `kur.sh`'ın Ubuntu
 24.04'te baştan sona çalışması; Telegram bildirimleri ve sahibin `/start` ile
-tanınması; hazır motorun on strateji sınıfını yükleyip geçmiş testini hatasız
-bitirmesi (sayılar henüz incelenmedi).
+tanınması; hazır motorun on strateji sınıfını bulup yüklemesi; spot ve vadeli
+veri indirme ve vadeli veri dosyalarının adı; on botun sanal modda çalışıp
+işlem açması; `sonuc.py`'nin gerçek `trades` tablosunu okuması; botların
+günlük dosyasına düzenli yazması ("Çalışan bot: 10 / 10").
+
+Bir ders: hazır motorun çıkış koduna tek başına güvenme. Ayar hatasında
+`docker compose run` temiz kodla dönmüş göründü; nedeni bilinmiyor. Çıktıda
+beklenen sonucu ara.
 
 Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
 
 - Freqtrade'in `__init_subclass__` ile doldurulan özellikleri (`minimal_roi`,
   `stoploss`, `can_short`) beklenen değerlerle kullanması (sınıflar yüklendi;
-  değerlerin doğru uygulandığı uyum raporundaki sayılardan anlaşılacak).
+  değerlerin doğru uygulandığı, geçmiş testi ile bağımsız benzetim
+  karşılaştırılınca anlaşılacak).
+- Geçmiş testi çıktısında "BACKTESTING REPORT" başlığının bulunması
+  (`uyum_denemesi.sh` buna bakar; yoksa adım kalır).
 - `minimal_roi` değerinin komisyon sonrası kâr oranı olarak yorumlanması
   (`botlar.net_hedef_orani` bu varsayıma göre çevirir).
 - Sanal modda vadeli işlemlerde fonlama ücretinin işlenmesi.
-- Vadeli veri dosyalarının adı (`araclar/karsilastir.py` içindeki desen).
 - Kapsayıcıdaki kullanıcının kimliğinin 1000 olması (`chown` buna göre).
-- Freqtrade'in `trades` tablosundaki sütun adları (`sonuc.py`: `pair`,
-  `is_open`, `open_date`, `close_date`, `stake_amount`, `close_profit_abs`,
-  `close_profit`, `exit_reason`, `is_short`, `enter_tag`).
-- Freqtrade'in çalışırken günlük dosyasına en az 15 dakikada bir satır
-  yazması (susan bot uyarısı ve sayfadaki "çalışıyor" bilgisi buna dayanır).
 - `tailscale status --json` çıktısındaki `BackendState` ve `AuthURL` alanları.
 - `socat` köprüsünün sunucunun Tailscale adresinde dinleyebilmesi ve
   telefonun `http://karabasan:8080` adını çözebilmesi (MagicDNS).
