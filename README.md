@@ -16,7 +16,7 @@ bildirir, yeni kodu kendisi alır. Bilgisayar ve terminal gerekmez.
 | --- | --- | --- |
 | Gösterge blokları | `karabasan/gostergeler.py` | Yazıldı, test edildi |
 | Kural dosyası motoru | `karabasan/kural.py` | Yazıldı, test edildi |
-| Altı strateji (S1-S4, S1K, S2K) | `karabasan/stratejiler/*.json` | Yazıldı, test edildi |
+| On strateji (S1-S6 ve dört ters yönlü hali) | `karabasan/stratejiler/*.json` | Yazıldı, test edildi; S5 ve S6 gerçek veride henüz sınanmadı |
 | Karabasan puanı, durumlar, vetolar | `karabasan/puan.py` | Yazıldı, test edildi |
 | Filtre (Elek) | `karabasan/filtre.py` | Yazıldı, test edildi |
 | Karne ve sınav karar ölçütleri | `karabasan/karne.py` | Yazıldı, test edildi |
@@ -37,7 +37,7 @@ yürütücü, risk yöneticisi) bu aşamada yoktur.
 
 ## Dürüst not: nerede sınandı, nerede sınanmadı
 
-Kod 234 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
+Kod 249 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
 ve altı stratejinin geleceğe bakmadığı, kâr hedefi ve stop hesabı,
 Karabasan'ın "açılması yavaş, kapanması hızlı" davranışı, veto süreleri,
 filtrenin elenme nedenleri, sınavın yedi karar ölçütü, sonuç sayfasının sahte
@@ -157,23 +157,32 @@ gerekmez; sonuç sayfası ve Telegram yeterlidir.
 
 ## On sanal bot
 
-| Bot | Strateji | Piyasa | Yön | Ekran |
+| Bot | Strateji | Ne yapar | Piyasa | Ekran |
 | --- | --- | --- | --- | --- |
-| s1-spot | S1 Trend içi geri çekilme | Spot | Alım | 8081 |
-| s2-spot | S2 Hacimli kırılım | Spot | Alım | 8082 |
-| s3-spot | S3 Bant içi dönüş | Spot | Alım | 8083 |
-| s4-spot | S4 Ortalamaya dönüş | Spot | Alım | 8084 |
-| s1-vadeli | S1 | Vadeli, 1 kat | Alım | 8085 |
-| s2-vadeli | S2 | Vadeli, 1 kat | Alım | 8086 |
-| s3-vadeli | S3 | Vadeli, 1 kat | Alım | 8087 |
-| s4-vadeli | S4 | Vadeli, 1 kat | Alım | 8088 |
-| s1k-vadeli | S1K Trend içi tepki satışı | Vadeli, 1 kat | Açığa satış | 8089 |
-| s2k-vadeli | S2K Hacimli aşağı kırılım | Vadeli, 1 kat | Açığa satış | 8090 |
+| s1-spot | S1 Yükselişte düşüşü al | Yükselen trendde aşırı satımdan dönüşü alır | Spot | 8081 |
+| s2-spot | S2 Tepe kırılımını al | Son 4 saatin tepesi hacimle kırılınca alır | Spot | 8082 |
+| s3-spot | S3 Yatay piyasada dipten al | Yatay piyasada bandın dibinden dönüşü alır | Spot | 8083 |
+| s4-spot | S4 Sert düşüşten dönüşü al | Fiyat gün içi ortalamadan çok uzaklaşınca dönüşü alır | Spot | 8084 |
+| s1k-vadeli | S1K Düşüşte yükselişi sat | S1'in tersi: düşen trendde tepkiyi açığa satar | Vadeli, 1 kat | 8085 |
+| s2k-vadeli | S2K Dip kırılımını sat | S2'nin tersi: dip hacimle kırılınca açığa satar | Vadeli, 1 kat | 8086 |
+| s5-vadeli | S5 Momentum vuruşu (MACD + RSI) | MACD yukarı kesip RSI yükselirken hacimli mumda alır; küçük hedef, hızlı çıkış | Vadeli, 1 kat | 8087 |
+| s5k-vadeli | S5K Momentum vuruşu, satış | S5'in tersi | Vadeli, 1 kat | 8088 |
+| s6-vadeli | S6 Likidite avı sonrası alım (akıllı para + RSI) | Fiyat son 2 saatin dibinin altına sarkıp yeniden üstünde kapanınca alır | Vadeli, 1 kat | 8089 |
+| s6k-vadeli | S6K Likidite avı sonrası satış | S6'nın tersi | Vadeli, 1 kat | 8090 |
 
 Her botun 1.000 USDT sanal bakiyesi vardır, işlem başına 50 USDT kullanır,
 aynı anda en fazla 20 pozisyon açar. Tüm emirler piyasa emridir ve karşı
 taraftan fiyatlanır; bu, sonuçları olduğundan iyi göstermemek için seçilmiş
 kötümser bir varsayımdır.
+
+S5 ve S6, 11 Ekim 2026'da eklendi ve S1-S4'ün "vadeli alım" botlarının yerine
+geçti. O dört bot spot'taki ikizleriyle aynı işlemleri açıyordu. Yeni
+stratejiler vadelide çalışır, çünkü komisyon daha düşüktür ve açığa satış
+yalnız orada mümkündür. Vadelide 50 USDT'lik işlem tutarıyla BTC işlem görmez.
+
+S6 "akıllı para" fikirlerinin yalın bir halidir: yalnız likidite avını
+(stopların süpürülmesi) ve seviyenin geri alınmasını arar. Emir bloğu ve
+fiyat boşluğu (FVG) gibi parçalar yoktur.
 
 ## Strateji dosyası
 
@@ -183,7 +192,7 @@ dosyasıdır. Örnek (`S1.json`, kısaltılmış):
 ```
 {
   "kod": "S1",
-  "ad": "Trend içi geri çekilme",
+  "ad": "Yükselişte düşüşü al",
   "yon": "alim",
   "zaman_dilimi": "5m",
   "ust_zaman_dilimi": "1h",
@@ -203,7 +212,8 @@ dosyasıdır. Örnek (`S1.json`, kısaltılmış):
 
 - `yon`: `alim` ya da `aciga_satis` (açığa satış yalnız vadelide).
 - Gösterge türleri: `ema`, `sma`, `rsi`, `bollinger`, `atr_yuzde`, `vwap`,
-  `en_yuksek`, `en_dusuk`, `hacim_ort`, `degisim_yuzde`.
+  `en_yuksek`, `en_dusuk`, `hacim_ort`, `degisim_yuzde`, `macd`
+  (`macd_cizgi`, `macd_sinyal`, `macd_fark` sütunlarını üretir).
 - İşlemler: `>`, `<`, `>=`, `<=`, `yukari_keser`, `asagi_keser`.
 - Bağlaçlar: `hepsi` (ve), `herhangi` (veya); iç içe yazılabilir.
 - Kâr hedefi ve stop fiyat hareketidir: 1.2, fiyat %1,2 lehe gidince kapat demektir.

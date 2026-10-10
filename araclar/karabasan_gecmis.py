@@ -28,23 +28,25 @@ sys.path.insert(0, str(KOK))
 from karabasan import gecmis_olcum as go  # noqa: E402
 from karabasan.benzetim import benzet  # noqa: E402
 from karabasan.botlar import ayarlari_yukle  # noqa: E402
-from karabasan.kural import kural_yukle  # noqa: E402
+from karabasan.kural import basabas_orani, kural_yukle  # noqa: E402
 from karabasan.puan import DURUM_ADI  # noqa: E402
 
 COINLER = ["BTC", "ETH", "SOL", "XRP", "DOGE"]
 VERI = KOK / "user_data" / "data" / "binance"
 
-# (görünen ad, kural kodu, piyasa, coinler). Alım yönlü vadeli botlar spot ile
-# neredeyse aynı sonucu verdiği için yinelenmez. Vadelide BTC yok: 50 USDT'lik
-# işlem tutarıyla hazır motor BTC vadeli açmıyor.
-SATIRLAR = [
-    ("S1 spot", "S1", "spot", COINLER),
-    ("S2 spot", "S2", "spot", COINLER),
-    ("S3 spot", "S3", "spot", COINLER),
-    ("S4 spot", "S4", "spot", COINLER),
-    ("S1K vadeli", "S1K", "vadeli", COINLER[1:]),
-    ("S2K vadeli", "S2K", "vadeli", COINLER[1:]),
-]
+def strateji_satirlari() -> list[tuple]:
+    """(görünen ad, kural kodu, piyasa, coinler): karabasan/botlar.py'deki her bot için bir satır.
+
+    Vadelide BTC yok: 50 USDT'lik işlem tutarıyla hazır motor BTC vadeli açmıyor.
+    """
+    from karabasan.botlar import BOTLAR
+
+    return [
+        (f"{kod} {piyasa}", kod, piyasa, COINLER[1:] if piyasa == "vadeli" else COINLER)
+        for _bot, _sinif, kod, piyasa in BOTLAR
+    ]
+
+
 DURUMLAR = ("YESIL", "SARI", "KIRMIZI", "SIYAH")
 
 
@@ -124,7 +126,7 @@ def rapor_uret(yukle=dosyadan_yukle, gun: int = 30, ayar: dict | None = None) ->
 
     baslik = f"  {'':<22} {'İşlem':>6} {'Kazanma %':>9} {'Net bek. %':>11} {'Kâr fakt.':>9} {'Net USDT':>10}"
     ozet = []
-    for ad, kod, piyasa, coinler in SATIRLAR:
+    for ad, kod, piyasa, coinler in strateji_satirlari():
         kural = kural_yukle(kod)
         komisyon = float(ayar["komisyon_yuzde"][piyasa])
         tum = []
@@ -140,7 +142,11 @@ def rapor_uret(yukle=dosyadan_yukle, gun: int = 30, ayar: dict | None = None) ->
         izinli_durumlar = list(kural.get("izinli_durumlar", []))
         izinli = go.izinli_karne(tum, izinli_durumlar, tutar, bakiye)
         izinli_adi = " ve ".join(DURUM_ADI[d] for d in izinli_durumlar)
+        c = kural["cikis"]
         yaz(f"{ad}: {kural['ad']} (coinler: {', '.join(coinler)})")
+        yaz(f"  hedef %{c['kar_hedefi_yuzde']:g}, stop %{c['zarar_durdur_yuzde']:g}, "
+            f"süre {c['sure_asimi_dakika']} dk; zarar etmemek için gereken kazanma oranı "
+            f"%{_sayi(basabas_orani(kural, 2 * komisyon), 1)}")
         yaz(baslik)
         for durum in DURUMLAR:
             isaret = " *" if durum in izinli_durumlar else ""

@@ -209,8 +209,8 @@ def _bot_satiri(bot: dict, donem: str) -> str:
     hucreler = [
         (
             "Bot",
-            f'<span class="bot-kod">{escape(bot["bot"])}</span>'
-            f'<span class="alt">{escape(bot["ad"])}. {piyasa}, {_yon(bot["yon"])}.</span>',
+            f'<span class="bot-kod">{escape(bot["ad"])}</span>'
+            f'<span class="alt">{escape(bot["bot"])} · {piyasa}, {_yon(bot["yon"])}</span>',
             "bot",
         ),
         ("İşlem", str(bot["islem_sayisi"]), "sayi"),

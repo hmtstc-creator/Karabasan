@@ -21,9 +21,10 @@ def basit_kural(**ek):
 
 
 class KuralDosyalari(unittest.TestCase):
-    def test_alti_strateji_yuklenir(self):
+    def test_on_strateji_yuklenir(self):
         kurallar = k.tum_kurallar()
-        self.assertEqual(sorted(kurallar), ["S1", "S1K", "S2", "S2K", "S3", "S4"])
+        self.assertEqual(sorted(kurallar),
+                         ["S1", "S1K", "S2", "S2K", "S3", "S4", "S5", "S5K", "S6", "S6K"])
         for kod, kural in kurallar.items():
             with self.subTest(kod=kod):
                 self.assertEqual(kural["kod"], kod)
@@ -31,10 +32,24 @@ class KuralDosyalari(unittest.TestCase):
 
     def test_ters_yonluler_aciga_satis(self):
         kurallar = k.tum_kurallar()
-        self.assertEqual(kurallar["S1K"]["yon"], "aciga_satis")
-        self.assertEqual(kurallar["S2K"]["yon"], "aciga_satis")
-        for kod in ("S1", "S2", "S3", "S4"):
-            self.assertEqual(kurallar[kod]["yon"], "alim")
+        for kod, kural in kurallar.items():
+            self.assertEqual(kural["yon"], "aciga_satis" if kod.endswith("K") else "alim", kod)
+
+    def test_her_stratejinin_duz_adi_ve_aciklamasi_var(self):
+        """Adlar ne yaptığını söylemeli; kod (S1, S5K) tek başına ad olamaz."""
+        adlar = set()
+        for kod, kural in k.tum_kurallar().items():
+            self.assertGreater(len(kural["ad"]), 10, kod)
+            self.assertNotIn(kod, kural["ad"])
+            self.assertGreater(len(kural.get("aciklama", "")), 40, kod)
+            adlar.add(kural["ad"])
+        self.assertEqual(len(adlar), 10)   # adlar birbirinden farklı
+
+    def test_ters_yonlu_ciftler_ayni_cikisi_kullanir(self):
+        kurallar = k.tum_kurallar()
+        for kod in ("S5", "S6"):
+            self.assertEqual(kurallar[kod]["cikis"], kurallar[kod + "K"]["cikis"], kod)
+            self.assertEqual(kurallar[kod]["gostergeler"], kurallar[kod + "K"]["gostergeler"], kod)
 
     def test_basabas_oranlari_raporla_ayni(self):
         kurallar = k.tum_kurallar()
@@ -53,6 +68,117 @@ class KuralDosyalari(unittest.TestCase):
                 self.assertEqual(tablo["sinyal"].dtype, bool)
                 # Başlangıç mumları dolmadan sinyal üretilmemeli
                 self.assertFalse(tablo["sinyal"].iloc[:50].any())
+
+
+class YeniStratejilerinMantigi(unittest.TestCase):
+    """S5 ve S6'nın kural dosyaları, anlatılan fikri gerçekten kodluyor mu?
+
+    Sinyal veren her mumda koşullar ham fiyat verisinden yeniden hesaplanır.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.df = yapay_mumlar(12000, tohum=17, oynaklik=0.003)
+        cls.kurallar = k.tum_kurallar()
+
+    def _sinyaller(self, kod):
+        tablo = k.sinyal_uret(self.df, self.kurallar[kod])
+        mumlar = [i for i in range(len(tablo)) if tablo["sinyal"].iloc[i]]
+        self.assertGreater(len(mumlar), 5, f"{kod} yapay veride neredeyse hiç sinyal vermedi")
+        return tablo, mumlar
+
+    def test_s6_dip_supurulup_geri_alinmis(self):
+        tablo, mumlar = self._sinyaller("S6")
+        dusuk, kapanis, acilis = self.df["low"], self.df["close"], self.df["open"]
+        for i in mumlar:
+            seviye = dusuk.iloc[i - 26:i - 2].min()        # süpürmeden önceki 24 mumun dibi
+            self.assertLess(dusuk.iloc[i - 2:i + 1].min(), seviye, i)   # son 3 mumda altına sarktı
+            self.assertGreater(kapanis.iloc[i], seviye, i)              # yeniden üstünde kapandı
+            self.assertGreater(kapanis.iloc[i], acilis.iloc[i], i)      # yükseliş mumu
+            self.assertGreater(tablo["rsi14"].iloc[i], tablo["rsi14"].iloc[i - 1], i)
+            self.assertGreater(tablo["ema50_1s_egim"].iloc[i], 0, i)    # üst dilim trendi yukarı
+
+    def test_s6k_tepe_supurulup_geri_verilmis(self):
+        tablo, mumlar = self._sinyaller("S6K")
+        yuksek, kapanis, acilis = self.df["high"], self.df["close"], self.df["open"]
+        for i in mumlar:
+            seviye = yuksek.iloc[i - 26:i - 2].max()
+            self.assertGreater(yuksek.iloc[i - 2:i + 1].max(), seviye, i)
+            self.assertLess(kapanis.iloc[i], seviye, i)
+            self.assertLess(kapanis.iloc[i], acilis.iloc[i], i)
+            self.assertLess(tablo["ema50_1s_egim"].iloc[i], 0, i)
+
+    def test_s5_macd_yukari_kesmis_rsi_ivmeli(self):
+        tablo, mumlar = self._sinyaller("S5")
+        for i in mumlar:
+            self.assertGreater(tablo["macd_cizgi"].iloc[i], tablo["macd_sinyal"].iloc[i], i)
+            # Kesişme bu mumda ya da bir önceki mumda oldu.
+            onceki = [tablo["macd_cizgi"].iloc[j] <= tablo["macd_sinyal"].iloc[j] for j in (i - 1, i - 2)]
+            self.assertTrue(any(onceki), i)
+            self.assertTrue(50 < tablo["rsi14"].iloc[i] < 70, i)
+            self.assertGreater(tablo["rsi14"].iloc[i], tablo["rsi14"].iloc[i - 3], i)
+            self.assertGreater(self.df["volume"].iloc[i], 1.2 * tablo["hacim20"].iloc[i], i)
+
+    def test_s5k_macd_asagi_kesmis(self):
+        tablo, mumlar = self._sinyaller("S5K")
+        for i in mumlar:
+            self.assertLess(tablo["macd_cizgi"].iloc[i], tablo["macd_sinyal"].iloc[i], i)
+            self.assertTrue(30 < tablo["rsi14"].iloc[i] < 50, i)
+
+    def test_ayni_mumda_hem_alim_hem_satis_sinyali_olmaz(self):
+        for uzun, kisa in (("S5", "S5K"), ("S6", "S6K")):
+            a = k.sinyal_uret(self.df, self.kurallar[uzun])["sinyal"]
+            b = k.sinyal_uret(self.df, self.kurallar[kisa])["sinyal"]
+            self.assertFalse((a & b).any(), uzun)
+
+
+class MacdGostergesi(unittest.TestCase):
+    def _kural(self, **macd):
+        kural = basit_kural()
+        kural["gostergeler"]["macd"] = {"tur": "macd", **macd}
+        kural["giris"] = {"sol": "macd_cizgi", "islem": "yukari_keser", "sag": "macd_sinyal"}
+        return kural
+
+    def test_uc_sutun_uretir_ve_varsayilan_ayar_12_26_9(self):
+        from karabasan import gostergeler as g
+
+        df = yapay_mumlar(400, tohum=5)
+        tablo = k.gosterge_ekle(df, self._kural())
+        cizgi, sinyal, fark = g.macd(df["close"])
+        for sutun, beklenen in (("macd_cizgi", cizgi), ("macd_sinyal", sinyal), ("macd_fark", fark)):
+            self.assertTrue((tablo[sutun].dropna() == beklenen.dropna()).all(), sutun)
+        self.assertTrue(((tablo["macd_cizgi"] - tablo["macd_sinyal"] - tablo["macd_fark"]).dropna().abs() < 1e-12).all())
+        # Yavaş ortalama ve sinyal oturmadan değer üretilmez.
+        self.assertTrue(tablo["macd_sinyal"].iloc[:33].isna().all())
+        self.assertTrue(tablo["macd_sinyal"].iloc[34:].notna().all())
+
+    def test_yukselen_fiyatta_cizgi_arti(self):
+        from karabasan import gostergeler as g
+        import pandas as pd
+
+        cizgi, _, _ = g.macd(pd.Series([100.0 + i for i in range(100)]))
+        self.assertGreater(cizgi.iloc[-1], 0)
+        cizgi, _, _ = g.macd(pd.Series([200.0 - i for i in range(100)]))
+        self.assertLess(cizgi.iloc[-1], 0)
+
+    def test_hizli_yavastan_kucuk_olmali(self):
+        with self.assertRaises(k.KuralHatasi) as baglam:
+            k.kural_dogrula(self._kural(hizli=26, yavas=12))
+        self.assertIn("'hizli' periyot 'yavas' periyottan küçük olmalı", str(baglam.exception))
+
+    def test_gecersiz_ayar_reddedilir(self):
+        for ayar in ({"sinyal": 0}, {"yavas": 500}, {"hizli": 1.5}, {"hizli": True}):
+            with self.assertRaises(k.KuralHatasi):
+                k.kural_dogrula(self._kural(**ayar))
+
+    def test_baslangic_mumu_ihtiyaci(self):
+        self.assertGreaterEqual(k.gereken_mum(self._kural()), (26 + 9) * 3)
+
+    def test_macd_gelecege_bakmaz(self):
+        df = yapay_mumlar(600, tohum=9)
+        tam = k.sinyal_uret(df, self._kural())
+        kisa = k.sinyal_uret(df.iloc[:450], self._kural())
+        self.assertEqual(list(tam["sinyal"].iloc[:450]), list(kisa["sinyal"]))
 
 
 class Dogrulama(unittest.TestCase):

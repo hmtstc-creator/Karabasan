@@ -51,8 +51,11 @@ class SayfaTesti(unittest.TestCase):
         html = sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI))
         self.assertIn("Sınavın 12. günü.", html)
         self.assertIn("18 gün kaldı", html)
-        for bot in ("s1-spot", "s4-vadeli", "s2k-vadeli"):
+        for bot in ("s1-spot", "s5k-vadeli", "s6-vadeli"):
             self.assertIn(bot, html)
+        # Botlar düz adlarıyla görünür.
+        self.assertIn("Yükselişte düşüşü al", html)
+        self.assertIn("Likidite avı sonrası alım (akıllı para + RSI)", html)
         self.assertEqual(html.count('class="gun gecti'), 11)
         self.assertEqual(html.count('class="gun bugun'), 1)
 

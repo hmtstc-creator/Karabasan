@@ -1,6 +1,6 @@
 {
   "kod": "S2",
-  "ad": "Hacimli kırılım",
+  "ad": "Tepe kırılımını al",
   "yon": "alim",
   "aciklama": "Fiyat son 4 saatin tepesini, ortalamanın 2 katı hacimle yukarı kırınca alır.",
   "zaman_dilimi": "5m",

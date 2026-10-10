@@ -178,8 +178,8 @@ class ServisTesti(Taban):
         (metin,) = self.sahte.gonderilenler()
         self.assertIn("Sınavın 12. günü, 18 gün kaldı.", metin)
         self.assertIn("Kapanan işlem: 580", metin)
-        self.assertIn("En iyi: s1-spot +19,31 USDT", metin)
-        self.assertIn("En kötü: s4-spot −9,26 USDT", metin)
+        self.assertIn("En iyi: Yükselişte düşüşü al (s1-spot) +19,31 USDT", metin)
+        self.assertIn("En kötü: Sert düşüşten dönüşü al (s4-spot) −9,26 USDT", metin)
         self.assertIn("hepsi sanal", metin)
 
     def test_botlar_komutu_on_satir(self):
@@ -187,7 +187,8 @@ class ServisTesti(Taban):
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/botlar@KarabasanBot"))
         (metin,) = self.sahte.gonderilenler()
         self.assertEqual(sum(1 for s in metin.splitlines() if ":" in s), 10)
-        self.assertIn("s3-vadeli (ses yok): henüz kapanan işlem yok", metin)
+        self.assertIn("Momentum vuruşu (MACD + RSI) [s5-vadeli, ses yok]: henüz kapanan işlem yok", metin)
+        self.assertIn("Yükselişte düşüşü al [s1-spot, ses yok]: 130 işlem", metin)
 
     def test_sayfa_komutu_html_belgesi_yollar(self):
         self._sahip_ol()

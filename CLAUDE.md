@@ -95,14 +95,14 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 
 | Yol | İçerik |
 | --- | --- |
-| `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, Bollinger, ATR, VWAP, üst dilim hizalama) |
+| `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama) |
 | `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme |
-| `karabasan/stratejiler/*.json` | Altı strateji: S1–S4 (alım), S1K ve S2K (açığa satış) |
+| `karabasan/stratejiler/*.json` | On strateji: S1–S6 (alım) ve S1K, S2K, S5K, S6K (açığa satış). Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür |
 | `karabasan/puan.py` | Karabasan puanı, durum makinesi, vetolar |
 | `karabasan/filtre.py` | Filtre (Elek): dört katman, elenme nedenleri |
 | `karabasan/karne.py` | İşlem ölçümleri ve 30. günün yedi karar ölçütü |
 | `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim |
-| `karabasan/botlar.py` | On sanal botun listesi, komisyon başlangıç değerleri |
+| `karabasan/botlar.py` | On sanal botun listesi (4 spot alım, 6 vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini buradan okur |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder |
 | `karabasan/gecmis_olcum.py` | Karabasan puanını geçmiş mumlardan geriye dönük hesaplar (yaklaşık: dominans ve TOTAL2 yerine altcoin vekili); işlemleri açıldıkları andaki durumla etiketler |
 | `karabasan/sonuc.py` | Botların SQLite kayıtlarını salt okunur okuyup özet çıkarır; dönem (ısınma, sınav, bitti) |
@@ -168,7 +168,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 234 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 249 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -209,6 +209,19 @@ vadeli sonuçlar spot ile neredeyse aynı. Canlı sanal botların ilk 6 saati:
 36 işlem, −10,44 USDT, on botun onu da ekside. Ahmet'e söylendi. Bu veriye
 bakarak strateji ayarı değiştirme (geçmişe ezber); önce karşılaştırma,
 Karabasan ölçümü ve 12 aylık geçmiş testi.
+
+**Bot dizilişi 11 Ekim 2026'da değişti (Ahmet'in isteğiyle).** Ahmet MACD + RSI
+momentum ve "akıllı para + RSI" stratejileri istedi; ikisi alım ve açığa satış
+halleriyle eklendi (S5, S5K, S6, S6K). Bellek zorlanmasın diye S1–S4'ün
+"vadeli alım" botlarının yerine geçtiler; o dördü spot'taki ikizleriyle aynı
+işlemleri açıyordu. S6 akıllı para kavramlarının yalın halidir: yalnız
+likidite avı ve seviyenin geri alınması; emir bloğu ve FVG yok. Yeni
+stratejiler yapay veride (rastgele yürüyüş) komisyon kadar kaybediyor, yani
+kendiliğinden kâr üretmiyorlar; gerçek verideki sonuçları henüz görülmedi
+(`ANALIZ_SURUMU=2` ve `UYUM_SURUMU=4` ile sunucuda çalışacak). Ahmet
+"en kazançlısı bu olacak" diye bekliyor; ona bunun henüz tahmin olduğu ve çok
+fikir denedikçe birinin şans eseri iyi görünme olasılığının arttığı söylendi.
+Strateji adları da ne yaptığını söyleyen düz adlarla değiştirildi.
 
 Ahmet 11 Ekim'de Tailscale bağlantısını henüz onaylamamıştı. Sunucudaki
 Claude 11 Ekim'de eklendi; Ahmet girişi Telegram üzerinden yaptı ve bot "giriş

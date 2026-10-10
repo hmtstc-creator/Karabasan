@@ -127,11 +127,11 @@ class GenelOzetTesti(unittest.TestCase):
     def test_isinma_islemleri_sinava_sayilmaz(self):
         # Sahte veride her bota ısınma döneminden iki kârlı işlem konur.
         self.assertEqual(self.botlar["s1-spot"]["islem_sayisi"], 130)
-        self.assertEqual(self.botlar["s3-vadeli"]["islem_sayisi"], 0)
+        self.assertEqual(self.botlar["s5-vadeli"]["islem_sayisi"], 0)
 
     def test_kaydi_olmayan_bot_hata_tasir_ama_ozet_cikar(self):
-        self.assertIsNotNone(self.botlar["s4-vadeli"]["hata"])
-        self.assertEqual(self.botlar["s4-vadeli"]["islem_sayisi"], 0)
+        self.assertIsNotNone(self.botlar["s5k-vadeli"]["hata"])
+        self.assertEqual(self.botlar["s5k-vadeli"]["islem_sayisi"], 0)
 
     def test_toplam_botlarin_toplamidir(self):
         t = self.ozet["toplam"]

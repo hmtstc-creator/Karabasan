@@ -1,0 +1,97 @@
+{
+  "kod": "S5K",
+  "ad": "Momentum vuruşu, satış (MACD + RSI)",
+  "yon": "aciga_satis",
+  "aciklama": "1 saatlik düşüş trendinde, 5 dakikalıkta MACD aşağı kesip RSI 50'nin altında düşerken hacimli mumda açığa satar; küçük hedefle hızlı çıkar.",
+  "zaman_dilimi": "5m",
+  "ust_zaman_dilimi": "1h",
+  "gostergeler": {
+    "ema50_1s": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "ust"
+    },
+    "kapanis_1s": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "ust"
+    },
+    "macd": {
+      "tur": "macd",
+      "hizli": 12,
+      "yavas": 26,
+      "sinyal": 9
+    },
+    "rsi14": {
+      "tur": "rsi",
+      "periyot": 14
+    },
+    "hacim20": {
+      "tur": "hacim_ort",
+      "periyot": 20
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "kapanis_1s",
+        "islem": "<",
+        "sag": "ema50_1s"
+      },
+      {
+        "sol": "macd_cizgi",
+        "islem": "asagi_keser",
+        "sag": "macd_sinyal",
+        "son_n_mumda": 2
+      },
+      {
+        "sol": "macd_fark",
+        "islem": "<",
+        "sag": 0
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": 50
+      },
+      {
+        "sol": "rsi14",
+        "islem": ">",
+        "sag": 30
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": {
+          "ad": "rsi14",
+          "kaydir": 3
+        }
+      },
+      {
+        "sol": "hacim",
+        "islem": ">",
+        "sag": {
+          "ad": "hacim20",
+          "carpan": 1.2
+        }
+      },
+      {
+        "sol": "kapanis",
+        "islem": "<",
+        "sag": "acilis"
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 0.9,
+    "zarar_durdur_yuzde": 0.6,
+    "sure_asimi_dakika": 60
+  },
+  "izinli_durumlar": [
+    "KIRMIZI",
+    "SARI"
+  ],
+  "bekleme_dakika": 120
+}

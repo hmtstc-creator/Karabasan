@@ -33,7 +33,9 @@ GOSTERGE_TURLERI = (
     "en_dusuk",
     "hacim_ort",
     "degisim_yuzde",
+    "macd",
 )
+MACD_VARSAYILAN = {"hizli": 12, "yavas": 26, "sinyal": 9}
 
 # Panelden ya da dosyadan aşılamayan sınırlar. Bir yazım hatası (örneğin
 # %1 yerine %100 stop) gerçek paraya ulaşmadan burada durur.
@@ -87,7 +89,13 @@ def _sutun_adi(ad: str) -> str:
 def _gosterge_sutunlari(ad: str, tanim: dict) -> list[str]:
     if tanim["tur"] == "bollinger":
         return [f"{ad}_ust", f"{ad}_orta", f"{ad}_alt"]
+    if tanim["tur"] == "macd":
+        return [f"{ad}_cizgi", f"{ad}_sinyal", f"{ad}_fark"]
     return [ad]
+
+
+def _macd_ayarlari(tanim: dict) -> tuple[int, int, int]:
+    return tuple(int(tanim.get(alan, MACD_VARSAYILAN[alan])) for alan in ("hizli", "yavas", "sinyal"))
 
 
 def kural_dogrula(kural: dict) -> None:
@@ -135,7 +143,15 @@ def kural_dogrula(kural: dict) -> None:
             raise KuralHatasi(f"'{ad}': 'dilim' yalnız 'ust' ya da 'taban' olabilir.")
         if ust_mu and ust is None:
             raise KuralHatasi(f"'{ad}' üst dilimde tanımlı ama 'ust_zaman_dilimi' verilmemiş.")
-        if tur != "vwap":
+        if tur == "macd":
+            for alan in MACD_VARSAYILAN:
+                deger = tanim.get(alan, MACD_VARSAYILAN[alan])
+                if not isinstance(deger, int) or isinstance(deger, bool) or not 1 <= deger <= 200:
+                    raise KuralHatasi(f"'{ad}': '{alan}' 1 ile 200 arasında tam sayı olmalı.")
+            hizli, yavas, _ = _macd_ayarlari(tanim)
+            if hizli >= yavas:
+                raise KuralHatasi(f"'{ad}': 'hizli' periyot 'yavas' periyottan küçük olmalı.")
+        elif tur != "vwap":
             periyot = tanim.get("periyot")
             if not isinstance(periyot, int) or isinstance(periyot, bool) or not 1 <= periyot <= 1000:
                 raise KuralHatasi(f"'{ad}': 'periyot' 1 ile 1000 arasında tam sayı olmalı.")
@@ -253,6 +269,9 @@ def gereken_mum(kural: dict, sinirla: bool = True) -> int:
         ihtiyac = periyot * kat
         if tanim["tur"] == "vwap":
             ihtiyac = 1440 // taban_dk
+        if tanim["tur"] == "macd":
+            _, yavas, sinyal = _macd_ayarlari(tanim)
+            ihtiyac = (yavas + sinyal) * 3
         if tanim.get("dilim") == "ust":
             ihtiyac *= oran
         # Başka bir göstergeden türeyen gösterge, kaynağının ihtiyacını da taşır.
@@ -291,6 +310,9 @@ def _tek_gosterge(cerceve: pd.DataFrame, ad: str, tanim: dict) -> dict:
     if tur == "bollinger":
         ust, orta, alt = g.bollinger(kaynak, periyot, float(tanim.get("sapma", 2.0)))
         return {f"{ad}_ust": ust, f"{ad}_orta": orta, f"{ad}_alt": alt}
+    if tur == "macd":
+        cizgi, sinyal, fark = g.macd(kaynak, *_macd_ayarlari(tanim))
+        return {f"{ad}_cizgi": cizgi, f"{ad}_sinyal": sinyal, f"{ad}_fark": fark}
     raise KuralHatasi(f"Tanınmayan gösterge türü: {tur}")
 
 

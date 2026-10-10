@@ -1,6 +1,6 @@
 {
   "kod": "S4",
-  "ad": "Ortalamaya dönüş",
+  "ad": "Sert düşüşten dönüşü al",
   "yon": "alim",
   "aciklama": "Fiyat gün içi hacim ağırlıklı ortalamanın (VWAP) %1,5 altına inip dönüş mumu yapınca alır.",
   "zaman_dilimi": "5m",

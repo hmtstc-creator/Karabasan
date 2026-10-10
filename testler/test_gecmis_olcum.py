@@ -187,9 +187,12 @@ class RaporTesti(unittest.TestCase):
 
         cls.metin, cls.eksik = cls.modul.rapor_uret(yukle=yukle, gun=30)
 
-    def test_alti_strateji_ve_ozet_var(self):
-        for ad in ("S1 spot:", "S2 spot:", "S3 spot:", "S4 spot:", "S1K vadeli:", "S2K vadeli:"):
-            self.assertIn(ad, self.metin)
+    def test_her_bot_ve_ozet_var(self):
+        from karabasan.botlar import BOTLAR
+
+        for _bot, _sinif, kod, piyasa in BOTLAR:
+            self.assertIn(f"{kod} {piyasa}:", self.metin)
+        self.assertIn("zarar etmemek için gereken kazanma oranı %", self.metin)
         self.assertIn("ÖZET: süzgeçsiz ile tasarımdaki gibi", self.metin)
         self.assertIn("Zamanın durumlara dağılımı: Yeşil %", self.metin)
 
@@ -207,8 +210,11 @@ class RaporTesti(unittest.TestCase):
         self.assertIn("coinler: ETH, SOL, XRP, DOGE", s1k)   # vadelide BTC yok
 
     def test_eksik_dosya_sayilir_ve_bildirilir(self):
-        self.assertEqual(self.eksik, 2)   # iki vadeli stratejide DOGE
-        self.assertIn("UYARI: 2 veri dosyası bulunamadı", self.metin)
+        from karabasan.botlar import BOTLAR
+
+        vadeli = sum(1 for b in BOTLAR if b[3] == "vadeli")   # her vadeli stratejide DOGE eksik
+        self.assertEqual(self.eksik, vadeli)
+        self.assertIn(f"UYARI: {vadeli} veri dosyası bulunamadı", self.metin)
 
     def test_durumlarin_toplami_hepsine_esit(self):
         import re

@@ -11,17 +11,23 @@ import os
 from pathlib import Path
 
 # (bot adı, strateji sınıfı, kural kodu, piyasa)
+#
+# 11 Ekim 2026'da değişti: S1-S4'ün "vadeli alım" botları kaldırıldı, yerlerine
+# dört yeni strateji botu geldi. Kaldırılanlar spot'taki ikizleriyle aynı
+# işlemleri açıyordu (geçmiş testi: aynı sinyaller, yalnız komisyon farklı),
+# yani yeni bilgi üretmiyordu. Yeni stratejiler vadelide çalışır: komisyon
+# daha düşüktür ve açığa satış yalnız orada mümkündür.
 BOTLAR = [
     ("s1-spot", "S1Spot", "S1", "spot"),
     ("s2-spot", "S2Spot", "S2", "spot"),
     ("s3-spot", "S3Spot", "S3", "spot"),
     ("s4-spot", "S4Spot", "S4", "spot"),
-    ("s1-vadeli", "S1Vadeli", "S1", "vadeli"),
-    ("s2-vadeli", "S2Vadeli", "S2", "vadeli"),
-    ("s3-vadeli", "S3Vadeli", "S3", "vadeli"),
-    ("s4-vadeli", "S4Vadeli", "S4", "vadeli"),
     ("s1k-vadeli", "S1KVadeli", "S1K", "vadeli"),
     ("s2k-vadeli", "S2KVadeli", "S2K", "vadeli"),
+    ("s5-vadeli", "S5Vadeli", "S5", "vadeli"),
+    ("s5k-vadeli", "S5KVadeli", "S5K", "vadeli"),
+    ("s6-vadeli", "S6Vadeli", "S6", "vadeli"),
+    ("s6k-vadeli", "S6KVadeli", "S6K", "vadeli"),
 ]
 
 ILK_PORT = 8081

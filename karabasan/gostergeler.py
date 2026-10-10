@@ -60,6 +60,18 @@ def rsi(kapanis: pd.Series, periyot: int = 14) -> pd.Series:
     return sonuc
 
 
+def macd(seri: pd.Series, hizli: int = 12, yavas: int = 26, sinyal: int = 9):
+    """MACD: (çizgi, sinyal çizgisi, fark).
+
+    çizgi  = hızlı EMA - yavaş EMA
+    sinyal = çizginin EMA'sı
+    fark   = çizgi - sinyal (histogram); sıfırın üstüne çıkması yukarı ivme demektir.
+    """
+    cizgi = ema(seri, hizli) - ema(seri, yavas)
+    sinyal_cizgisi = cizgi.ewm(span=sinyal, adjust=False, min_periods=sinyal).mean()
+    return cizgi, sinyal_cizgisi, cizgi - sinyal_cizgisi
+
+
 def bollinger(kapanis: pd.Series, periyot: int = 20, sapma: float = 2.0):
     """Bollinger bandı: (üst, orta, alt)."""
     orta = sma(kapanis, periyot)

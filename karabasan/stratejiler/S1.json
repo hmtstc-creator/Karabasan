@@ -1,6 +1,6 @@
 {
   "kod": "S1",
-  "ad": "Trend içi geri çekilme",
+  "ad": "Yükselişte düşüşü al",
   "yon": "alim",
   "aciklama": "1 saatlik yükseliş trendinde, 5 dakikalıkta aşırı satımdan dönüş mumu görülünce alır.",
   "zaman_dilimi": "5m",

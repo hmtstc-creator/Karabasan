@@ -1,6 +1,6 @@
 {
   "kod": "S3",
-  "ad": "Bant içi dönüş",
+  "ad": "Yatay piyasada dipten al",
   "yon": "alim",
   "aciklama": "Yatay piyasada fiyat Bollinger alt bandının altından geri dönünce alır.",
   "zaman_dilimi": "15m",

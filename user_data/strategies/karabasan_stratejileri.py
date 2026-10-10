@@ -139,25 +139,25 @@ class S4Spot(KarabasanTaban):
     kural_kodu, piyasa = "S4", "spot"
 
 
-class S1Vadeli(KarabasanTaban):
-    kural_kodu, piyasa = "S1", "vadeli"
-
-
-class S2Vadeli(KarabasanTaban):
-    kural_kodu, piyasa = "S2", "vadeli"
-
-
-class S3Vadeli(KarabasanTaban):
-    kural_kodu, piyasa = "S3", "vadeli"
-
-
-class S4Vadeli(KarabasanTaban):
-    kural_kodu, piyasa = "S4", "vadeli"
-
-
 class S1KVadeli(KarabasanTaban):
     kural_kodu, piyasa = "S1K", "vadeli"
 
 
 class S2KVadeli(KarabasanTaban):
     kural_kodu, piyasa = "S2K", "vadeli"
+
+
+class S5Vadeli(KarabasanTaban):
+    kural_kodu, piyasa = "S5", "vadeli"
+
+
+class S5KVadeli(KarabasanTaban):
+    kural_kodu, piyasa = "S5K", "vadeli"
+
+
+class S6Vadeli(KarabasanTaban):
+    kural_kodu, piyasa = "S6", "vadeli"
+
+
+class S6KVadeli(KarabasanTaban):
+    kural_kodu, piyasa = "S6K", "vadeli"

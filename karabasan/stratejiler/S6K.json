@@ -1,0 +1,104 @@
+{
+  "kod": "S6K",
+  "ad": "Likidite avı sonrası satış (akıllı para + RSI)",
+  "yon": "aciga_satis",
+  "aciklama": "1 saatlik trend aşağıyken fiyat son 2 saatin tepesinin üstüne çıkıp (stopları süpürüp) yeniden altında kapanırsa ve RSI ortalamasının altına dönüyorsa açığa satar.",
+  "zaman_dilimi": "5m",
+  "ust_zaman_dilimi": "1h",
+  "gostergeler": {
+    "ema50_1s": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "ust"
+    },
+    "ema50_1s_egim": {
+      "tur": "degisim_yuzde",
+      "kaynak": "ema50_1s",
+      "periyot": 6,
+      "dilim": "ust"
+    },
+    "dip24": {
+      "tur": "en_dusuk",
+      "kaynak": "dusuk",
+      "periyot": 24
+    },
+    "dip3": {
+      "tur": "en_dusuk",
+      "kaynak": "dusuk",
+      "periyot": 3
+    },
+    "tepe24": {
+      "tur": "en_yuksek",
+      "kaynak": "yuksek",
+      "periyot": 24
+    },
+    "tepe3": {
+      "tur": "en_yuksek",
+      "kaynak": "yuksek",
+      "periyot": 3
+    },
+    "rsi14": {
+      "tur": "rsi",
+      "periyot": 14
+    },
+    "rsi14_ort": {
+      "tur": "sma",
+      "kaynak": "rsi14",
+      "periyot": 9
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "ema50_1s_egim",
+        "islem": "<",
+        "sag": 0
+      },
+      {
+        "sol": "tepe3",
+        "islem": ">",
+        "sag": {
+          "ad": "tepe24",
+          "kaydir": 3
+        }
+      },
+      {
+        "sol": "kapanis",
+        "islem": "<",
+        "sag": {
+          "ad": "tepe24",
+          "kaydir": 3
+        }
+      },
+      {
+        "sol": "kapanis",
+        "islem": "<",
+        "sag": "acilis"
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": "rsi14_ort"
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": {
+          "ad": "rsi14",
+          "kaydir": 1
+        }
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 1.2,
+    "zarar_durdur_yuzde": 0.7,
+    "sure_asimi_dakika": 180
+  },
+  "izinli_durumlar": [
+    "KIRMIZI",
+    "SARI"
+  ],
+  "bekleme_dakika": 120
+}

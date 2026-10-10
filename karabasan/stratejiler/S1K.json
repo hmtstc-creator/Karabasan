@@ -1,6 +1,6 @@
 {
   "kod": "S1K",
-  "ad": "Trend içi tepki satışı",
+  "ad": "Düşüşte yükselişi sat",
   "yon": "aciga_satis",
   "aciklama": "S1'in ters yönlüsü: 1 saatlik düşüş trendinde, 5 dakikalıkta aşırı alımdan dönüş mumu görülünce açığa satar.",
   "zaman_dilimi": "5m",

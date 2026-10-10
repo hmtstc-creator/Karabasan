@@ -49,7 +49,9 @@ class StratejiSiniflari(unittest.TestCase):
         self.assertFalse(s.can_short)
         self.assertEqual(s.startup_candle_count, 1870)
         self.assertEqual(self.modul.S3Spot.timeframe, "15m")
-        self.assertAlmostEqual(self.modul.S4Vadeli.stoploss, -0.008)
+        self.assertAlmostEqual(self.modul.S4Spot.stoploss, -0.008)
+        self.assertAlmostEqual(self.modul.S6Vadeli.stoploss, -0.007)
+        self.assertTrue(self.modul.S6KVadeli.can_short)
 
     def test_yalniz_ters_yonluler_aciga_satar(self):
         for _bot, sinif, kural_kodu, _piyasa in botlar.BOTLAR:
@@ -64,7 +66,10 @@ class StratejiSiniflari(unittest.TestCase):
         self.assertAlmostEqual(roi, 1.012 * (1 - 0.00075) / (1 + 0.00075) - 1)
         self.assertTrue(0.0104 < roi < 0.0106)
         # Vadelide komisyon daha düşük olduğu için aynı fiyat hedefi daha yüksek net kâr demektir
-        self.assertGreater(self.modul.S1Vadeli.minimal_roi["0"], roi)
+        # (açığa satışta formül farklıdır; yine de %0,05 komisyonla %1,2 hedef %1,1 civarı net verir).
+        vadeli = self.modul.S1KVadeli.minimal_roi["0"]
+        self.assertTrue(0.0109 < vadeli < 0.0111, vadeli)
+        self.assertGreater(vadeli, roi)
 
     def test_zararda_ekleme_kapali(self):
         for _bot, sinif, _k, _p in botlar.BOTLAR:
@@ -173,7 +178,7 @@ class Yapilandirma(unittest.TestCase):
 
     def test_piyasa_ayarlari(self):
         spot = self.uret.bot_yapilandirmasi("s1-spot", "S1", "spot", self.ayar)
-        vadeli = self.uret.bot_yapilandirmasi("s1-vadeli", "S1", "vadeli", self.ayar)
+        vadeli = self.uret.bot_yapilandirmasi("s5-vadeli", "S5", "vadeli", self.ayar)
         self.assertEqual(spot["trading_mode"], "spot")
         self.assertNotIn("margin_mode", spot)
         self.assertAlmostEqual(spot["fee"], 0.00075)
@@ -357,7 +362,7 @@ class UyumDenemesiTesti(unittest.TestCase):
 
     SAHTE_DOCKER = r'''#!/bin/bash
 case "$*" in
-  *list-strategies*) echo "S1Spot S2Spot S3Spot S4Spot S1Vadeli S2Vadeli S3Vadeli S4Vadeli S1KVadeli S2KVadeli";;
+  *list-strategies*) echo "KarabasanTaban S1Spot S2Spot S3Spot S4Spot S1KVadeli S2KVadeli S5Vadeli S5KVadeli S6Vadeli $SAHTE_SON_SINIF";;
   *"--version"*) echo "freqtrade 2026.9";;
   *download-data*) echo "Downloaded data";;
   *karsilastir.py*) echo "Bot  İşlem"; echo "s1-spot 73";;
@@ -383,11 +388,16 @@ exit 0
             kok = Path(gecici)
             (kok / "araclar").mkdir()
             (kok / "bin").mkdir()
+            (kok / "karabasan").mkdir()
             shutil.copy(KOK / "araclar" / "uyum_denemesi.sh", kok / "araclar" / "uyum_denemesi.sh")
+            # Betik bot listesini karabasan/botlar.py'den okur.
+            for dosya in ("__init__.py", "botlar.py"):
+                shutil.copy(KOK / "karabasan" / dosya, kok / "karabasan" / dosya)
             docker = kok / "bin" / "docker"
             docker.write_text(self.SAHTE_DOCKER, encoding="utf-8")
             docker.chmod(0o755)
-            ortam = {**os.environ, "PATH": f"{kok / 'bin'}:{os.environ['PATH']}", "SAHTE_MOD": mod}
+            ortam = {**os.environ, "PATH": f"{kok / 'bin'}:{os.environ['PATH']}", "SAHTE_MOD": mod,
+                     "SAHTE_SON_SINIF": "" if mod == "sinif_eksik" else "S6KVadeli"}
             sonuc = subprocess.run(["bash", str(kok / "araclar" / "uyum_denemesi.sh")],
                                    capture_output=True, text=True, env=ortam)
             rapor = (kok / "user_data" / "logs" / "uyum_denemesi.txt").read_text(encoding="utf-8")
@@ -399,6 +409,18 @@ exit 0
         self.assertIn("SONUÇ: Tüm adımlar geçti.", rapor)
         self.assertEqual(rapor.count("geçmiş testi tamamlandı"), 10)
         self.assertIn("> │ TOTAL │ 73", rapor)
+
+    def test_bot_listesi_tek_yerden_gelir(self):
+        kod, rapor = self._calistir("iyi")
+        for bot, sinif, _k, _p in botlar.BOTLAR:
+            self.assertIn(f"--- {bot} ({sinif}) ---", rapor)
+        self.assertIn("10 strateji sınıfı bulundu ve yüklendi", rapor)
+
+    def test_eksik_sinif_yakalanir(self):
+        # "S6Vadeli" çıktıda var ama "S6KVadeli" yok: biri diğerinin yerine sayılmamalı.
+        kod, rapor = self._calistir("sinif_eksik")
+        self.assertEqual(kod, 1)
+        self.assertIn("Bulunamayan sınıflar: S6KVadeli", rapor)
 
     def test_ayar_hatasi_cikis_kodu_temiz_olsa_da_kalir(self):
         kod, rapor = self._calistir("ayar_hatasi")

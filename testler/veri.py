@@ -123,7 +123,7 @@ def sahte_sinav_klasoru(klasor, simdi, sinav_gunu=12, isinma_gunu=7):
                 net, neden = rastgele.uniform(-0.6, 0.4), "sure_asimi"
             islemler.append(
                 (f"{rastgele.choice(coinler)}/USDT{ek}", a,
-                 a + timedelta(minutes=rastgele.randint(15, 200)), net, neden, bot.startswith(("s1k", "s2k")))
+                 a + timedelta(minutes=rastgele.randint(15, 200)), net, neden, "k-" in bot)
             )
         for k in range(rastgele.randint(0, 3)):
             islemler.append((f"{coinler[k]}/USDT{ek}", simdi - timedelta(minutes=30 * (k + 1)), None, 0.0, None, False))

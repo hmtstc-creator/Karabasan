@@ -250,6 +250,11 @@ def _sayi(deger: float, basamak: int = 2) -> str:
     return ("+" if deger > 0 else "−") + metin
 
 
+def _bot_adi(bot: dict) -> str:
+    """Botun düz adı ve kısa kodu: 'Tepe kırılımını al (s2-spot)'."""
+    return f"{bot.get('ad') or bot['bot']} ({bot['bot']})"
+
+
 def _donem_satiri(ozet: dict) -> str:
     donem, gun = ozet["donem"], ozet["gun"]
     if donem == "kurulmadi":
@@ -280,10 +285,10 @@ def durum_metni(ozet: dict, baslik: str = "Karabasan durumu") -> str:
     if islemli:
         en_iyi = max(islemli, key=lambda b: b["net_tutar"])
         en_kotu = min(islemli, key=lambda b: b["net_tutar"])
-        satirlar += ["", f"En iyi: {en_iyi['bot']} {_sayi(en_iyi['net_tutar'])} USDT"]
+        satirlar += ["", f"En iyi: {_bot_adi(en_iyi)} {_sayi(en_iyi['net_tutar'])} USDT"]
         if en_kotu is not en_iyi:
-            satirlar.append(f"En kötü: {en_kotu['bot']} {_sayi(en_kotu['net_tutar'])} USDT")
-    sessiz = [b["bot"] for b in ozet["botlar"] if not b["calisiyor"]]
+            satirlar.append(f"En kötü: {_bot_adi(en_kotu)} {_sayi(en_kotu['net_tutar'])} USDT")
+    sessiz = [_bot_adi(b) for b in ozet["botlar"] if not b["calisiyor"]]
     if sessiz and ozet["donem"] != "kurulmadi":
         satirlar += ["", "Ses vermeyen botlar: " + ", ".join(sessiz)]
     satirlar += ["", "Hiçbir emir borsaya gitmiyor; hepsi sanal.", f"Ayrıntı: {SAYFA_ADRESI} (Tailscale açıkken) ya da /sayfa"]
@@ -298,8 +303,8 @@ def botlar_metni(ozet: dict) -> str:
             sonuc = f"{b['islem_sayisi']} işlem, {oran} kazanma, {_sayi(b['net_tutar'])} USDT"
         else:
             sonuc = "henüz kapanan işlem yok"
-        durum = "" if b["calisiyor"] else " (ses yok)"
-        satirlar.append(f"{b['bot']}{durum}: {sonuc}")
+        durum = "" if b["calisiyor"] else ", ses yok"
+        satirlar.append(f"{b['ad']} [{b['bot']}{durum}]: {sonuc}")
     return "\n".join(satirlar)
 
 

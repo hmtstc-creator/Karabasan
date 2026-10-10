@@ -40,6 +40,18 @@ calistir() {
 }
 hata_satiri() { grep -E "$HATA_DESENI|ERROR" "$GECICI" | head -1 | cut -c1-200; }
 
+# Bot listesi tek yerden gelir: karabasan/botlar.py ("bot:sınıf:piyasa").
+BOTLAR="$(python3 -c "
+import sys; sys.path.insert(0, '.')
+from karabasan.botlar import BOTLAR
+print(' '.join(f'{b}:{s}:{p}' for b, s, _k, p in BOTLAR))" 2> /dev/null)"
+if [ -z "$BOTLAR" ]; then
+    yaz "Bot listesi okunamadı (karabasan/botlar.py)."
+    yaz "SONUÇ: 1 adım kaldı."
+    exit 1
+fi
+BOT_SAYISI=$(echo "$BOTLAR" | wc -w)
+
 HATA=0
 gecti() { yaz "  [GEÇTİ] $1"; }
 kaldi() { yaz "  [KALDI] $1"; HATA=$((HATA + 1)); }
@@ -53,8 +65,9 @@ yaz "1/5 Strateji sınıfları yükleniyor"
 calistir list-strategies
 LISTE=$?
 EKSIK=""
-for SINIF in S1Spot S2Spot S3Spot S4Spot S1Vadeli S2Vadeli S3Vadeli S4Vadeli S1KVadeli S2KVadeli; do
-    grep -q "$SINIF" "$GECICI" || EKSIK="$EKSIK $SINIF"
+for SATIR in $BOTLAR; do
+    KALAN=${SATIR#*:}; SINIF=${KALAN%%:*}
+    grep -qw "$SINIF" "$GECICI" || EKSIK="$EKSIK $SINIF"
 done
 if [ "$LISTE" -ne 0 ]; then
     kaldi "Strateji listesi alınamadı: $(hata_satiri)"
@@ -63,7 +76,7 @@ elif [ -n "$EKSIK" ]; then
 elif grep -q "LOAD FAILED" "$GECICI"; then
     kaldi "Bazı strateji dosyaları yüklenemedi (ayrıntı raporda)"
 else
-    gecti "On strateji sınıfı bulundu ve yüklendi"
+    gecti "$BOT_SAYISI strateji sınıfı bulundu ve yüklendi"
 fi
 
 # ---------------------------------------------------------------- 2
@@ -92,9 +105,6 @@ fi
 yaz ""
 yaz "4/5 Her bot için $GUN günlük geçmiş testi (hazır motor)"
 BASLANGIC=$(date -u -d "$GUN days ago" +%Y%m%d)
-BOTLAR="s1-spot:S1Spot:spot s2-spot:S2Spot:spot s3-spot:S3Spot:spot s4-spot:S4Spot:spot \
-s1-vadeli:S1Vadeli:vadeli s2-vadeli:S2Vadeli:vadeli s3-vadeli:S3Vadeli:vadeli s4-vadeli:S4Vadeli:vadeli \
-s1k-vadeli:S1KVadeli:vadeli s2k-vadeli:S2KVadeli:vadeli"
 for SATIR in $BOTLAR; do
     BOT=${SATIR%%:*}; KALAN=${SATIR#*:}; SINIF=${KALAN%%:*}; PIYASA=${KALAN#*:}
     yaz ""

@@ -1,6 +1,6 @@
 {
   "kod": "S2K",
-  "ad": "Hacimli aşağı kırılım",
+  "ad": "Dip kırılımını sat",
   "yon": "aciga_satis",
   "aciklama": "S2'nin ters yönlüsü: fiyat son 4 saatin dibini, ortalamanın 2 katı hacimle aşağı kırınca açığa satar.",
   "zaman_dilimi": "5m",

@@ -238,13 +238,13 @@ PY
     adim "9/10 Uyum denemesi"
     # Uyum denemesinin içeriği değişince bu sayı artırılır; sunucu denemeyi bir
     # sonraki güncellemede kendiliğinden yeniden çalıştırır.
-    local UYUM_SURUMU=3 SURUM
+    local UYUM_SURUMU=4 SURUM
     SURUM="$(git rev-parse HEAD 2> /dev/null || echo bilinmiyor)"
     if [ "$(cat user_data/logs/uyum_gecti 2> /dev/null)" != "surum-$UYUM_SURUMU" ]; then
         if [ "$ILK" -eq 1 ]; then
             bildir "Adım 9/10: uyum denemesi başladı. Hazır motorun stratejilerimizle doğru çalıştığını gerçek Binance verisinde sınıyor. 10-20 dakika sürer; bitince raporu yollarım."
         else
-            bildir "Uyum denemesi yeniden çalışıyor (denetimi düzeltildi). Botlar bu sırada çalışmaya devam eder. 10-20 dakika sürer; bitince raporu yollarım."
+            bildir "Uyum denemesi yeniden çalışıyor (strateji listesi ya da denetim değişti). Botlar bu sırada çalışmaya devam eder. 10-20 dakika sürer; bitince raporu yollarım."
         fi
         trap - ERR
         local UYUM=0
@@ -303,7 +303,7 @@ print(' '.join(b[0] for b in BOTLAR))")"
     # Tek seferlik ölçümler. İçeriği değişince sayı artırılır; sunucu bir sonraki
     # güncellemede yeniden çalıştırıp raporu yollar. Başarısız olursa botlar ve
     # kurulum etkilenmez.
-    local ANALIZ_SURUMU=1
+    local ANALIZ_SURUMU=2
     if [ "$(cat user_data/logs/analiz_surumu 2> /dev/null)" != "surum-$ANALIZ_SURUMU" ]; then
         if bash araclar/analiz.sh; then
             belge "$KLASOR/user_data/logs/karabasan_gecmis.txt" "Karabasan geçmiş ölçümü: stratejiler yalnız izinli durumda çalışsaydı ne olurdu? Bu dosyayı Claude'a ilet."
