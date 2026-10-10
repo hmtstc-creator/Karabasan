@@ -57,8 +57,7 @@ olunca, sunucuya bağlan:
 ssh root@SUNUCU_IP_ADRESI
 ```
 
-ve şu üç bloğu sırayla yapıştır. `KULLANICI_ADIN` yerine GitHub kullanıcı
-adını yaz.
+ve şu üç bloğu sırayla yapıştır.
 
 **1. Sunucuya depoyu okuma anahtarı üret:**
 
@@ -75,7 +74,7 @@ Add deploy key. Satırı yapıştır, "Allow write access" kutusunu İŞARETLEME
 
 ```
 export GIT_SSH_COMMAND="ssh -i /root/.ssh/karabasan_depo -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-git clone git@github.com:KULLANICI_ADIN/karabasan-bot.git /opt/karabasan-bot
+git clone git@github.com:hmtstc-creator/Karabasan.git /opt/karabasan-bot
 git -C /opt/karabasan-bot config core.sshCommand "ssh -i /root/.ssh/karabasan_depo -o IdentitiesOnly=yes"
 ```
 
