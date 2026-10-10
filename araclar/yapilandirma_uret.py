@@ -8,7 +8,6 @@ Kullanım (depo kökünde):
 Yalnız Python standart kütüphanesini kullanır; sunucuda ek kurulum istemez.
 Üretilen dosyalar:
 
-    user_data/ayarlar.json            (yoksa başlangıç değerleriyle oluşturulur)
     user_data/config/<bot>.json       (her bot için)
     user_data/config/geri_test.json   (geçmiş testi için sabit parite listesi)
     docker-compose.yml
@@ -23,12 +22,7 @@ from pathlib import Path
 KOK = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(KOK))
 
-from karabasan.botlar import (  # noqa: E402
-    BOTLAR,
-    ILK_PORT,
-    VARSAYILAN_AYARLAR,
-    ayarlari_yukle,
-)
+from karabasan.botlar import BOTLAR, ILK_PORT, ayarlari_yukle  # noqa: E402
 from karabasan.kural import kural_yukle  # noqa: E402
 
 GORUNTU = "freqtradeorg/freqtrade:stable"
@@ -226,11 +220,10 @@ def yaz(yol: Path, icerik: str) -> None:
 
 def main() -> int:
     veri = KOK / "user_data"
-    ayar_dosyasi = veri / "ayarlar.json"
-    if not ayar_dosyasi.exists():
-        yaz(ayar_dosyasi, json.dumps(VARSAYILAN_AYARLAR, ensure_ascii=False, indent=2) + "\n")
-        print(f"Oluşturuldu: {ayar_dosyasi.relative_to(KOK)} (başlangıç değerleriyle)")
-    ayar = ayarlari_yukle(ayar_dosyasi)
+    # ayarlar.json yalnız bu sunucuya özel değerleri taşır (örneğin panel adresleri).
+    # Dosyada olmayan her şey depodaki başlangıç değerlerinden gelir; böylece
+    # komisyon gibi bir değer depoda güncellendiğinde sunucuya da yansır.
+    ayar = ayarlari_yukle(veri / "ayarlar.json")
 
     for klasor in ("config", "db", "logs", "data", "kayit"):
         (veri / klasor).mkdir(parents=True, exist_ok=True)
@@ -247,8 +240,7 @@ def main() -> int:
 
     print(f"{len(BOTLAR)} bot yapılandırması ve docker-compose.yml üretildi.")
     print(
-        "Komisyon: spot %{spot:g}, vadeli %{vadeli:g} (taraf başına). "
-        "Değiştirmek için user_data/ayarlar.json dosyasını düzenle ve bu komutu yeniden çalıştır.".format(
+        "Komisyon: spot %{spot:g}, vadeli %{vadeli:g} (taraf başına).".format(
             **ayar["komisyon_yuzde"]
         )
     )

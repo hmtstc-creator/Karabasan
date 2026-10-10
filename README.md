@@ -95,15 +95,16 @@ veride doğru çalıştığını görmek ve sıradaki parçaları eklemek içind
 
 ## Komisyon oranları
 
-`user_data/ayarlar.json` dosyasında durur (ilk kurulumda başlangıç
-değerleriyle oluşur):
+Başlangıç değerleri `karabasan/botlar.py` içindedir:
 
 ```
 "komisyon_yuzde": { "spot": 0.075, "vadeli": 0.05 }
 ```
 
-Değerler yüzdedir ve taraf başınadır: 0.075, %0,075 demektir. Hesabındaki
-oranlar farklıysa dosyayı düzenle ve şunu çalıştır:
+Değerler yüzdedir ve taraf başınadır: 0.075, %0,075 demektir. Sınavda tüm
+emirler piyasa emri olduğu için alıcı (taker) oranı kullanılır. Hesabındaki
+oranlar farklıysa Claude'a yaz; değeri depoda o günceller, sen sunucuda
+şunu çalıştırırsın:
 
 ```
 bash /opt/karabasan-bot/guncelle.sh

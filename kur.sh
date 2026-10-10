@@ -95,9 +95,10 @@ python3 - "$TS_IP" <<'PY'
 import json, sys
 from pathlib import Path
 sys.path.insert(0, ".")
-from karabasan.botlar import BOTLAR, ILK_PORT, VARSAYILAN_AYARLAR
+from karabasan.botlar import BOTLAR, ILK_PORT
+# Bu dosya yalnız sunucuya özel değerleri taşır; gerisi depodaki başlangıç değerleridir.
 yol = Path("user_data/ayarlar.json")
-ayar = json.loads(yol.read_text(encoding="utf-8")) if yol.exists() else json.loads(json.dumps(VARSAYILAN_AYARLAR))
+ayar = json.loads(yol.read_text(encoding="utf-8")) if yol.exists() else {}
 adresler = []
 for sira in range(len(BOTLAR)):
     for ad in ("karabasan", sys.argv[1]):

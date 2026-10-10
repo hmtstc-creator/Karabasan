@@ -26,8 +26,9 @@ BOTLAR = [
 
 ILK_PORT = 8081
 
-# Başlangıç değerleri. Gerçek oranlar ayarlar.json dosyasından okunur;
-# o dosyayı hesabındaki oranlara göre sen düzenlersin.
+# Başlangıç değerleri. Komisyon oranları hesabına göre burada güncellenir.
+# Sunucudaki user_data/ayarlar.json dosyasında yazan bir değer buradakini ezer;
+# o dosya yalnız sunucuya özel değerler (örneğin panel adresleri) içindir.
 VARSAYILAN_AYARLAR = {
     "komisyon_yuzde": {
         # Sınavda tüm emirler piyasa emridir, bu yüzden alıcı (taker) oranı kullanılır.
