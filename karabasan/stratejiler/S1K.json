@@ -1,0 +1,66 @@
+{
+  "kod": "S1K",
+  "ad": "Trend içi tepki satışı",
+  "yon": "aciga_satis",
+  "aciklama": "S1'in ters yönlüsü: 1 saatlik düşüş trendinde, 5 dakikalıkta aşırı alımdan dönüş mumu görülünce açığa satar.",
+  "zaman_dilimi": "5m",
+  "ust_zaman_dilimi": "1h",
+  "gostergeler": {
+    "kapanis_1s": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "ust"
+    },
+    "ema50_1s": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "ust"
+    },
+    "ema50_1s_egim": {
+      "tur": "degisim_yuzde",
+      "kaynak": "ema50_1s",
+      "periyot": 5,
+      "dilim": "ust"
+    },
+    "rsi14": {
+      "tur": "rsi",
+      "periyot": 14
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "kapanis_1s",
+        "islem": "<",
+        "sag": "ema50_1s"
+      },
+      {
+        "sol": "ema50_1s_egim",
+        "islem": "<",
+        "sag": 0
+      },
+      {
+        "sol": "rsi14",
+        "islem": "asagi_keser",
+        "sag": 70
+      },
+      {
+        "sol": "kapanis",
+        "islem": "<",
+        "sag": "acilis"
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 1.2,
+    "zarar_durdur_yuzde": 1.0,
+    "sure_asimi_dakika": 240
+  },
+  "izinli_durumlar": [
+    "KIRMIZI",
+    "SARI"
+  ],
+  "bekleme_dakika": 240
+}

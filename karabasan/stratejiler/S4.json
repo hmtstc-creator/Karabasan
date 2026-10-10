@@ -1,0 +1,72 @@
+{
+  "kod": "S4",
+  "ad": "Ortalamaya dönüş",
+  "yon": "alim",
+  "aciklama": "Fiyat gün içi hacim ağırlıklı ortalamanın (VWAP) %1,5 altına inip dönüş mumu yapınca alır.",
+  "zaman_dilimi": "5m",
+  "ust_zaman_dilimi": "1h",
+  "gostergeler": {
+    "kapanis_1s": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "ust"
+    },
+    "ema50_1s": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "ust"
+    },
+    "ema50_1s_egim12": {
+      "tur": "degisim_yuzde",
+      "kaynak": "ema50_1s",
+      "periyot": 12,
+      "dilim": "ust"
+    },
+    "vwap": {
+      "tur": "vwap"
+    },
+    "rsi14": {
+      "tur": "rsi",
+      "periyot": 14
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "ema50_1s_egim12",
+        "islem": ">",
+        "sag": -1.5
+      },
+      {
+        "sol": "kapanis",
+        "islem": "<",
+        "sag": {
+          "ad": "vwap",
+          "carpan": 0.985
+        }
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": 35
+      },
+      {
+        "sol": "kapanis",
+        "islem": ">",
+        "sag": "acilis"
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 1.0,
+    "zarar_durdur_yuzde": 0.8,
+    "sure_asimi_dakika": 180
+  },
+  "izinli_durumlar": [
+    "YESIL",
+    "SARI"
+  ],
+  "bekleme_dakika": 240
+}

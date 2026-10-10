@@ -1,0 +1,63 @@
+{
+  "kod": "S3",
+  "ad": "Bant içi dönüş",
+  "yon": "alim",
+  "aciklama": "Yatay piyasada fiyat Bollinger alt bandının altından geri dönünce alır.",
+  "zaman_dilimi": "15m",
+  "ust_zaman_dilimi": "1h",
+  "gostergeler": {
+    "kapanis_1s": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "ust"
+    },
+    "ema50_1s": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "ust"
+    },
+    "ema50_1s_egim12": {
+      "tur": "degisim_yuzde",
+      "kaynak": "ema50_1s",
+      "periyot": 12,
+      "dilim": "ust"
+    },
+    "bb": {
+      "tur": "bollinger",
+      "kaynak": "kapanis",
+      "periyot": 20,
+      "sapma": 2.0
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "ema50_1s_egim12",
+        "islem": ">",
+        "sag": -1.0
+      },
+      {
+        "sol": "ema50_1s_egim12",
+        "islem": "<",
+        "sag": 1.0
+      },
+      {
+        "sol": "kapanis",
+        "islem": "yukari_keser",
+        "sag": "bb_alt"
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 1.0,
+    "zarar_durdur_yuzde": 1.0,
+    "sure_asimi_dakika": 360
+  },
+  "izinli_durumlar": [
+    "YESIL",
+    "SARI"
+  ],
+  "bekleme_dakika": 240
+}

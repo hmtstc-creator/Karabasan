@@ -1,0 +1,66 @@
+{
+  "kod": "S2",
+  "ad": "Hacimli kırılım",
+  "yon": "alim",
+  "aciklama": "Fiyat son 4 saatin tepesini, ortalamanın 2 katı hacimle yukarı kırınca alır.",
+  "zaman_dilimi": "5m",
+  "ust_zaman_dilimi": "1h",
+  "gostergeler": {
+    "kapanis_1s": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "ust"
+    },
+    "ema50_1s": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "ust"
+    },
+    "tepe48": {
+      "tur": "en_yuksek",
+      "kaynak": "yuksek",
+      "periyot": 48
+    },
+    "hacim_ort48": {
+      "tur": "hacim_ort",
+      "periyot": 48
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "kapanis_1s",
+        "islem": ">",
+        "sag": "ema50_1s"
+      },
+      {
+        "sol": "kapanis",
+        "islem": "yukari_keser",
+        "sag": {
+          "ad": "tepe48",
+          "kaydir": 1
+        }
+      },
+      {
+        "sol": "hacim",
+        "islem": ">",
+        "sag": {
+          "ad": "hacim_ort48",
+          "kaydir": 1,
+          "carpan": 2.0
+        }
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 1.5,
+    "zarar_durdur_yuzde": 1.0,
+    "sure_asimi_dakika": 120
+  },
+  "izinli_durumlar": [
+    "YESIL"
+  ],
+  "bekleme_dakika": 240
+}
