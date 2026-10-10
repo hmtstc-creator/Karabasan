@@ -114,6 +114,8 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | `kur.sh` | Kurulum; soru sormaz, her adımı Telegram'a yazar, her güncellemede yeniden çalışır |
 | `araclar/oto_guncelle.sh` | 5 dakikada bir `main`'i denetler, yeni kodu alır, `kur.sh`'ı çalıştırır |
 | `araclar/ozel_ag.sh` | Tailscale onay bağlantısını Telegram'dan yollar; kapıları özel ağ adresine taşır |
+| `araclar/claude_sunucu.sh` | Claude Code'u sunucuya kurar; girişi Telegram üzerinden yaptırır; uzaktan yönetim oturumunu (Remote Control) açık tutar |
+| `.claude/settings.json` | Sunucudaki oturumun onay sormadan çalıştırabileceği salt okunur komutlar; gizli dosyaları okuma yasağı |
 
 Üretilen dosyalar (`docker-compose.yml`, `user_data/config/`, `.env`,
 `telegram.env`) depoya girmez; sunucuda `araclar/yapilandirma_uret.py` ve
@@ -126,41 +128,91 @@ başladığı an), `user_data/sinav_baslangici.txt` (Ahmet Telegram'da
 `user_data/telegram_sohbet.txt` (botun dinlediği tek sohbet).
 
 Telegram komutları yalnız okur ve bildirir. Emir gönderen, ayar değiştiren ya
-da sunucuda serbest komut çalıştıran bir Telegram komutu ekleme.
+da sunucuda serbest komut çalıştıran bir Telegram komutu ekleme. Tek istisna
+`/claude` komutudur: `user_data/claude_*.istek` adlı bir dosya bırakır (giriş
+bağlantısı iste ya da tek kullanımlık giriş kodunu ilet); dosyanın içeriği
+komut olarak çalıştırılmaz, yalnız bekleyen giriş ekranına harfi harfine yazılır.
+
+## Sunucudaki Claude oturumu
+
+Ahmet'in isteğiyle sunucuda da bir Claude Code oturumu çalışır
+(`claude remote-control`, adı "Karabasan sunucu"); Ahmet ona telefonundaki
+Claude uygulamasından bağlanır. **Çalışma klasörün `/opt/karabasan-bot` ise ve
+makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
+
+- Sunucunun içindesin, root yetkisiyle. Burada yaptığın her şey canlı sistemi
+  etkiler. Değiştiren komutlardan önce Ahmet onay verir; yine de önce ne
+  yapacağını bir cümleyle söyle.
+- **Bu klasör canlı dağıtımdır, çalışma kopyası değildir.** 5 dakikada bir
+  `main` ile eşitlenir (`git reset --hard origin/main`); izlenen dosyalarda
+  yaptığın değişiklik bir sonraki güncellemede silinir. Sunucudan GitHub'a
+  yazma yetkisi yoktur. Kalıcı bir düzeltme gerekiyorsa: sorunu ve önerdiğin
+  değişikliği kısa ve kopyalanabilir biçimde yaz; Ahmet bunu GitHub'a
+  yazabilen bulut oturumuna iletir. Acil bir geçici düzeltme yaparsan bunun
+  geçici olduğunu açıkça söyle.
+- En değerli işin teşhistir: `docker compose ps`, `docker compose logs`,
+  `user_data/logs/` altındaki kayıtlar, `user_data/db/*.sqlite` (yalnız
+  okuyarak), `araclar/uyum_denemesi.sh`. Bulut oturumu bunları göremez.
+- Gizli dosyaları okuma, içeriklerini yazma: `.env`, `telegram.env`,
+  `/root/karabasan.env`, `/root/.claude/.credentials.json`.
+- Değişmez kurallar burada da geçerlidir: gerçek para kodu ya da anahtarı yok,
+  sınav sürerken strateji ayarı değişmez, internete kapı açılmaz. Üretilen
+  dosyaları (`docker-compose.yml`, `user_data/config/`) elle düzenleme;
+  üreteç her güncellemede yeniden yazar.
+- Botları durdurmak ya da yeniden başlatmak sınav kaydını etkiler (bir saatten
+  uzun kesinti o günü sınavdan düşürür). Ahmet açıkça istemeden yapma.
+- Gerçek paraya geçilirse bu oturum kapatılır ya da ciddi biçimde kısıtlanır;
+  borsa anahtarının durduğu sunucuda root yetkili bir oturum bırakılmaz.
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 198 test geçiyor.
-2. parça: sonuç sayfası, Telegram habercisi, telefondan kurulum ve
-kendiliğinden güncelleme. Ahmet sunucuyu (Hetzner CX33) 10 Ekim 2026'da
-kiralıyordu; kurulumun gerçek sunucudaki ilk sonucu henüz görülmedi.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 206 test geçiyor.
+
+**Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
+blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona geçti
+(uyum denemesi dahil) ve on sanal bot başladı. Isınma dönemi 10 Ekim'de
+başladı; 30 günlük sınavın saati henüz başlatılmadı.
+
+Henüz görülmeyenler: uyum denemesi raporunun içeriği (hazır motorun sayıları
+ile bağımsız benzetimin sayıları karşılaştırılmadı), botların gerçek işlem
+kayıtları, sonuç sayfasının gerçek veriyle hali. Ahmet 11 Ekim'de Tailscale
+bağlantısını henüz onaylamamıştı. Sunucudaki Claude oturumu 11 Ekim'de
+eklendi; gerçek girişle henüz denenmedi.
 
 Sıradaki işler, öncelik sırasıyla:
 
-1. Ahmet'in ileteceği kurulum kaydını ve uyum denemesi raporunu incele;
-   kurulum betiği ya da bağlantı katmanı bir yerde takıldıysa düzelt.
-2. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
+1. Uyum denemesi raporunu incele: 4. adım (hazır motor) ile 5. adımın
+   (bağımsız benzetim) işlem sayıları ve sonuçları birbirine yakın mı?
+   Değilse bağlantı katmanını düzelt. Sınav saati başlamadan bitmeli.
+2. Sunucudaki Claude girişinin ve oturumunun gerçekte çalıştığını doğrula;
+   takılırsa Ahmet `/gunluk claude` dosyasını iletir.
+3. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).
-3. Sanal işlemlerin açıldıkları andaki Karabasan durumu ve filtre puanlarıyla
+4. Sanal işlemlerin açıldıkları andaki Karabasan durumu ve filtre puanlarıyla
    etiketlenmesi (botların SQLite kayıtları ile Karabasan kaydının birleşimi).
-4. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
-5. 12 aylık geçmiş testi ve raporu (sonucu `user_data/gecmis_test.json`'a
+5. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
+6. 12 aylık geçmiş testi ve raporu (sonucu `user_data/gecmis_test.json`'a
    yazılır; 7. ölçüt bunu okur).
-6. Sonuç sayfasına Karabasan durumu, filtre hunisi ve strateji ayrıntıları.
+7. Sonuç sayfasına Karabasan durumu, filtre hunisi ve strateji ayrıntıları.
 
 ## Sunucuda doğrulanacak varsayımlar
 
+Sunucudaki ilk kurulumla doğrulananlar (10 Ekim 2026): Hetzner'in "Cloud
+config" kutusundaki betiği ilk açılışta çalıştırması; `kur.sh`'ın Ubuntu
+24.04'te baştan sona çalışması; Telegram bildirimleri ve sahibin `/start` ile
+tanınması; hazır motorun on strateji sınıfını yükleyip geçmiş testini hatasız
+bitirmesi (sayılar henüz incelenmedi).
+
 Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
 
-- Freqtrade'in strateji sınıflarını `__init_subclass__` ile doldurulan
-  özelliklerle (`timeframe`, `minimal_roi`, `stoploss`, `can_short`) yüklemesi.
+- Freqtrade'in `__init_subclass__` ile doldurulan özellikleri (`minimal_roi`,
+  `stoploss`, `can_short`) beklenen değerlerle kullanması (sınıflar yüklendi;
+  değerlerin doğru uygulandığı uyum raporundaki sayılardan anlaşılacak).
 - `minimal_roi` değerinin komisyon sonrası kâr oranı olarak yorumlanması
   (`botlar.net_hedef_orani` bu varsayıma göre çevirir).
 - Sanal modda vadeli işlemlerde fonlama ücretinin işlenmesi.
 - Vadeli veri dosyalarının adı (`araclar/karsilastir.py` içindeki desen).
 - Kapsayıcıdaki kullanıcının kimliğinin 1000 olması (`chown` buna göre).
-- Hetzner'in "Cloud config" kutusuna yapıştırılan `#!/bin/bash` ile başlayan
-  metni ilk açılışta root olarak çalıştırması.
 - Freqtrade'in `trades` tablosundaki sütun adları (`sonuc.py`: `pair`,
   `is_open`, `open_date`, `close_date`, `stake_amount`, `close_profit_abs`,
   `close_profit`, `exit_reason`, `is_short`, `enter_tag`).
@@ -170,3 +222,8 @@ Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
 - `socat` köprüsünün sunucunun Tailscale adresinde dinleyebilmesi ve
   telefonun `http://karabasan:8080` adını çözebilmesi (MagicDNS).
 - Motor görüntüsünde saat dilimi verisinin bulunması (yoksa sayfa UTC gösterir).
+- `claude auth login` ekranının tmux içinde bağlantıyı ve kod sorusunu
+  provadaki gibi göstermesi; `claude remote-control`'ün açılış sorularının
+  ("Enable Remote Control? (y/n)", "Trust ...? [y/N]") metni ve oturum
+  adresini ekrana yazması (`araclar/claude_sunucu.sh` bunlara göre yazıldı).
+- `.claude/settings.json` içindeki izin kurallarının yazımı.

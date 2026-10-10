@@ -100,6 +100,7 @@ Wants=network-online.target
 
 [Service]
 Environment=HOME=/root
+Environment=LANG=C.UTF-8
 WorkingDirectory=$KLASOR
 ExecStart=/bin/bash $KLASOR/araclar/claude_sunucu.sh oturum
 ExecStopPost=-/usr/bin/tmux -L kb-claude kill-server
@@ -114,6 +115,7 @@ After=network-online.target
 
 [Service]
 Environment=HOME=/root
+Environment=LANG=C.UTF-8
 WorkingDirectory=$KLASOR
 ExecStart=/bin/bash $KLASOR/araclar/claude_sunucu.sh giris
 ExecStopPost=-/usr/bin/tmux -L kb-giris kill-server
@@ -124,6 +126,7 @@ Description=Karabasan: Telegram'dan gelen Claude isteklerini isle
 [Service]
 Type=oneshot
 Environment=HOME=/root
+Environment=LANG=C.UTF-8
 ExecStart=/bin/bash $KLASOR/araclar/claude_sunucu.sh istek"
     birim karabasan-claude-istek.path "[Unit]
 Description=Karabasan: Claude istek dosyalarini izle
@@ -186,10 +189,14 @@ $ADRES
 Bağlantı 30 dakika bekler. Süre dolarsa /claude yazıp yenisini iste."
 
     # Kod gelene (ya da süre dolana) kadar bekle; kodu 'istek' işi yapıştırır.
-    local BITIS=$(( $(date +%s) + 1800 ))
+    local BITIS=$(( $(date +%s) + 1800 )) TUR=0
     while [ "$(date +%s)" -lt "$BITIS" ]; do
         giris_tmux has-session -t giris 2> /dev/null || break
         EKRAN="$(giris_ekrani)"
+        # Giriş programı kod kabul edildikten sonra bir tuş bekleyip açık kalabilir;
+        # giriş gerçekleştiyse beklemeyi bırak.
+        TUR=$((TUR + 1))
+        if [ $((TUR % 5)) -eq 0 ] && giris_var_mi; then break; fi
         sleep 2
     done
     giris_tmux kill-server 2> /dev/null || true
@@ -254,18 +261,22 @@ oturum() {
     oturum_tmux new-session -d -s claude -x 250 -y 50 -c "$KLASOR" \
         "claude remote-control --name '$OTURUM_ADI'"
     yaz "Oturum başlatıldı."
-    local EKRAN="" ADRES="" ESKI_ADRES="" SON_YANIT=0 SIMDI SAYAC=0
+    local EKRAN="" ADRES="" ESKI_ADRES="" SON_YANIT=0 SIMDI SAYAC=0 YANIT_SAYISI=0 SON_SATIR
     while oturum_tmux has-session -t claude 2> /dev/null; do
         EKRAN="$(oturum_ekrani)"
         printf '%s\n' "$EKRAN" > "$VERI/logs/claude_ekrani.txt"
         SIMDI="$(date +%s)"
-        # İlk açılıştaki iki soru: özelliği aç ve bu klasöre güven.
-        if [ $((SIMDI - SON_YANIT)) -ge 10 ] && printf '%s' "$EKRAN" | tail -8 \
-                | grep -Eq 'Enable Remote Control\?|Trust .*\[y/N\]'; then
+        # İlk açılıştaki iki soru: özelliği aç ve bu klasöre güven. Yalnız soru
+        # ekranın son satırında yanıtsız duruyorsa ve en fazla dört kez yanıtlanır;
+        # çalışan oturuma başıboş tuş gönderilmez.
+        SON_SATIR="$(printf '%s\n' "$EKRAN" | grep -v '^[[:space:]]*$' | tail -1)"
+        if [ "$YANIT_SAYISI" -lt 4 ] && [ $((SIMDI - SON_YANIT)) -ge 10 ] && printf '%s' "$SON_SATIR" \
+                | grep -Eq '(Enable Remote Control\? *\(y/n\)|Trust .*\[y/N\])[[:space:]]*$'; then
             oturum_tmux send-keys -t claude y
             oturum_tmux send-keys -t claude Enter
             SON_YANIT="$SIMDI"
-            yaz "Açılış sorusu yanıtlandı."
+            YANIT_SAYISI=$((YANIT_SAYISI + 1))
+            yaz "Açılış sorusu yanıtlandı: $(printf '%s' "$SON_SATIR" | cut -c1-80)"
         fi
         ADRES="$(printf '%s\n' "$EKRAN" | grep -Eo 'https://claude\.ai/code[^[:space:]]*' | tail -1 || true)"
         if [ -n "$ADRES" ] && [ "$ADRES" != "$ESKI_ADRES" ]; then

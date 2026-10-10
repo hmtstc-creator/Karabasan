@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose ps:*)",
+      "Bash(docker compose logs:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker stats --no-stream:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(systemctl status:*)",
+      "Bash(systemctl is-active:*)",
+      "Bash(systemctl list-timers:*)",
+      "Bash(journalctl:*)",
+      "Bash(df:*)",
+      "Bash(free:*)",
+      "Bash(uptime)",
+      "Bash(tailscale status:*)",
+      "Bash(ufw status:*)",
+      "Bash(ls:*)",
+      "Bash(python3 -m unittest:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./telegram.env)",
+      "Read(/root/karabasan.env)",
+      "Read(/root/.claude/.credentials.json)"
+    ]
+  }
+}

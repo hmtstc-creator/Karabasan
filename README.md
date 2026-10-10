@@ -28,6 +28,7 @@ bildirir, yeni kodu kendisi alır. Bilgisayar ve terminal gerekmez.
 | Telegram habercisi ve komutlar | `karabasan/haberci.py` | Yazıldı, taklit Telegram ile test edildi |
 | Kurulum ve uyum denemesi | `kurulum/sunucu_blogu.sh`, `kur.sh`, `araclar/uyum_denemesi.sh` | Yazıldı, taklit komutlarla prova edildi; sunucuda ilk kez çalışacak |
 | Kendiliğinden güncelleme, özel ağ | `araclar/oto_guncelle.sh`, `araclar/ozel_ag.sh` | Yazıldı, taklit komutlarla prova edildi |
+| Sunucudaki Claude | `araclar/claude_sunucu.sh` | Yazıldı, taklit komutlarla prova edildi; gerçek girişle sunucuda sınanacak |
 
 Henüz yok (sıradaki parçalar): Karabasan'ın canlı ölçüm servisi, sanal
 işlemlerin Karabasan durumuyla etiketlenmesi, haftalık rapor ve 30. gün karar
@@ -36,7 +37,7 @@ yürütücü, risk yöneticisi) bu aşamada yoktur.
 
 ## Dürüst not: nerede sınandı, nerede sınanmadı
 
-Kod 198 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
+Kod 206 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
 ve altı stratejinin geleceğe bakmadığı, kâr hedefi ve stop hesabı,
 Karabasan'ın "açılması yavaş, kapanması hızlı" davranışı, veto süreleri,
 filtrenin elenme nedenleri, sınavın yedi karar ölçütü, sonuç sayfasının sahte
@@ -105,10 +106,24 @@ sonucunu, en büyük düşüşünü ve sınavın yedi ölçütünün ara durumun
 | `/uyum` | Uyum denemesi raporu |
 | `/kurulum` | Kurulum kaydı |
 | `/sinav_baslat` | 30 günlük sınavın saatini başlatır (onay ister) |
+| `/claude` | Sunucudaki Claude'un durumu; giriş yapılmadıysa giriş bağlantısı ister |
+| `/claude KOD` | Giriş sayfasında çıkan tek kullanımlık kodu sunucuya iletir |
 | `/yardim` | Komut listesi |
 
-Bot yalnız "Başlat"a ilk basan kişiyi dinler. Komutlar yalnız okur ve
-bildirir; hiçbiri borsaya emir göndermez ya da ayar değiştirmez.
+Bot yalnız "Başlat"a ilk basan kişiyi dinler. Hiçbir komut borsaya emir
+göndermez ya da botların ayarını değiştirmez.
+
+## Sunucudaki Claude
+
+Kurulum, Claude Code'u da sunucuya kurar. Bir kerelik giriş telefondan
+yapılır: bot bir bağlantı yollar, Claude hesabıyla girilir, sayfada çıkan kod
+bota `/claude KOD` diye yazılır. Sonra telefondaki Claude uygulamasının Code
+bölümünde "Karabasan sunucu" adlı oturum görünür; orada yazılanlar sunucunun
+içinde çalışır. Kayıtları okumak gibi işler onaysız, sunucuda bir şeyi
+değiştiren komutlar onayla çalışır. Claude Pro ya da Max aboneliği gerekir.
+
+Bu oturum sanal sınav aşaması içindir. Gerçek paraya geçilirse kapatılır ya
+da kısıtlanır.
 
 ## Güncelleme
 

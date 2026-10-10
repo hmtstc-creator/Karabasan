@@ -9,6 +9,10 @@ Ahmet sunucuyu yalnız telefondan yönetir. Bu modül üç iş yapar:
 Komutların hiçbiri borsaya emir göndermez, botların ayarını değiştirmez ve
 sunucuda serbest komut çalıştırmaz. Yalnız kayıt sahibi olan sohbet dinlenir.
 
+Tek istisna /claude komutudur: sunucudaki betiğe bir istek dosyası bırakır
+(giriş bağlantısı iste, ya da tek kullanımlık giriş kodunu ilet). Dosyanın
+içeriği komut olarak çalıştırılmaz; ayrıntı araclar/claude_sunucu.sh içinde.
+
 Kullanım:
 
     python3 -m karabasan.haberci gonder "metin"     tek mesaj
@@ -26,6 +30,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -308,9 +313,10 @@ YARDIM = """Karabasan komutları
 /uyum  Uyum denemesi raporu
 /kurulum  Kurulum kaydı
 /sinav_baslat  30 günlük sınavın saatini başlatır
+/claude  Sunucudaki Claude'un durumu; giriş yapılmadıysa giriş bağlantısı ister
 /yardim  Bu liste
 
-Buradaki komutlar yalnız okur ve bildirir. Hiçbiri borsaya emir göndermez."""
+Hiçbir komut borsaya emir göndermez, botların ayarını değiştirmez."""
 
 HOSGELDIN = """Merhaba, ben Karabasan sunucusuyum. Seni sahibim olarak kaydettim; bundan sonra yalnız seni dinlerim.
 
@@ -393,6 +399,8 @@ class Servis:
                                "Kurulum kaydı bulunamadı.")
         if ad == "/sinav_baslat":
             return [("mesaj", self._sinav_baslat(ek))]
+        if ad == "/claude":
+            return [("mesaj", self._claude(ek))]
         return [("mesaj", "Bu komutu tanımıyorum. Liste için /yardim yaz.")]
 
     def _dosya(self, ad: str, aciklama: str, satir: int, yoksa: str) -> list[tuple]:
@@ -405,6 +413,14 @@ class Servis:
         from .botlar import BOTLAR
 
         adlar = [b[0] for b in BOTLAR]
+        if ek and ek[0].lower() == "claude":
+            # Sunucudaki Claude'un kaydı ve oturum ekranının son hali.
+            bolumler = []
+            for ad in ("claude.txt", "claude_ekrani.txt"):
+                icerik = son_satirlar(self.klasor / "logs" / ad, 150)
+                bolumler.append(f"===== {ad} =====\n{icerik or '(kayıt yok)'}")
+            return [("belge", "claude-kaydi.txt", "\n\n".join(bolumler).encode("utf-8"),
+                     "Sunucudaki Claude'un kaydı. Bu dosyayı Claude'a iletebilirsin.")]
         if ek:
             bot = ek[0].lower()
             if bot not in adlar:
@@ -452,6 +468,53 @@ class Servis:
             "30 günlük sınav başladı. Bundan sonraki sanal işlemler sınava sayılır.\n"
             f"Bitiş: {bitis:%d.%m.%Y %H:%M}. O gün karar raporunu yollarım."
         )
+
+    def _istek_birak(self, ad: str, icerik: str = "") -> bool:
+        """Sunucudaki betiğe (araclar/claude_sunucu.sh) bir istek dosyası bırakır.
+
+        Haberci sunucuda komut çalıştırmaz; yalnız bu dosyayı yazar. Dosyayı
+        sunucudaki izleyici okur ve ne yapacağına kendisi karar verir.
+        """
+        try:
+            yol = self.klasor / ad
+            yol.write_text(icerik, encoding="utf-8")
+            yol.chmod(0o600)
+            return True
+        except OSError as hata:
+            gunluk.warning("İstek dosyası yazılamadı: %s", hata)
+            return False
+
+    def _claude(self, ek: list[str]) -> str:
+        """Sunucudaki Claude: durum, giriş bağlantısı isteği ya da giriş kodu."""
+        if ek:
+            kod = ek[0].strip()
+            if not re.fullmatch(r"[A-Za-z0-9_#.~-]{8,512}", kod):
+                return ("Bu bir giriş koduna benzemiyor. Kodu giriş sayfasından olduğu gibi "
+                        "kopyalayıp şöyle yaz: /claude KOD")
+            if not self._istek_birak("claude_kod.istek", kod + "\n"):
+                return "Kodu sunucuya iletemedim. /kurulum yazıp gelen dosyayı Claude'a ilet."
+            return "Kodu aldım, giriş ekranına yazıyorum. Sonucu bir dakika içinde bildiririm."
+        try:
+            durum = json.loads((self.klasor / "claude_durum.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return ("Claude sunucuya henüz kurulmadı. Kurulum bittiğinde giriş bağlantısı "
+                    "kendiliğinden gelir.")
+        if not durum.get("kurulu"):
+            return "Claude sunucuya kurulamadı. /kurulum yazıp gelen dosyayı Claude'a ilet."
+        if not durum.get("giris"):
+            if not self._istek_birak("claude_giris.istek"):
+                return "Giriş isteğini sunucuya iletemedim. /kurulum yazıp gelen dosyayı Claude'a ilet."
+            return "Claude sunucuda kurulu ama giriş yapılmamış. Giriş bağlantısını birazdan yolluyorum."
+        if durum.get("oturum"):
+            adres = durum.get("adres") or ""
+            return (
+                "Claude sunucuda çalışıyor. Telefonundaki Claude uygulamasında Code bölümünü aç; "
+                "\"Karabasan sunucu\" adlı oturumu göreceksin."
+                + (f"\nDoğrudan bağlantı: {adres}" if adres else "")
+            )
+        if not self._istek_birak("claude_giris.istek"):
+            return "Oturumu açma isteğini sunucuya iletemedim. /kurulum yazıp gelen dosyayı Claude'a ilet."
+        return "Giriş yapılmış ama oturum kapalı. Yeniden açıyorum; hazır olunca yazarım."
 
     # --- gelen mesajlar ---
     def guncelleme_isle(self, g: dict) -> None:

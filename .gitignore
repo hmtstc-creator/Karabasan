@@ -25,3 +25,6 @@ user_data/kurulum_tamam
 user_data/telegram_sohbet.txt
 user_data/haberci.json
 user_data/gecmis_test.json
+user_data/claude_durum.json
+user_data/claude_durum.json.yeni
+user_data/*.istek

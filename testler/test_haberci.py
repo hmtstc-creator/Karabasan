@@ -232,6 +232,64 @@ class ServisTesti(Taban):
         self.assertIn("ZeroDivisionError", self.sahte.gonderilenler()[0])
 
 
+class ClaudeKomutuTesti(Taban):
+    """/claude komutu sunucuda komut çalıştırmaz; yalnız istek dosyası bırakır."""
+
+    def setUp(self):
+        super().setUp()
+        self.servis = haberci.Servis(self.tg, self.klasor, simdi=lambda: SIMDI)
+        haberci.sohbet_yaz(self.klasor, 42)
+
+    def _yaz(self, metin):
+        self.servis.guncelleme_isle(ozel_mesaj(1, 42, metin))
+        return self.sahte.gonderilenler()[-1]
+
+    def _durum(self, **alanlar):
+        (self.klasor / "claude_durum.json").write_text(json.dumps(alanlar))
+
+    def _istekler(self):
+        return sorted(d.name for d in self.klasor.glob("claude_*.istek"))
+
+    def test_kurulmadan_once(self):
+        self.assertIn("henüz kurulmadı", self._yaz("/claude"))
+        self.assertEqual(self._istekler(), [])
+
+    def test_giris_yoksa_baglanti_istenir(self):
+        self._durum(kurulu=True, giris=False, oturum=False, adres="")
+        self.assertIn("Giriş bağlantısını birazdan", self._yaz("/claude"))
+        self.assertEqual(self._istekler(), ["claude_giris.istek"])
+
+    def test_oturum_aciksa_adres_verilir_istek_birakilmaz(self):
+        self._durum(kurulu=True, giris=True, oturum=True, adres="https://claude.ai/code/abc")
+        yanit = self._yaz("/claude")
+        self.assertIn("Karabasan sunucu", yanit)
+        self.assertIn("https://claude.ai/code/abc", yanit)
+        self.assertEqual(self._istekler(), [])
+
+    def test_giris_var_oturum_kapaliysa_yeniden_acma_istenir(self):
+        self._durum(kurulu=True, giris=True, oturum=False, adres="")
+        self.assertIn("Yeniden açıyorum", self._yaz("/claude"))
+        self.assertEqual(self._istekler(), ["claude_giris.istek"])
+
+    def test_kod_dosyaya_birakilir(self):
+        self.assertIn("Kodu aldım", self._yaz("/claude Ab12_cd-34#Ef56.gh~78"))
+        dosya = self.klasor / "claude_kod.istek"
+        self.assertEqual(dosya.read_text(), "Ab12_cd-34#Ef56.gh~78\n")
+        self.assertEqual(dosya.stat().st_mode & 0o777, 0o600)
+
+    def test_koda_benzemeyen_metin_dosyaya_yazilmaz(self):
+        for metin in ("/claude kısa", "/claude $(reboot)", "/claude a;b|c&d>e`f`gh", "/claude " + "x" * 600,
+                      "/claude ../../etc/passwd"):
+            self.assertIn("benzemiyor", self._yaz(metin), metin)
+        self.assertEqual(self._istekler(), [])
+
+    def test_baskasi_istek_birakamaz(self):
+        self._durum(kurulu=True, giris=False, oturum=False, adres="")
+        self.servis.guncelleme_isle(ozel_mesaj(1, 99, "/claude"))
+        self.servis.guncelleme_isle(ozel_mesaj(2, 99, "/claude Ab12_cd-34#Ef56"))
+        self.assertEqual(self._istekler(), [])
+
+
 class SinavBaslatmaTesti(Taban):
     def setUp(self):
         super().setUp()

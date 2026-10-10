@@ -287,6 +287,12 @@ print(' '.join(b[0] for b in BOTLAR))")"
     chown -R 1000:1000 user_data
     bash araclar/ozel_ag.sh || true
 
+    # ------------------------------------------------------------ ek
+    adim "Ek: sunucudaki Claude"
+    # Ahmet'in telefondaki Claude uygulamasından sunucuyu yönetebilmesi için.
+    # Botlardan bağımsızdır: kurulamazsa kurulum yine tamam sayılır.
+    bash araclar/claude_sunucu.sh kur || echo "UYARI: sunucudaki Claude kurulamadı; botlar bundan etkilenmez."
+
     rm -f "$DURUM_KLASORU/son_deneme"
     if [ "$ILK" -eq 1 ]; then
         date -u '+%Y-%m-%dT%H:%M:%SZ' > user_data/kurulum_tamam

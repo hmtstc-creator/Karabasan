@@ -308,7 +308,7 @@ class KurulumBetikleriTesti(unittest.TestCase):
     """Sunucu betikleri burada çalıştırılamaz; yalnız yazım ve temel güvenlik denetlenir."""
 
     BETIKLER = ["kur.sh", "guncelle.sh", "araclar/oto_guncelle.sh", "araclar/ozel_ag.sh",
-                "araclar/uyum_denemesi.sh", "kurulum/sunucu_blogu.sh"]
+                "araclar/uyum_denemesi.sh", "araclar/claude_sunucu.sh", "kurulum/sunucu_blogu.sh"]
 
     def test_betikler_yazim_denetiminden_gecer(self):
         import subprocess
@@ -327,6 +327,16 @@ class KurulumBetikleriTesti(unittest.TestCase):
             metin = (KOK / betik).read_text(encoding="utf-8").lower()
             for yasak in ("dry_run", "api_key", "binance_key", "secret="):
                 self.assertNotIn(yasak, metin, f"{betik}: {yasak}")
+
+    def test_claude_betigi_telegramdan_geleni_komut_olarak_calistirmaz(self):
+        """Giriş kodu yalnız harfi harfine yazılır; kabukta yorumlanacak bir yere konmaz."""
+        metin = (KOK / "araclar" / "claude_sunucu.sh").read_text(encoding="utf-8")
+        self.assertIn('send-keys -t giris -l -- "$KOD"', metin)
+        self.assertIn("grep -Eq '^[A-Za-z0-9_#.~-]{8,512}$'", metin)
+        for yasak in ("eval ", 'bash -c "$KOD', "sh -c \"$KOD", "$($KOD", "`$KOD"):
+            self.assertNotIn(yasak, metin)
+        # Kod, ekranında yalnız giriş programı çalışan oturuma yazılır (kabuk açık değildir).
+        self.assertIn('new-session -d -s giris -x 600 -y 50 "claude auth login --claudeai"', metin)
 
     def test_hicbir_betik_disariya_kapi_acmaz(self):
         import re
