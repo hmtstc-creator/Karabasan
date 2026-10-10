@@ -104,12 +104,14 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim |
 | `karabasan/botlar.py` | On sanal botun listesi, komisyon başlangıç değerleri |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder |
+| `karabasan/gecmis_olcum.py` | Karabasan puanını geçmiş mumlardan geriye dönük hesaplar (yaklaşık: dominans ve TOTAL2 yerine altcoin vekili); işlemleri açıldıkları andaki durumla etiketler |
 | `karabasan/sonuc.py` | Botların SQLite kayıtlarını salt okunur okuyup özet çıkarır; dönem (ısınma, sınav, bitti) |
 | `karabasan/sayfa.py`, `karabasan/panel.py` | Türkçe sonuç sayfası ve sunucusu (8080; `/`, `/veri.json`, `/saglik`) |
 | `karabasan/haberci.py` | Telegram: kurulum bildirimleri, günlük özet, susan bot uyarısı, komutlar |
 | `user_data/strategies/karabasan_stratejileri.py` | Freqtrade bağlantı katmanı |
 | `araclar/yapilandirma_uret.py` | Bot yapılandırmalarını ve `docker-compose.yml`'i üretir |
 | `araclar/uyum_denemesi.sh`, `araclar/karsilastir.py` | Sunucudaki uyum denemesi |
+| `araclar/analiz.sh`, `araclar/karabasan_gecmis.py` | Sunucudaki tek seferlik ölçüm: 80 günlük veri indirir, stratejilerin sonucunu Karabasan durumuna göre ayırır (`kur.sh` içinde `ANALIZ_SURUMU`; Telegram'da `/olcum`) |
 | `kurulum/sunucu_blogu.sh` | Ahmet'in sunucuyu oluştururken "Cloud config" kutusuna yapıştırdığı blok |
 | `kur.sh` | Kurulum; soru sormaz, her adımı Telegram'a yazar, her güncellemede yeniden çalışır |
 | `araclar/oto_guncelle.sh` | 5 dakikada bir `main`'i denetler, yeni kodu alır, `kur.sh`'ı çalıştırır |
@@ -166,7 +168,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 212 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 234 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -214,8 +216,9 @@ tamam" dedi. Uzaktan yönetim oturumunun açıldığı henüz görülmedi.
 
 Sıradaki işler, öncelik sırasıyla:
 
-1. Üçüncü uyum denemesinin (`UYUM_SURUMU=3`) beş adımının da temiz geçtiğini
-   gör; Ahmet raporu iletecek.
+1. Karabasan geçmiş ölçümünün (`araclar/analiz.sh`) sunucudaki ilk raporunu
+   oku: stratejiler yalnız izinli durumda çalışsaydı sonuç değişir miydi?
+   Ahmet dosyayı iletecek. Üçüncü uyum denemesi beş adımda da temiz geçti.
 2. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).
    Asıl soru bununla yanıtlanır: stratejiler yalnız "Yeşil" dönemde
@@ -251,6 +254,8 @@ beklenen sonucu ara.
 
 Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
 
+- `download-data --prepend` ile eldeki verinin başına 80 güne kadar eski veri
+  eklenebilmesi (`analiz.sh`; olmazsa `--erase` ile baştan indirir).
 - Binance'in BTC vadeli sözleşmesinde en küçük emir tutarının 100 USDT olduğu
   (vadeli geçmiş testlerinde BTC'de sıfır işlem olmasının açıklaması olarak).
 - `geri_test_*.json` içindeki yer tutucu ekran değerlerinin hazır motorun

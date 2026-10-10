@@ -298,6 +298,25 @@ print(' '.join(b[0] for b in BOTLAR))")"
     chown -R 1000:1000 user_data
     bash araclar/ozel_ag.sh || true
 
+    # ------------------------------------------------------------ analiz
+    adim "Ek: analiz"
+    # Tek seferlik ölçümler. İçeriği değişince sayı artırılır; sunucu bir sonraki
+    # güncellemede yeniden çalıştırıp raporu yollar. Başarısız olursa botlar ve
+    # kurulum etkilenmez.
+    local ANALIZ_SURUMU=1
+    if [ "$(cat user_data/logs/analiz_surumu 2> /dev/null)" != "surum-$ANALIZ_SURUMU" ]; then
+        if bash araclar/analiz.sh; then
+            belge "$KLASOR/user_data/logs/karabasan_gecmis.txt" "Karabasan geçmiş ölçümü: stratejiler yalnız izinli durumda çalışsaydı ne olurdu? Bu dosyayı Claude'a ilet."
+        else
+            belge "$KLASOR/user_data/logs/karabasan_gecmis.txt" "Karabasan geçmiş ölçümü üretilemedi. Bu dosyayı Claude'a ilet."
+        fi
+        # Sonuç ne olursa olsun bu sürüm bir kez denenir; düzeltme yeni sürümle gelir.
+        echo "surum-$ANALIZ_SURUMU" > user_data/logs/analiz_surumu
+        chown -R 1000:1000 user_data
+    else
+        echo "Analiz bu sürümde zaten çalıştı, atlandı."
+    fi
+
     # ------------------------------------------------------------ ek
     adim "Ek: sunucudaki Claude"
     # Ahmet'in telefondaki Claude uygulamasından sunucuyu yönetebilmesi için.

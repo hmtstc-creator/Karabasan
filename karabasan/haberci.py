@@ -311,6 +311,7 @@ YARDIM = """Karabasan komutları
 /gunluk  Botların son kayıt satırları (sorun olursa Claude'a iletmek için)
 /gunluk s1-spot  Tek bir botun kayıtları
 /uyum  Uyum denemesi raporu
+/olcum  Karabasan geçmiş ölçümü (stratejilerin duruma göre sonucu)
 /kurulum  Kurulum kaydı
 /sinav_baslat  30 günlük sınavın saatini başlatır
 /claude  Sunucudaki Claude'un durumu; giriş yapılmadıysa giriş bağlantısı ister
@@ -394,6 +395,9 @@ class Servis:
         if ad == "/uyum":
             return self._dosya("uyum_denemesi.txt", "Uyum denemesi raporu", 20000,
                                "Uyum denemesi henüz çalışmadı.")
+        if ad == "/olcum":
+            return self._dosya("karabasan_gecmis.txt", "Karabasan geçmiş ölçümü", 2000,
+                               "Karabasan geçmiş ölçümü henüz çalışmadı.")
         if ad == "/kurulum":
             return self._dosya("kurulum.txt", "Kurulum kaydı (son satırlar)", 400,
                                "Kurulum kaydı bulunamadı.")

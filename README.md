@@ -37,7 +37,7 @@ yürütücü, risk yöneticisi) bu aşamada yoktur.
 
 ## Dürüst not: nerede sınandı, nerede sınanmadı
 
-Kod 212 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
+Kod 234 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
 ve altı stratejinin geleceğe bakmadığı, kâr hedefi ve stop hesabı,
 Karabasan'ın "açılması yavaş, kapanması hızlı" davranışı, veto süreleri,
 filtrenin elenme nedenleri, sınavın yedi karar ölçütü, sonuç sayfasının sahte
@@ -109,6 +109,7 @@ sonucunu, en büyük düşüşünü ve sınavın yedi ölçütünün ara durumun
 | `/sayfa` | Sonuç sayfasını dosya olarak yollar |
 | `/gunluk` | On botun son kayıt satırları; `/gunluk s1-spot` tek bot |
 | `/uyum` | Uyum denemesi raporu |
+| `/olcum` | Karabasan geçmiş ölçümü: stratejilerin sonucu piyasa durumuna göre |
 | `/kurulum` | Kurulum kaydı |
 | `/sinav_baslat` | 30 günlük sınavın saatini başlatır (onay ister) |
 | `/claude` | Sunucudaki Claude'un durumu; giriş yapılmadıysa giriş bağlantısı ister |

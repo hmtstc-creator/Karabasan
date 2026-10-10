@@ -308,7 +308,8 @@ class KurulumBetikleriTesti(unittest.TestCase):
     """Sunucu betikleri burada çalıştırılamaz; yalnız yazım ve temel güvenlik denetlenir."""
 
     BETIKLER = ["kur.sh", "guncelle.sh", "araclar/oto_guncelle.sh", "araclar/ozel_ag.sh",
-                "araclar/uyum_denemesi.sh", "araclar/claude_sunucu.sh", "kurulum/sunucu_blogu.sh"]
+                "araclar/uyum_denemesi.sh", "araclar/claude_sunucu.sh", "araclar/analiz.sh",
+                "kurulum/sunucu_blogu.sh"]
 
     def test_betikler_yazim_denetiminden_gecer(self):
         import subprocess
@@ -441,3 +442,60 @@ exit 0
             self.assertIs(ekran["enabled"], False)
             for alan in ("jwt_secret_key", "ws_token", "password"):
                 self.assertGreaterEqual(len(ekran[alan]), 32, alan)
+
+
+class AnalizBetigiTesti(unittest.TestCase):
+    """araclar/analiz.sh taklit bir 'docker' ile çalıştırılır."""
+
+    SAHTE_DOCKER = r'''#!/bin/bash
+echo "docker $*" >> "$SAHTE_KAYIT"
+case "$*" in
+  *download-data*--prepend*) [ "$SAHTE_MOD" = "prepend_yok" ] && { echo "freqtrade: error: unrecognized arguments: --prepend"; exit 2; }; echo "Downloaded";;
+  *download-data*--erase*) echo "Downloaded";;
+  *karabasan_gecmis.py*) [ "$SAHTE_MOD" = "olcum_yok" ] && { echo "Traceback (most recent call last): sahte" >&2; exit 1; }
+                         echo "Karabasan geçmiş ölçümü: 2026-09-10 00:00 - 2026-10-10 00:00 UTC (30,0 gün)";;
+esac
+exit 0
+'''
+
+    def _calistir(self, mod):
+        import os
+        import shutil
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = Path(gecici)
+            (kok / "araclar").mkdir()
+            (kok / "bin").mkdir()
+            shutil.copy(KOK / "araclar" / "analiz.sh", kok / "araclar" / "analiz.sh")
+            docker = kok / "bin" / "docker"
+            docker.write_text(self.SAHTE_DOCKER, encoding="utf-8")
+            docker.chmod(0o755)
+            ortam = {**os.environ, "PATH": f"{kok / 'bin'}:{os.environ['PATH']}", "SAHTE_MOD": mod,
+                     "SAHTE_KAYIT": str(kok / "cagrilar.txt")}
+            sonuc = subprocess.run(["bash", str(kok / "araclar" / "analiz.sh")],
+                                   capture_output=True, text=True, env=ortam)
+            rapor = (kok / "user_data" / "logs" / "karabasan_gecmis.txt").read_text(encoding="utf-8")
+            cagrilar = (kok / "cagrilar.txt").read_text(encoding="utf-8")
+            return sonuc.returncode, rapor, cagrilar
+
+    def test_olagan_durum(self):
+        kod, rapor, cagrilar = self._calistir("iyi")
+        self.assertEqual(kod, 0)
+        self.assertTrue(rapor.startswith("Karabasan geçmiş ölçümü:"))
+        self.assertNotIn("UYARI", rapor)
+        self.assertEqual(cagrilar.count("--prepend"), 2)   # spot ve vadeli
+        self.assertNotIn("--erase", cagrilar)
+        self.assertIn("--days 80", cagrilar)
+
+    def test_prepend_desteklenmezse_silip_bastan_indirir(self):
+        kod, rapor, cagrilar = self._calistir("prepend_yok")
+        self.assertEqual(kod, 0)
+        self.assertEqual(cagrilar.count("--erase"), 2)
+        self.assertNotIn("UYARI", rapor)
+
+    def test_olcum_uretilemezse_kaydin_sonu_rapora_eklenir(self):
+        kod, rapor, _ = self._calistir("olcum_yok")
+        self.assertEqual(kod, 1)
+        self.assertIn("ÖLÇÜM ÜRETİLEMEDİ", rapor)
+        self.assertIn("Traceback", rapor)
