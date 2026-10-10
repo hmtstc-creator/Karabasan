@@ -174,13 +174,30 @@ on sanal bot başladı (motor: freqtrade 2026.9). Isınma dönemi 10 Ekim'de
 başladı; 30 günlük sınavın saati henüz başlatılmadı ve aşağıdaki ilk iki iş
 bitmeden başlatılmamalı.
 
-**İlk uyum denemesinin "geçti" sonucu yanlıştı.** Hazır motorun on geçmiş
-testi de ayar hatasıyla durmuştu (yer tutucu `jwt_secret_key` çok kısa; `arac`
-servisi `.env` okumuyordu), ama çıkış kodu temiz göründüğü için betik "geçti"
-yazdı. 11 Ekim'de düzeltildi: `arac` artık `.env` okuyor, betik çıktıda hata
-satırı ve sonuç tablosu arıyor, `kur.sh` denemeyi sunucuda yeniden çalıştırıyor
-(`UYUM_SURUMU`). Hazır motorun sayıları ile bağımsız benzetimin sayıları hâlâ
-karşılaştırılmadı.
+**Bağlantı katmanı doğrulandı (11 Ekim 2026).** Hazır motorun 30 günlük
+geçmiş testi ile bağımsız benzetim aynı sonucu veriyor (işlem / kazanma / net
+USDT; önce motor, sonra benzetim): S1 spot 72 / %37,5 / −10,44 ile 73 / %37,0 /
+−10,72; S2 spot 198 / %40,4 / −9,02 ile 194 / %40,2 / −9,32; S3 spot 187 /
+%52,9 / −7,32 ile 183 / %54,6 / −4,12; S4 spot 46 / %58,7 / +1,21 ile 42 /
+%57,1 / +0,07. Çıkışlar tasarlandığı gibi: hedefe ulaşan işlemler hedef eksi
+gidiş-dönüş komisyonu kadar kazanıyor (S1'de +%1,05), stoplar −%1,14, süre
+aşımı tam süresinde. Yani olumsuz sonuçlar yazılım hatası değil.
+
+**Vadelide 50 USDT ile BTC işlem görmüyor.** Altı vadeli geçmiş testinin
+hepsinde BTC'de sıfır işlem var; spot'ta BTC normal. En olası neden Binance'in
+BTC vadeli sözleşmesindeki en küçük emir tutarı (100 USDT); doğrulanmadı.
+Bağımsız benzetim bu kuralı bilmediği için vadelide yaklaşık beşte bir daha
+fazla işlem sayar; karşılaştırırken BTC'yi düş (`karsilastir.py` coin başına
+sayıyı yazar).
+
+**Uyum denemesinin iki hatası (düzeltildi).** İlk çalıştırmada on geçmiş testi
+de ayar hatasıyla durdu (bot dosyasındaki yer tutucu `jwt_secret_key` çok
+kısa) ama betik "geçti" yazdı; betik artık çıktıda hata satırı ve sonuç tablosu
+arıyor. İkinci denemede `arac` servisine `.env` verildi; geçmiş testleri çalıştı
+ama bu kez yapılandırma dosyası almayan üç adım (strateji listesi, iki veri
+indirme) kaldı. Kalıcı çözüm: `arac` `.env` okumaz, `geri_test_*.json` geçerli
+uzunlukta yer tutucu taşır. `kur.sh` denemeyi `UYUM_SURUMU` değişince yeniden
+çalıştırır.
 
 **İlk gerçek sonuçlar olumsuz.** Bağımsız benzetim, son 30 günün gerçek
 verisinde (BTC, ETH, SOL, XRP, DOGE; komisyon dahil; Karabasan süzgeci yok):
@@ -192,13 +209,13 @@ bakarak strateji ayarı değiştirme (geçmişe ezber); önce karşılaştırma,
 Karabasan ölçümü ve 12 aylık geçmiş testi.
 
 Ahmet 11 Ekim'de Tailscale bağlantısını henüz onaylamamıştı. Sunucudaki
-Claude oturumu 11 Ekim'de eklendi; gerçek girişle henüz denenmedi.
+Claude 11 Ekim'de eklendi; Ahmet girişi Telegram üzerinden yaptı ve bot "giriş
+tamam" dedi. Uzaktan yönetim oturumunun açıldığı henüz görülmedi.
 
 Sıradaki işler, öncelik sırasıyla:
 
-1. Yeniden çalışan uyum denemesinin raporunu incele: 4. adım (hazır motor) ile
-   5. adımın (bağımsız benzetim) işlem sayıları ve sonuçları birbirine yakın
-   mı? Değilse bağlantı katmanını düzelt. Sınav saati başlamadan bitmeli.
+1. Üçüncü uyum denemesinin (`UYUM_SURUMU=3`) beş adımının da temiz geçtiğini
+   gör; Ahmet raporu iletecek.
 2. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).
    Asıl soru bununla yanıtlanır: stratejiler yalnız "Yeşil" dönemde
@@ -207,8 +224,8 @@ Sıradaki işler, öncelik sırasıyla:
    etiketlenmesi (botların SQLite kayıtları ile Karabasan kaydının birleşimi).
 4. 12 aylık geçmiş testi ve raporu (sonucu `user_data/gecmis_test.json`'a
    yazılır; 7. ölçüt bunu okur).
-5. Sunucudaki Claude girişinin ve oturumunun gerçekte çalıştığını doğrula;
-   takılırsa Ahmet `/gunluk claude` dosyasını iletir.
+5. Sunucudaki Claude oturumunun (`claude remote-control`) gerçekte açıldığını
+   doğrula; takılırsa Ahmet `/gunluk claude` dosyasını iletir.
 6. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
 7. Sonuç sayfasına Karabasan durumu, filtre hunisi ve strateji ayrıntıları.
 
@@ -222,20 +239,22 @@ veri indirme ve vadeli veri dosyalarının adı; on botun sanal modda çalışı
 işlem açması; `sonuc.py`'nin gerçek `trades` tablosunu okuması; botların
 günlük dosyasına düzenli yazması ("Çalışan bot: 10 / 10").
 
+Geçmiş testiyle doğrulananlar (11 Ekim 2026): `minimal_roi`, `stoploss`,
+`can_short` ve süre aşımının (`custom_exit`) beklenen değerlerle uygulanması;
+`minimal_roi`'nin komisyon sonrası oran olarak yorumlanması; geçmiş testi
+çıktısında "BACKTESTING REPORT" başlığı; `claude auth login` akışının Telegram
+üzerinden gerçek girişle çalışması.
+
 Bir ders: hazır motorun çıkış koduna tek başına güvenme. Ayar hatasında
 `docker compose run` temiz kodla dönmüş göründü; nedeni bilinmiyor. Çıktıda
 beklenen sonucu ara.
 
 Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
 
-- Freqtrade'in `__init_subclass__` ile doldurulan özellikleri (`minimal_roi`,
-  `stoploss`, `can_short`) beklenen değerlerle kullanması (sınıflar yüklendi;
-  değerlerin doğru uygulandığı, geçmiş testi ile bağımsız benzetim
-  karşılaştırılınca anlaşılacak).
-- Geçmiş testi çıktısında "BACKTESTING REPORT" başlığının bulunması
-  (`uyum_denemesi.sh` buna bakar; yoksa adım kalır).
-- `minimal_roi` değerinin komisyon sonrası kâr oranı olarak yorumlanması
-  (`botlar.net_hedef_orani` bu varsayıma göre çevirir).
+- Binance'in BTC vadeli sözleşmesinde en küçük emir tutarının 100 USDT olduğu
+  (vadeli geçmiş testlerinde BTC'de sıfır işlem olmasının açıklaması olarak).
+- `geri_test_*.json` içindeki yer tutucu ekran değerlerinin hazır motorun
+  yapılandırma denetiminden geçmesi (gerçek değerlerle geçtiği görüldü).
 - Sanal modda vadeli işlemlerde fonlama ücretinin işlenmesi.
 - Kapsayıcıdaki kullanıcının kimliğinin 1000 olması (`chown` buna göre).
 - `tailscale status --json` çıktısındaki `BackendState` ve `AuthURL` alanları.

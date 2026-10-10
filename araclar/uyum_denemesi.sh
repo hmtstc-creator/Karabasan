@@ -140,6 +140,6 @@ if [ "$HATA" -eq 0 ]; then
     yaz "Raporu Claude'a gönderirsen karşılaştırmayı o yapar: $RAPOR"
     exit 0
 fi
-yaz "SONUÇ: $HATA adım kaldı. Sanal botlar BAŞLATILMADI."
+yaz "SONUÇ: $HATA adım kaldı."
 yaz "Şu dosyayı Claude'a gönder: $RAPOR"
 exit 1

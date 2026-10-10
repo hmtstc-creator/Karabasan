@@ -49,6 +49,7 @@ KRIPTO_OLMAYAN = "XAU|XAG|XPT|XPD"
 
 # Geçmiş testi ve uyum denemesi için sabit, yüksek hacimli pariteler.
 GERI_TEST_COINLERI = ["BTC", "ETH", "SOL", "XRP", "DOGE"]
+GERI_TEST_YER_TUTUCU = "gecmis-testi-icin-yer-tutucu-gizli-degil-0123456789"
 
 
 # Kapsayıcı günlükleri diski doldurmasın.
@@ -161,7 +162,15 @@ def geri_test_yapilandirmasi(piyasa: str) -> dict:
     return {
         "exchange": {"pair_whitelist": [f"{c}/USDT{ek}" for c in GERI_TEST_COINLERI]},
         "pairlists": [{"method": "StaticPairList"}],
-        "api_server": {"enabled": False},
+        # Geçmiş testinde ekran kapalıdır, ama hazır motor yapılandırmayı yine de
+        # denetler ve bot dosyasındaki kısa yer tutucuları reddeder. Buradaki
+        # değerler gizli değildir ve hiçbir yerde kullanılmaz; yalnız denetimi geçer.
+        "api_server": {
+            "enabled": False,
+            "jwt_secret_key": GERI_TEST_YER_TUTUCU,
+            "ws_token": GERI_TEST_YER_TUTUCU,
+            "password": GERI_TEST_YER_TUTUCU,
+        },
     }
 
 
@@ -173,10 +182,10 @@ def compose_metni() -> str:
         "  arac:",
         f"    image: {GORUNTU}",
         "    profiles: [\"arac\"]",
-        # Bot yapılandırmalarındaki ekran parolası ve anahtar alanları yer tutucudur;
-        # gerçek değerler .env'den gelir. Bu satır olmadan hazır motor yapılandırmayı
-        # geçersiz sayar ve geçmiş testi hiç başlamaz (ilk kurulumda böyle oldu).
-        "    env_file: .env",
+        # Bu servis .env okumaz. .env'deki ekran ayarları yapılandırma dosyası
+        # verilmeden çalışan komutlara (strateji listesi, veri indirme) yarım bir
+        # "api_server" bölümü ekler ve hazır motor yapılandırmayı geçersiz sayar.
+        # Geçmiş testinin ihtiyacı olan alanlar geri_test_*.json içindedir.
         "    volumes:",
         "      - ./user_data:/freqtrade/user_data",
         "      - ./karabasan:/freqtrade/karabasan:ro",

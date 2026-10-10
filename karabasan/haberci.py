@@ -392,7 +392,7 @@ class Servis:
         if ad == "/gunluk":
             return self._gunluk(ek)
         if ad == "/uyum":
-            return self._dosya("uyum_denemesi.txt", "Uyum denemesi raporu", 2000,
+            return self._dosya("uyum_denemesi.txt", "Uyum denemesi raporu", 20000,
                                "Uyum denemesi henüz çalışmadı.")
         if ad == "/kurulum":
             return self._dosya("kurulum.txt", "Kurulum kaydı (son satırlar)", 400,
@@ -639,7 +639,9 @@ def main(argv: list[str] | None = None) -> int:
             sohbet = sahibi_ogren(tg, klasor)
             yol = Path(ek[0])
             if sohbet is not None and yol.exists():
-                icerik = son_satirlar(yol, 2000).encode("utf-8")
+                # Rapor baştan sona gitmeli; ilk kurulumda son 2000 satırla sınırlıydı
+                # ve uyum raporunun ilk üç adımı kesilmişti.
+                icerik = son_satirlar(yol, 20000).encode("utf-8")
                 tg.belge(sohbet, yol.name, icerik, " ".join(ek[1:]))
         elif is_adi == "bekle":
             bitis = time.monotonic() + float(ek[0] if ek else 600)

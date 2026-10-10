@@ -405,6 +405,8 @@ exit 0
         self.assertEqual(rapor.count("[KALDI]"), 10)
         self.assertIn("SONUÇ: 10 adım kaldı.", rapor)
         self.assertNotIn("geçmiş testi tamamlandı", rapor)
+        # Betik botların durumu hakkında konuşmaz; onu çağıran bilir.
+        self.assertNotIn("BAŞLATILMADI", rapor)
 
     def test_hatali_cikis_kodu_kalir(self):
         kod, rapor = self._calistir("cikis_kodu")
@@ -421,10 +423,21 @@ exit 0
         self.assertEqual(kod, 0, rapor)
         self.assertEqual(rapor.count("ama hiç işlem açmadı"), 10)
 
-    def test_arac_servisi_gizli_degerleri_okur(self):
-        """Yer tutucu parolalarla hazır motor yapılandırmayı reddeder; arac da .env okumalı."""
+    def test_arac_servisi_env_okumaz_gecmis_testi_yer_tutucusu_gecerlidir(self):
+        """İki ders bir arada.
+
+        1. Bot dosyasındaki kısa yer tutucularla hazır motor geçmiş testini başlatmaz.
+           Geçmiş testi yapılandırması bu alanları geçerli uzunlukta değerlerle ezer.
+        2. arac servisi .env okursa, yapılandırma dosyası verilmeden çalışan komutlar
+           (strateji listesi, veri indirme) yarım bir ekran ayarı yüzünden reddedilir.
+        """
         sys.path.insert(0, str(KOK / "araclar"))
         import yapilandirma_uret
 
         arac = yapilandirma_uret.compose_metni().split("  arac:")[1].split("\n\n")[0]
-        self.assertIn("env_file: .env", arac)
+        self.assertNotIn("\n    env_file", arac)
+        for piyasa in ("spot", "vadeli"):
+            ekran = yapilandirma_uret.geri_test_yapilandirmasi(piyasa)["api_server"]
+            self.assertIs(ekran["enabled"], False)
+            for alan in ("jwt_secret_key", "ws_token", "password"):
+                self.assertGreaterEqual(len(ekran[alan]), 32, alan)

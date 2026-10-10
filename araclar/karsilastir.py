@@ -47,6 +47,7 @@ def main() -> int:
         kural = kural_yukle(kural_kodu)
         komisyon = float(ayar["komisyon_yuzde"][piyasa])
         tum = []
+        coin_basina = []
         for coin in COINLER:
             dosya = veri_dosyasi(coin, kural["zaman_dilimi"], piyasa)
             if dosya is None:
@@ -54,8 +55,10 @@ def main() -> int:
                 continue
             df = pd.read_feather(dosya)[["date", "open", "high", "low", "close", "volume"]]
             baslangic = df["date"].max() - pd.Timedelta(days=gun)
-            islemler = benzet(df, kural, komisyon_yuzde=komisyon)
-            tum += [i for i in islemler if i["giris_zamani"] >= baslangic]
+            islemler = [i for i in benzet(df, kural, komisyon_yuzde=komisyon)
+                        if i["giris_zamani"] >= baslangic]
+            tum += islemler
+            coin_basina.append(f"{coin} {len(islemler)}")
         k = karne(tum, float(ayar["islem_tutari"]), float(ayar["sanal_bakiye"]))
         if k["islem_sayisi"] == 0:
             print(f"{bot:<12} {0:>6} {'-':>10} {'-':>11} {'-':>10} {0.0:>9.2f}")
@@ -65,7 +68,10 @@ def main() -> int:
         print(
             f"{bot:<12} {k['islem_sayisi']:>6} {k['kazanma_orani']:>10.1f} "
             f"{k['net_beklenti']:>11.3f} {faktor_metni:>10} {k['net_tutar']:>9.2f}"
+            f"   ({', '.join(coin_basina)})"
         )
+    print("Not: bu hesap borsanın en küçük emir tutarını bilmez. Vadelide BTC için en küçük tutar")
+    print("işlem tutarımızdan büyükse hazır motor BTC'de işlem açmaz; karşılaştırırken BTC'yi düş.")
     if eksik:
         print(f"UYARI: {eksik} veri dosyası bulunamadı ({VERI}).")
         return 1
