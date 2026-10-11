@@ -167,6 +167,32 @@ class ServisTesti(Taban):
         self.assertEqual(self.sahte.istekler, [])
         self.assertEqual(haberci.sohbet_oku(self.klasor), 42)
 
+    def test_dersler_komutu(self):
+        self._sahip_ol()
+        self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/dersler"))
+        self.assertIn("Henüz izlenmiş stop yok", self.sahte.gonderilenler()[0])
+        # İzlenmiş iki stop: biri 1,5 katla hedefe ulaşırdı, diğeri her seçenekte yine stop.
+        from karabasan import stop_sonrasi
+
+        def kayit(giris, gercek, fark):
+            return {"bot": "s1-spot", "kod": "S1", "parite": "SOL/USDT", "yon": "alim",
+                    "giris_zamani": giris, "cikis_zamani": giris, "gercek_net_yuzde": gercek,
+                    "hedefi_gordu": fark > 0, "en_kotu_yuzde": -1.3,
+                    "alternatif": {c: {"sonuc": "hedef" if fark > 0 else "stop", "net_yuzde": gercek + fark}
+                                   for c in ("1.5", "2", "3")}}
+
+        zaman = (SIMDI - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        stop_sonrasi.dosya_yaz(stop_sonrasi.dosya_yolu(self.klasor), {
+            "surum": 1, "basarisiz": {}, "dersler": [], "son_tur": zaman,
+            "islemler": {"s1-spot#900": kayit(zaman, -1.15, 2.2), "s1-spot#901": kayit(zaman, -1.15, -0.5)},
+        })
+        self.servis.guncelleme_isle(ozel_mesaj(2, 42, "/dersler"))
+        metin = self.sahte.gonderilenler()[-1]
+        self.assertIn("Yükselişte düşüşü al [S1]: 2 stop izlendi, 1 tanesinde", metin)
+        self.assertIn("1,5 kat +0,85 USDT", metin)          # (2,2 − 0,5) × 50 / 100
+        self.assertIn("Karar için en az 30 izlenmiş stop gerekiyor; şimdilik 2 var.", metin)
+        self.assertIn("Hiçbir ayar kendiliğinden değişmez.", metin)
+
     def test_komut_olmayan_mesaja_yanit_yok(self):
         self._sahip_ol()
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "naber"))
@@ -379,6 +405,39 @@ class ZamanliIslerTesti(Taban):
         haberci.sohbet_yolu(self.klasor).unlink()
         self.servis.zamanli_isler()
         self.assertEqual(self.sahte.istekler, [])
+
+    def _ders_yaz(self, *dersler):
+        from karabasan import stop_sonrasi
+
+        yol = stop_sonrasi.dosya_yolu(self.klasor)
+        veri = stop_sonrasi.dosya_oku(yol)
+        veri["dersler"] += [
+            {"zaman": zaman, "bot": "s2-spot", "kod": "S2", "ad": "Tepe kırılımını al",
+             "karar": karar, "carpan": None, "stop_sayisi": 40, "metin": metin}
+            for zaman, karar, metin in dersler
+        ]
+        stop_sonrasi.dosya_yaz(yol, veri)
+
+    def test_yeni_ders_bir_kez_bildirilir(self):
+        self._hepsi_calisiyor()
+        self.servis.zamanli_isler()
+        self.assertEqual(self.sahte.gonderilenler(), [])
+        self._ders_yaz(("2026-11-01T10:00:00Z", "dar", "Stop dar görünüyor. Örnek metin."))
+        self.servis.zamanli_isler()
+        self.servis.zamanli_isler()
+        mesajlar = self.sahte.gonderilenler()
+        self.assertEqual(len(mesajlar), 1)
+        self.assertTrue(mesajlar[0].startswith("Yeni ders: Tepe kırılımını al [S2]"))
+        self.assertIn("Stop dar görünüyor. Örnek metin.", mesajlar[0])
+        self.assertIn("/dersler", mesajlar[0])
+        # Servis yeniden başlasa da aynı ders yinelenmez; yenisi gelince yalnız o gider.
+        servis = haberci.Servis(self.tg, self.klasor, simdi=lambda: self.simdi)
+        servis.zamanli_isler()
+        self.assertEqual(len(self.sahte.gonderilenler()), 1)
+        self._ders_yaz(("2026-11-02T09:00:00Z", "yerinde", "Stop yerinde görünüyor."))
+        servis.zamanli_isler()
+        self.assertEqual(len(self.sahte.gonderilenler()), 2)
+        self.assertIn("Stop yerinde görünüyor.", self.sahte.gonderilenler()[-1])
 
 
 class KomutSatiriTesti(unittest.TestCase):

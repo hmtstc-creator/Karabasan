@@ -229,6 +229,52 @@ class RaporTesti(unittest.TestCase):
                          sayilar["Hepsi"])
         self.assertGreater(sayilar["Hepsi"], 0)
 
+    def test_stop_genisligi_bolumu(self):
+        import re
+
+        bolum = self.metin.split("STOP GENİŞLİĞİ:")[1]
+        self.assertIn("geçmişe ezberdir", bolum)
+        s1 = bolum.split("S1 spot:")[1].split("S2 spot:")[0]
+        satirlar = [x for x in s1.splitlines() if re.match(r"\s+%", x)]
+        self.assertEqual([x.split()[0] for x in satirlar], ["%1", "%1,5", "%2", "%3"])
+        self.assertIn("(şimdiki)", satirlar[0])
+        self.assertIn("Sonuç: ", s1)
+        # Şimdiki stopun satırı, yukarıdaki süzgeçsiz sonuçla aynı işlem sayısını ve neti verir.
+        ust = self.metin.split("S1 spot:")[1].split("S2 spot:")[0]
+        hepsi = next(x for x in ust.splitlines() if "Hepsi (süzgeçsiz)" in x).split()
+        simdiki = satirlar[0].split()
+        self.assertEqual(simdiki[2], hepsi[2])        # işlem sayısı
+        self.assertEqual(simdiki[4], hepsi[-1])       # net USDT
+        # İki yarının toplamı dönemin netine eşittir.
+        net, ilk, son = (float(x.replace(",", ".")) for x in simdiki[4:7])
+        self.assertAlmostEqual(ilk + son, net, places=1)
+
+    def test_genis_stoplu_kopya_yalniz_stopu_degistirir(self):
+        from karabasan.kural import kural_yukle
+
+        kural = kural_yukle("S4")
+        kopya = self.modul.genis_stoplu(kural, 1.5)
+        self.assertAlmostEqual(kopya["cikis"]["zarar_durdur_yuzde"], 1.2)
+        self.assertEqual(kural["cikis"]["zarar_durdur_yuzde"], 0.8)            # asıl kural değişmedi
+        self.assertEqual({k: v for k, v in kopya.items() if k != "cikis"},
+                         {k: v for k, v in kural.items() if k != "cikis"})
+        self.assertEqual(kopya["cikis"]["kar_hedefi_yuzde"], kural["cikis"]["kar_hedefi_yuzde"])
+
+    def test_stop_degerlendirmesi(self):
+        def satir(carpan, net, ilk, son):
+            return {"carpan": carpan, "net": net, "ilk": ilk, "son": son}
+
+        d = self.modul.stop_degerlendirmesi
+        simdiki = satir(1.0, -10.0, -5.0, -5.0)
+        self.assertIn("en az 30 stop gerekir", d([simdiki, satir(1.5, 0.0, 0.0, 0.0)], 12, 50.0))
+        dar = d([simdiki, satir(1.5, -4.0, -2.0, -2.0), satir(2.0, -12.0, -6.0, -6.0)], 40, 50.0)
+        self.assertIn("Stop dar görünüyor: 1,5 kat stop", dar)
+        self.assertIn("+6,00 USDT", dar)
+        self.assertIn("Yine de sonuç ekside kalıyor.", dar)
+        self.assertIn("Stop yerinde", d([simdiki, satir(1.5, -11.0, -5.5, -5.5), satir(2.0, -15.0, -8.0, -7.0)], 40, 50.0))
+        # Toplamda iyi ama yalnız ilk yarıda: şans olabilir.
+        self.assertIn("Kararsız", d([simdiki, satir(1.5, -4.0, 2.0, -6.0)], 40, 50.0))
+
     def test_veri_yetmezse_soyler(self):
         kisa = yapay_mumlar(288 * 20, tohum=1)
         metin, eksik = self.modul.rapor_uret(yukle=lambda c, d, p: kisa, gun=30)

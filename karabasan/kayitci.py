@@ -10,6 +10,9 @@ Yalnız Python standart kütüphanesini kullanır. Çalıştırma:
     python3 -m karabasan.kayitci
 
 Çıktı: user_data/kayit/kuresel.csv
+
+Aynı döngü ikinci bir iş daha yürütür: stop olan işlemlerin sonrasını izler
+(karabasan.stop_sonrasi, çıktısı user_data/kayit/stop_sonrasi.json).
 """
 
 from __future__ import annotations
@@ -95,7 +98,25 @@ def main() -> None:
         except (urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as hata:
             # Bir ölçüm kaçarsa sorun değil; döngü sürer.
             gunluk.warning("Ölçüm alınamadı: %s", hata)
+        stop_sonrasi_turu(yol.parent.parent)
         time.sleep(ARALIK_SANIYE)
+
+
+def stop_sonrasi_turu(veri_klasoru: Path) -> None:
+    """Stop olan işlemlerin sonrasını izler (karabasan.stop_sonrasi).
+
+    Bu servis dışarıya çıkabilen ve sürekli çalışan tek kayıt servisidir; ikinci
+    iş olarak bunu da yürütür. Burada ne olursa olsun küresel kayıt sürmelidir.
+    """
+    try:
+        from . import stop_sonrasi
+
+        sayim = stop_sonrasi.bir_tur(veri_klasoru)
+        if sayim["izlenen"] or sayim["basarisiz"] or sayim["yeni_ders"]:
+            gunluk.info("Stop sonrası: %s izlendi, %s alınamadı, %s bekliyor, %s yeni ders",
+                        sayim["izlenen"], sayim["basarisiz"], sayim["bekleyen"], sayim["yeni_ders"])
+    except Exception:  # noqa: BLE001 - izleme hatası küresel kaydı durdurmamalı
+        gunluk.exception("Stop sonrası izleme çalışamadı")
 
 
 if __name__ == "__main__":

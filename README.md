@@ -22,6 +22,7 @@ bildirir, yeni kodu kendisi alır. Bilgisayar ve terminal gerekmez.
 | Karne ve sınav karar ölçütleri | `karabasan/karne.py` | Yazıldı, test edildi |
 | Bağımsız benzetim | `karabasan/benzetim.py` | Yazıldı, test edildi |
 | Dominans ve TOTAL2 kaydedicisi | `karabasan/kayitci.py` | Yazıldı; ağ bağlantısı sunucuda sınanacak |
+| Stop sonrası izleme ve dersler | `karabasan/stop_sonrasi.py` | Yazıldı, sahte fiyat sunucusuyla test edildi; gerçek Binance verisiyle sunucuda ilk kez çalışacak |
 | Hazır motor bağlantısı | `user_data/strategies/karabasan_stratejileri.py` | Yazıldı; gerçek motorla sunucuda sınanacak |
 | On sanal botun yapılandırması | `araclar/yapilandirma_uret.py` | Yazıldı, test edildi |
 | Sonuç özeti ve Türkçe sonuç sayfası | `karabasan/sonuc.py`, `sayfa.py`, `panel.py` | Yazıldı, sahte kayıtlarla test edildi; gerçek kayıtlarla sunucuda sınanacak |
@@ -37,7 +38,7 @@ yürütücü, risk yöneticisi) bu aşamada yoktur.
 
 ## Dürüst not: nerede sınandı, nerede sınanmadı
 
-Kod 265 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
+Kod 304 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
 ve altı stratejinin geleceğe bakmadığı, kâr hedefi ve stop hesabı,
 Karabasan'ın "açılması yavaş, kapanması hızlı" davranışı, veto süreleri,
 filtrenin elenme nedenleri, sınavın yedi karar ölçütü, sonuç sayfasının sahte
@@ -97,7 +98,7 @@ veride doğru çalıştığını görmek içindir. Sınavın saatini Telegram'da
 | `http://karabasan:8080` | Sonuç sayfası; yalnız Tailscale açıkken açılır |
 | Telegram, `/sayfa` | Aynı sayfa, dosya olarak |
 
-Sonuç sayfasında dört ekran var; telefonda altta, bilgisayarda üstte duran
+Sonuç sayfasında beş ekran var; telefonda altta, bilgisayarda üstte duran
 şeritten geçilir:
 
 - **Ana ekran:** ortada bir gösterge halkası. Dış halkadaki on dilim on bottur
@@ -106,7 +107,14 @@ Sonuç sayfasında dört ekran var; telefonda altta, bilgisayarda üstte duran
   son 24 saat, toplam sonucun seyri ve botların sıralaması durur.
 - **Botlar:** her stratejinin ne yaptığı düz Türkçeyle, kâr hedefi, stop, en
   uzun süre, işlem sayısı, kazanma ve başabaş oranı, net sonuç, çıkış nedenleri.
-- **İşlemler:** açık pozisyonlar ve son kapanan 30 işlem.
+- **İşlemler:** açık pozisyonlar ve son kapanan 30 işlem. Stop olan işlemin
+  altında, izlendikten sonra, "stop şu kadar geniş olsaydı ne olurdu" yazar.
+- **Dersler:** stop sonrası izleme. Stop olan her işlem kendi süresi dolana
+  kadar izlenir; stop 1,5 / 2 / 3 kat geniş olsaydı toplam sonucun ne kadar
+  değişeceği bot başına gösterilir. Karar ("stop dar görünüyor", "stop
+  yerinde", "kararsız") en az 30 stop birikince çıkar ve ders olarak
+  kaydedilir. Karar hiçbir ayarı değiştirmez; "stop dar" çıkarsa geniş stoplu
+  hal ayrı bir sanal botla denenir.
 - **Sınav:** 30 günlük cetvel, yedi ölçüt ve her botun ölçütlerdeki durumu.
 
 Sayfa dakikada bir kendini tazeler; sunucuya ulaşamazsa bunu üstte sarı bir
@@ -122,7 +130,8 @@ ekranda "henüz canlı ölçülmüyor" yazar.
 | `/sayfa` | Sonuç sayfasını dosya olarak yollar |
 | `/gunluk` | On botun son kayıt satırları; `/gunluk s1-spot` tek bot |
 | `/uyum` | Uyum denemesi raporu |
-| `/olcum` | Karabasan geçmiş ölçümü: stratejilerin sonucu piyasa durumuna göre |
+| `/olcum` | Karabasan geçmiş ölçümü: stratejilerin sonucu piyasa durumuna ve stop genişliğine göre |
+| `/dersler` | Stop sonrası izleme: stop daha geniş olsaydı ne olurdu, bot başına |
 | `/kurulum` | Kurulum kaydı |
 | `/sinav_baslat` | 30 günlük sınavın saatini başlatır (onay ister) |
 | `/claude` | Sunucudaki Claude'un durumu; giriş yapılmadıysa giriş bağlantısı ister |

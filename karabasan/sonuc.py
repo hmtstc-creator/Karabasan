@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import karne as kr
+from . import stop_sonrasi as ss
 from .botlar import BOTLAR, ayarlari_yukle
 from .kural import kural_yukle
 
@@ -94,6 +95,7 @@ def islemleri_oku(db_yolu: Path) -> dict:
             continue
         tutar = float(satir.get("stake_amount") or 0.0)
         islem = {
+            "kimlik": satir.get("id"),
             "parite": satir.get("pair"),
             "yon": "aciga_satis" if satir.get("is_short") else "alim",
             "giris_zamani": giris,
@@ -250,18 +252,37 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
         zaman_dosyasi_oku(veri_klasoru / "sinav_baslangici.txt"),
     )
     gecmis_test = _gecmis_test_oku(veri_klasoru / "gecmis_test.json")
+    izleme = ss.dosya_oku(ss.dosya_yolu(veri_klasoru))
 
     botlar, son_islemler, acik_islemler = [], [], []
     for bot, _sinif, kural_kodu, piyasa in BOTLAR:
         kayit = islemleri_oku(veri_klasoru / "db" / f"{bot}.sqlite")
         ozet = bot_ozeti(bot, kural_kodu, piyasa, kayit, donem, ayar, gecmis_test)
+        # Stop sonrası izleme: stop daha geniş olsaydı ne olurdu (karabasan.stop_sonrasi).
+        ozet["stop_sonrasi"] = ss.ozetle(
+            ss.donem_kayitlari(izleme, bot, donem["baslangic"], donem["bitis"]),
+            ozet["stop_yuzde"], float(ayar["islem_tutari"]),
+        )
+        # Üç denemede fiyat verisi alınamayan stoplar bir daha denenmez; "bekleyen" sayılmaz.
+        izlenemeyen = sum(
+            1 for a, deneme in izleme["basarisiz"].items()
+            if a.startswith(bot + "#") and deneme >= ss.DENEME_SINIRI
+        )
+        ozet["stop_sonrasi"]["izlenemeyen"] = izlenemeyen
+        ozet["stop_sonrasi"]["izlenmeyi_bekleyen"] = max(
+            0, ozet["nedenler"].get("stop", 0) - ozet["stop_sonrasi"]["stop_sayisi"] - izlenemeyen
+        )
         yas = gunluk_yasi_dakika(veri_klasoru, bot, simdi)
         ozet["gunluk_yasi_dakika"] = yas
         ozet["calisiyor"] = yas is not None and yas <= SESSIZLIK_DAKIKA
         botlar.append(ozet)
         for i in kayit["kapali"]:
             if donem["baslangic"] is None or i["giris_zamani"] >= donem["baslangic"]:
-                son_islemler.append({**i, "bot": bot, "kod": kural_kodu})
+                izlenen = izleme["islemler"].get(ss.anahtar(bot, i["kimlik"]))
+                son_islemler.append(
+                    {**i, "bot": bot, "kod": kural_kodu,
+                     "stop_sonrasi": ss.islem_cumlesi(izlenen) if izlenen else None}
+                )
         for i in kayit["acik"]:
             acik_islemler.append({**i, "bot": bot, "kod": kural_kodu})
     son_islemler.sort(key=lambda i: i["cikis_zamani"], reverse=True)
@@ -294,6 +315,16 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
         },
         "son_islemler": son_islemler[:SON_ISLEM_SAYISI],
         "acik_islemler": acik_islemler,
+        "dersler": [
+            {**d, "zaman": zaman_coz(d.get("zaman"))}
+            for d in list(reversed(izleme["dersler"]))[:DERS_SAYISI]
+            if isinstance(d, dict)
+        ],
+        "stop_izleme": {
+            "son_tur": zaman_coz(izleme.get("son_tur")),
+            "carpanlar": list(ss.CARPANLAR),
+            "en_az_stop": ss.EN_AZ_STOP,
+        },
         "egri": birikimli_egri(
             [i for i in son_islemler if donem["bitis"] is None or i["cikis_zamani"] <= donem["bitis"]]
         ),
@@ -301,6 +332,7 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
 
 
 SON_ISLEM_SAYISI = 30
+DERS_SAYISI = 40
 EGRI_NOKTA = 160
 
 

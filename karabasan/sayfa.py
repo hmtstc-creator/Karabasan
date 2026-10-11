@@ -1,6 +1,7 @@
 """Sonuç sayfası: karabasan.sonuc özetini tek bir Türkçe HTML sayfasına çevirir.
 
-Dört ekran vardır: ana ekran (gösterge halkası), botlar, işlemler, sınav.
+Beş ekran vardır: ana ekran (gösterge halkası), botlar, işlemler, dersler
+(stop sonrası izleme), sınav.
 Dış kaynak (yazı tipi, resim, dış betik) kullanmaz; sayfa sunucudan tek dosya
 olarak gelir ve önce telefon için tasarlanmıştır.
 
@@ -10,7 +11,7 @@ Sayfanın iki hali vardır:
   arasında geçiş yaptırır ve veriyi dakikada bir, sayfayı yeniden yüklemeden
   tazeler. Sunucuya ulaşamazsa bunu ekranın üstünde söyler.
 - Telegram'dan dosya olarak gönderilen hali (yenile_saniye=0) betik taşımaz;
-  dört ekran alt alta tek sayfa olarak görünür. Betiği kapalı bir tarayıcıda
+  ekranlar alt alta tek sayfa olarak görünür. Betiği kapalı bir tarayıcıda
   da sayfa böyle görünür.
 """
 
@@ -19,6 +20,8 @@ from __future__ import annotations
 import math
 from datetime import datetime, timezone
 from html import escape
+
+from .stop_sonrasi import KARAR_ADI, carpan_metni
 
 OLCUT_ACIKLAMALARI = [
     "En az 100 sanal işlem yapmış olmak.",
@@ -32,7 +35,13 @@ OLCUT_ACIKLAMALARI = [
 
 DURUM_ADLARI = {"YESIL": "Yeşil", "SARI": "Sarı", "KIRMIZI": "Kırmızı", "SIYAH": "Siyah"}
 
-EKRANLAR = [("ana", "Ana ekran"), ("botlar", "Botlar"), ("islemler", "İşlemler"), ("sinav", "Sınav")]
+EKRANLAR = [
+    ("ana", "Ana ekran"),
+    ("botlar", "Botlar"),
+    ("islemler", "İşlemler"),
+    ("dersler", "Dersler"),
+    ("sinav", "Sınav"),
+]
 
 
 # --------------------------------------------------------------------------
@@ -401,6 +410,8 @@ def _siralama(ozet: dict) -> str:
 
 def _islem_satiri(i: dict, saat_dilimi: str) -> str:
     ayrinti = f'{_yon(i["yon"])}, {escape(str(i["neden"]))}, {_sure(i["sure_dakika"])}'
+    if i.get("stop_sonrasi"):
+        ayrinti += f'</span><span class="alt sonra">Sonrası: {escape(i["stop_sonrasi"])}'
     return (
         "<li>"
         f'<span class="islem-zaman">{_tarih_saat(i["cikis_zamani"], saat_dilimi)}</span>'
@@ -437,6 +448,18 @@ def _aciklar(ozet: dict, saat_dilimi: str) -> str:
     return f'<ul class="islemler">{"".join(satirlar)}</ul>'
 
 
+def _son_ders_seridi(ozet: dict, saat_dilimi: str) -> str:
+    dersler = ozet.get("dersler") or []
+    if not dersler:
+        return ""
+    d = dersler[0]
+    return (
+        f'<p class="serit ders"><strong>Son ders, {_tarih_saat(d["zaman"], saat_dilimi)}:</strong> '
+        f'{escape(str(d.get("kod", "")))} {escape(str(d.get("ad", "")))}. {escape(str(d.get("metin", "")))} '
+        '<a href="#dersler">Bütün dersler</a></p>'
+    )
+
+
 def _ana_ekran(ozet: dict, saat_dilimi: str) -> str:
     baslik, aciklama = _durum_cumlesi(ozet)
     yerel, _ad = yerel_zaman(ozet["uretildi"], saat_dilimi)
@@ -454,6 +477,7 @@ def _ana_ekran(ozet: dict, saat_dilimi: str) -> str:
 </div>
 <p class="serit"><strong>Karabasan piyasa durumu</strong> henüz canlı ölçülmüyor. Ölçüm kurulunca
 Yeşil, Sarı, Kırmızı ya da Siyah durumu burada görünecek. Botlar şimdilik her piyasa durumunda işlem açıyor.</p>
+{_son_ders_seridi(ozet, saat_dilimi)}
 <h2>Botların sıralaması</h2>
 <p class="not">Net sanal sonuca göre, en iyiden en kötüye. Bir bota dokunursan ayrıntısı açılır.</p>
 {_siralama(ozet)}
@@ -535,6 +559,12 @@ def _bot_karti(bot: dict) -> str:
     if bot.get("izinli_durumlar"):
         durumlar = ", ".join(DURUM_ADLARI.get(d, d) for d in bot["izinli_durumlar"])
         notlar.append(f"Tasarlandığı piyasa durumu: {escape(durumlar)}.")
+    izleme = bot.get("stop_sonrasi") or {}
+    if izleme.get("stop_sayisi"):
+        notlar.append(
+            f'Stop sonrası: izlenen {izleme["stop_sayisi"]} stopun {izleme["hedefi_goren"]} tanesinde fiyat '
+            f'süre dolmadan hedefi gördü. {KARAR_ADI[izleme["karar"]["kod"]]}. <a href="#dersler">Ayrıntı</a>'
+        )
     isaretler = _olcut_isaretleri(bot)
     return (
         f'<article class="kart kose" id="bot-{escape(bot["bot"])}">'
@@ -577,6 +607,105 @@ def _islemler_ekrani(ozet: dict, saat_dilimi: str) -> str:
 {_kapananlar(kapanan, saat_dilimi)}
 <p class="not">Sağdaki sayı işlemin komisyon düşülmüş sanal sonucudur (USDT); altında yüzdesi yazar.
 Hiçbir emir borsaya gitmez.</p>
+</section>"""
+
+
+# --------------------------------------------------------------------------
+# Dersler ekranı: stop sonrası izleme
+# --------------------------------------------------------------------------
+
+
+def _ders_karti(bot: dict) -> str:
+    izleme = bot["stop_sonrasi"]
+    adet = izleme["stop_sayisi"]
+    karar = izleme["karar"]
+    bekleyen = izleme.get("izlenmeyi_bekleyen") or 0
+    cumle = (
+        f'{adet} stop izlendi; {izleme["hedefi_goren"]} tanesinde fiyat, işlemin süresi dolmadan '
+        "kâr hedefini gördü."
+    )
+    if bekleyen:
+        cumle += f" {bekleyen} stop daha izlenmeyi bekliyor."
+    if izleme.get("izlenemeyen"):
+        cumle += f' {izleme["izlenemeyen"]} stop için fiyat verisi alınamadı; hesaba girmiyor.'
+    # Karar için yeterli stop yokken farklar renklendirilmez: az veriyle büyük görünen
+    # bir artı, sonuç gibi okunmasın.
+    yeterli = karar["kod"] != "yetersiz"
+    secenekler = []
+    for s in izleme["carpanlar"]:
+        etiket = f'Stop {carpan_metni(s["carpan"])} kat geniş olsaydı'
+        if s.get("stop_yuzde") is not None:
+            etiket += f' ({kisa_yuzde(s["stop_yuzde"])})'
+        secenekler.append(
+            f'<li><span>{etiket}<span class="alt">{s["hedef"]} tanesi hedefe ulaşır, {s["stop"]} tanesi '
+            f'yine stop olur, {s["sure"]} tanesinde süre dolardı</span></span>'
+            f'<span class="secenek-net {_isaret_sinifi(s["fark_tutar"]) if yeterli else "erken"}">'
+            f'{isaretli(s["fark_tutar"])}'
+            '<span class="alt">USDT fark</span></span></li>'
+        )
+    return (
+        f'<article class="ders-kart kose"><div class="kart-ust"><span class="kod">{escape(bot["kod"])}</span>'
+        f'<h4>{escape(bot["ad"])}</h4><span class="karar {karar["kod"]}">{KARAR_ADI[karar["kod"]]}</span></div>'
+        f'<p class="ders-cumle">{cumle}</p><ul class="secenekler">{"".join(secenekler)}</ul>'
+        f'<p class="alt">{escape(karar["metin"])}</p></article>'
+    )
+
+
+def _dersler_ekrani(ozet: dict, saat_dilimi: str) -> str:
+    izlenen = [b for b in ozet["botlar"] if b.get("stop_sonrasi", {}).get("stop_sayisi")]
+    izleme = ozet.get("stop_izleme") or {}
+    en_az = izleme.get("en_az_stop", 30)
+    if izlenen:
+        bos_botlar = [b["kod"] for b in ozet["botlar"] if b not in izlenen]
+        kartlar = f'<div class="ders-kartlar">{"".join(_ders_karti(b) for b in izlenen)}</div>'
+        if bos_botlar:
+            kartlar += f'<p class="not">Henüz izlenmiş stopu olmayan botlar: {escape(", ".join(bos_botlar))}.</p>'
+    else:
+        bekleyen = sum((b.get("stop_sonrasi") or {}).get("izlenmeyi_bekleyen") or 0 for b in ozet["botlar"])
+        ek = f" Şu an {bekleyen} stop sırada." if bekleyen else ""
+        kartlar = (
+            '<p class="bos">Henüz izlenmiş stop yok. Bir işlem stop olduktan sonra, o işlemin süresi '
+            f"dolunca (stratejiye göre 1 ile 6 saat) sonucu burada görünür.{ek}</p>"
+        )
+
+    dersler = ozet.get("dersler") or []
+    if dersler:
+        ders_listesi = '<ul class="ders-listesi">' + "".join(
+            f'<li><div class="ders-ust"><span class="islem-zaman">{_tarih_saat(d["zaman"], saat_dilimi)}</span>'
+            f'<span class="kod">{escape(str(d.get("kod", "")))}</span><strong>{escape(str(d.get("ad", "")))}</strong></div>'
+            f'{escape(str(d.get("metin", "")))}</li>'
+            for d in dersler
+        ) + "</ul>"
+    else:
+        ders_listesi = (
+            f'<p class="bos">Henüz ders yok. Bir botun {en_az} stopu izlenince ilk karar buraya yazılır; '
+            "karar sonradan değişirse yenisi eklenir.</p>"
+        )
+    son_tur = izleme.get("son_tur")
+    tur_notu = (
+        f"Son izleme turu: {_tarih_saat(son_tur, saat_dilimi)}."
+        if son_tur
+        else "İzleme henüz ilk turunu tamamlamadı."
+    )
+    return f"""<section id="dersler" class="ekran">
+<h2 class="ekran-baslik">Dersler</h2>
+<p class="sinav-durum">Stop olan her işlem, kendi süresi dolana kadar izleniyor. Soru şu: stop daha geniş
+olsaydı sonuç daha mı iyi olurdu, yoksa zarar mı büyürdü?</p>
+<h3>Stop dar mı?</h3>
+{kartlar}
+<h3>Ders kaydı</h3>
+{ders_listesi}
+<h3>Bunu okurken</h3>
+<ul class="okuma-notlari">
+<li>Fark, yalnız stop olan işlemlerin toplamıdır. Geniş stop bazı işlemleri kurtarır, kurtaramadıklarının
+zararını büyütür; önemli olan ikisinin toplamı.</li>
+<li>Stop geniş olsaydı işlem daha uzun açık kalır, o sırada gelen başka sinyaller atlanırdı. Bu hesaba girmez.</li>
+<li>Bu bir geriye bakıştır. Geçmişte iyi görünen stop gelecekte de iyi olacak demek değildir. Bu yüzden
+“stop dar” demek için en az {en_az} stop, şansla açıklanamayacak kadar büyük bir fark ve bu farkın dönemin
+iki yarısına da yayılması aranır. {en_az} stoptan önce farklar soluk yazılır.</li>
+<li>Karar hiçbir ayarı değiştirmez. “Stop dar” çıkarsa geniş stoplu hal ayrı bir sanal botla denenir.</li>
+</ul>
+<p class="not">{tur_notu}</p>
 </section>"""
 
 
@@ -708,8 +837,7 @@ font-size:.875rem;text-align:center;position:sticky;top:0;z-index:5}
 .ekran{padding-top:8px}
 .ekran + .ekran{margin-top:56px;border-top:1px solid var(--cizgi);padding-top:28px}
 .sekmeli .ekran{display:none;margin-top:0;border-top:0;padding-top:8px}
-.sekmeli[data-ekran="ana"] #ana,.sekmeli[data-ekran="botlar"] #botlar,
-.sekmeli[data-ekran="islemler"] #islemler,.sekmeli[data-ekran="sinav"] #sinav{display:block}
+EKRAN_GOSTER{display:block}
 
 h1{font:700 clamp(1.75rem,7vw,2.75rem)/1.08 var(--rakam);margin:6px 0 10px;letter-spacing:.01em}
 h2{font:700 1.25rem/1.2 var(--rakam);letter-spacing:.03em;margin:40px 0 8px}
@@ -828,6 +956,27 @@ padding:2px 5px;font-size:.8125rem;font-weight:700;border:1px solid}
 .im{font-weight:700}
 .im.veri_yok{font-size:1.5em;line-height:.6}
 
+.serit.ders{border-left-color:var(--holo);background:var(--cam);margin-top:10px}
+.serit.ders strong{color:var(--holo)}
+.alt.sonra{color:var(--holo);opacity:.85}
+.ders-kartlar{display:grid;gap:14px;margin-top:8px}
+.ders-kart{padding:16px}
+.ders-kart .kart-ust{flex-wrap:wrap}
+.ders-kart h4{margin:0;font:700 1.0625rem/1.25 var(--rakam);letter-spacing:.03em}
+.karar{margin-left:auto;font-size:.8125rem;font-weight:700;white-space:nowrap;color:var(--soluk)}
+.karar.dar{color:var(--altin)}.karar.yerinde{color:var(--holo)}
+.ders-cumle{margin:10px 0 0;max-width:60ch}
+.secenekler{list-style:none;margin:12px 0 10px;padding:0;border-top:1px solid var(--cizgi)}
+.secenekler li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:9px 0;
+border-bottom:1px solid var(--cizgi)}
+.secenek-net{font:700 1.125rem/1.3 var(--rakam);text-align:right;white-space:nowrap}
+.secenek-net .alt{font-family:var(--govde)}
+.secenek-net.erken{color:var(--soluk)}
+.ders-listesi{list-style:none;margin:0;padding:0;border-top:1px solid var(--cizgi);max-width:76ch}
+.ders-listesi li{padding:12px 2px;border-bottom:1px solid var(--cizgi)}
+.ders-ust{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.okuma-notlari{max-width:68ch;padding-left:1.2em;margin:0 0 12px;color:var(--soluk);font-size:.875rem}
+.okuma-notlari li{margin:6px 0}
 .sinav-durum{max-width:62ch;margin:0 0 18px;font-size:1.0625rem}
 .sinav-durum strong{color:var(--holo)}
 .cetvel{display:grid;grid-template-columns:repeat(30,1fr);gap:3px;max-width:720px}
@@ -850,14 +999,14 @@ font-size:.8125rem;margin-top:4px}
 .cizelge-karar.gecti{color:var(--arti)}.cizelge-karar.kaldi{color:var(--eksi)}
 .anahtar{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 0;color:var(--soluk);font-size:.875rem}
 
-.gezinti{position:fixed;left:0;right:0;bottom:0;z-index:4;display:grid;grid-template-columns:repeat(4,1fr);
+.gezinti{position:fixed;left:0;right:0;bottom:0;z-index:4;display:grid;grid-template-columns:repeat(EKRAN_SAYISI,1fr);
 background:rgba(4,9,17,.9);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
 border-top:1px solid var(--cizgi);padding-bottom:env(safe-area-inset-bottom)}
 .gezinti a{display:flex;align-items:center;justify-content:center;min-height:54px;padding:6px 4px;
-color:var(--soluk);text-decoration:none;font-size:.875rem;font-weight:600;border-top:2px solid transparent;margin-top:-1px}
+color:var(--soluk);text-decoration:none;font-size:.8125rem;font-weight:600;border-top:2px solid transparent;margin-top:-1px;
+white-space:nowrap}
 .gezinti a:focus-visible{outline-offset:-4px}
-.sekmeli[data-ekran="ana"] .gezinti a[href="#ana"],.sekmeli[data-ekran="botlar"] .gezinti a[href="#botlar"],
-.sekmeli[data-ekran="islemler"] .gezinti a[href="#islemler"],.sekmeli[data-ekran="sinav"] .gezinti a[href="#sinav"]{
+EKRAN_SECILI{
 color:var(--holo);border-top-color:var(--holo);background:linear-gradient(rgba(95,212,255,.14),rgba(95,212,255,0))}
 
 @media (min-width:640px){
@@ -873,7 +1022,8 @@ color:var(--holo);border-top-color:var(--holo);background:linear-gradient(rgba(9
 .sira-net{order:1}
 }
 @media (min-width:900px){
-.sayfa{padding:22px 24px 72px}
+.sayfa{padding:74px 24px 72px}
+.ders-kartlar{grid-template-columns:1fr 1fr}
 .pano{grid-template-columns:minmax(0,1fr) minmax(0,480px);grid-template-areas:"selam halka" "okumalar halka" "seyir halka";
 column-gap:44px;align-items:start;margin-top:26px}
 .selam{grid-area:selam}.reaktor{grid-area:halka;align-self:center}.okumalar{grid-area:okumalar}.seyir{grid-area:seyir}
@@ -886,11 +1036,17 @@ column-gap:44px;align-items:start;margin-top:26px}
 .kart{scroll-margin-top:56px}
 .gezinti{left:50%;right:auto;bottom:auto;top:12px;transform:translateX(-50%);display:flex;
 border:1px solid var(--cizgi);padding:0}
-.gezinti a{min-height:38px;padding:6px 20px;border-top:0;margin-top:0}
+.gezinti a{min-height:38px;padding:6px 20px;border-top:0;margin-top:0;font-size:.875rem}
 .sekmeli .gezinti a{border-top:0}
 }
 @media (prefers-reduced-motion:reduce){.r-kat,.r-don{animation:none}}
-""".replace("KOSE", _KOSE)
+"""
+STIL = (
+    STIL.replace("KOSE", _KOSE)
+    .replace("EKRAN_GOSTER", ",".join(f'.sekmeli[data-ekran="{k}"] #{k}' for k, _ in EKRANLAR))
+    .replace("EKRAN_SECILI", ",".join(f'.sekmeli[data-ekran="{k}"] .gezinti a[href="#{k}"]' for k, _ in EKRANLAR))
+    .replace("EKRAN_SAYISI", str(len(EKRANLAR)))
+)
 
 
 # --------------------------------------------------------------------------
@@ -899,7 +1055,7 @@ border:1px solid var(--cizgi);padding:0}
 
 _BETIK = """(function(){
 var kok=document.documentElement,govde=document.getElementById('govde');
-var EKRANLAR=['ana','botlar','islemler','sinav'];
+var EKRANLAR=EKRAN_LISTESI;
 function goster(kaydir){
 var ad=location.hash.slice(1),hedef=ad?document.getElementById(ad):null,ekran='ana';
 if(hedef){var e=hedef.closest('.ekran');if(e)ekran=e.id;}
@@ -932,7 +1088,8 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden)yeni
 
 def betik(yenile_saniye: int) -> str:
     """Sayfaya gömülen betiğin tam metni. Sunucu, izin başlığını bu metnin özetinden üretir."""
-    return _BETIK.replace("SURE", str(int(yenile_saniye) * 1000))
+    liste = "[" + ",".join(f"'{k}'" for k, _ in EKRANLAR) + "]"
+    return _BETIK.replace("EKRAN_LISTESI", liste).replace("SURE", str(int(yenile_saniye) * 1000))
 
 
 def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: int = 60) -> str:
@@ -977,6 +1134,7 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
 {_ana_ekran(ozet, saat_dilimi)}
 {_botlar_ekrani(ozet)}
 {_islemler_ekrani(ozet, saat_dilimi)}
+{_dersler_ekrani(ozet, saat_dilimi)}
 {_sinav_ekrani(ozet, yenileme_notu)}
 </main>
 </div>

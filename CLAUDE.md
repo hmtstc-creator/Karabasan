@@ -103,15 +103,16 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | `karabasan/karne.py` | İşlem ölçümleri ve 30. günün yedi karar ölçütü |
 | `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim |
 | `karabasan/botlar.py` | On sanal botun listesi (4 spot alım, 6 vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini buradan okur |
-| `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder |
+| `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder; aynı döngüde stop sonrası izleme turunu çalıştırır |
+| `karabasan/stop_sonrasi.py` | Stop sonrası izleme: stop olan işlemi kendi süresi dolana kadar izler, stop 1,5 / 2 / 3 kat geniş olsaydı ne olurdu hesaplar, bot başına karar çıkarır (yetersiz, dar, yerinde, kararsız), karar değişince ders yazar. Mumlar Binance'in herkese açık, anahtarsız fiyat verisinden gelir. Çıktı: `user_data/kayit/stop_sonrasi.json`. **Hiçbir ayarı değiştirmez** |
 | `karabasan/gecmis_olcum.py` | Karabasan puanını geçmiş mumlardan geriye dönük hesaplar (yaklaşık: dominans ve TOTAL2 yerine altcoin vekili); işlemleri açıldıkları andaki durumla etiketler |
 | `karabasan/sonuc.py` | Botların SQLite kayıtlarını salt okunur okuyup özet çıkarır; dönem (ısınma, sınav, bitti) |
-| `karabasan/sayfa.py`, `karabasan/panel.py` | Türkçe sonuç sayfası ve sunucusu (8080; `/`, `/veri.json`, `/saglik`). Dört ekran: ana ekran (gösterge halkası), botlar, işlemler, sınav. Sunucudan açılan hali tek bir satır içi betik taşır (ekran geçişi, dakikada bir yerinde tazeleme); `panel.py` izin başlığını (CSP) o betiğin özetinden üretir. Telegram'ın `/sayfa` ile yolladığı dosya betiksizdir, dört ekran alt alta görünür |
-| `karabasan/haberci.py` | Telegram: kurulum bildirimleri, günlük özet, susan bot uyarısı, komutlar |
+| `karabasan/sayfa.py`, `karabasan/panel.py` | Türkçe sonuç sayfası ve sunucusu (8080; `/`, `/veri.json`, `/saglik`). Beş ekran: ana ekran (gösterge halkası), botlar, işlemler, dersler (stop sonrası izleme), sınav; ekran listesi `sayfa.EKRANLAR`'dadır, biçim ve betik oradan üretilir. Sunucudan açılan hali tek bir satır içi betik taşır (ekran geçişi, dakikada bir yerinde tazeleme); `panel.py` izin başlığını (CSP) o betiğin özetinden üretir. Telegram'ın `/sayfa` ile yolladığı dosya betiksizdir, ekranlar alt alta görünür |
+| `karabasan/haberci.py` | Telegram: kurulum bildirimleri, günlük özet, susan bot uyarısı, yeni ders bildirimi, komutlar (`/dersler` dahil) |
 | `user_data/strategies/karabasan_stratejileri.py` | Freqtrade bağlantı katmanı |
 | `araclar/yapilandirma_uret.py` | Bot yapılandırmalarını ve `docker-compose.yml`'i üretir |
 | `araclar/uyum_denemesi.sh`, `araclar/karsilastir.py` | Sunucudaki uyum denemesi |
-| `araclar/analiz.sh`, `araclar/karabasan_gecmis.py` | Sunucudaki tek seferlik ölçüm: 80 günlük veri indirir, stratejilerin sonucunu Karabasan durumuna göre ayırır (`kur.sh` içinde `ANALIZ_SURUMU`; Telegram'da `/olcum`) |
+| `araclar/analiz.sh`, `araclar/karabasan_gecmis.py` | Sunucudaki tek seferlik ölçüm: 80 günlük veri indirir, stratejilerin sonucunu Karabasan durumuna göre ayırır ve stop genişliğini sınar (aynı sinyaller, stop 1,5 / 2 / 3 kat; dönemin iki yarısı ayrı). `kur.sh` içinde `ANALIZ_SURUMU`; Telegram'da `/olcum` |
 | `kurulum/sunucu_blogu.sh` | Ahmet'in sunucuyu oluştururken "Cloud config" kutusuna yapıştırdığı blok |
 | `kur.sh` | Kurulum; soru sormaz, her adımı Telegram'a yazar, her güncellemede yeniden çalışır |
 | `araclar/oto_guncelle.sh` | 5 dakikada bir `main`'i denetler, yeni kodu alır, `kur.sh`'ı çalıştırır |
@@ -168,7 +169,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 265 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 304 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -223,15 +224,46 @@ kendiliğinden kâr üretmiyorlar; gerçek verideki sonuçları henüz görülme
 fikir denedikçe birinin şans eseri iyi görünme olasılığının arttığı söylendi.
 Strateji adları da ne yaptığını söyleyen düz adlarla değiştirildi.
 
+**Stop sonrası izleme (11 Ekim 2026, Ahmet'in isteğiyle).** Ahmet "stop
+olunca fiyatı izlemeye devam et; stopu esnetsem belki kazandırırdı, bunu
+derslerine al ve kararlarını güncelle" dedi. Yapılan: `stop_sonrasi.py` canlı
+stopları izler, sayfada Dersler ekranı ve Telegram'da `/dersler` gösterir,
+geçmiş ölçüm raporu stop genişliğini yeniden benzetimle sınar. **Sistem stopu
+kendi kendine değiştirmez** ve değiştirmemeli: karar yalnız öneridir, geniş
+stoplu hal ayrı bir sanal botla denenir (3. kural ve tasarım raporundaki
+"öneri ve onay" ilkesi). "Stop dar" demek bilerek zordur: en az 30 izlenmiş
+stop, ortalama farkın standart hatasının en az 2 katı olması, stop başına en
+az %0,15 iyileşme ve iyileşmenin en az dörtte birinin dönemin her iki
+yarısından gelmesi. Neden: rastgele üretilmiş veride bile bazı seçenekler iyi
+görünüyordu (ilk kural S3'e yapay veride "dar" dedi; kural bunun üzerine
+sıkılaştırıldı). On bot × üç seçenek sınandığı için yine de arada bir şans eseri
+"dar" çıkabilir; bu yüzden sonuç ayar değil, yeni bir sanal bot önerisidir.
+Ahmet'e söylendi.
+
 Ahmet 11 Ekim'de Tailscale bağlantısını henüz onaylamamıştı. Sunucudaki
 Claude 11 Ekim'de eklendi; Ahmet girişi Telegram üzerinden yaptı ve bot "giriş
-tamam" dedi. Uzaktan yönetim oturumunun açıldığı henüz görülmedi.
+tamam" dedi. **Uzaktan yönetim oturumu 10 Ekim'de açılamadı; nedeni bulundu ve
+düzeltildi (11 Ekim), sunucuda doğrulanması bekleniyor.** Ahmet'in ilettiği
+kayıtta (`/gunluk claude`) program iki bilinen soruyu ("Trust ...? [y/N]",
+"Enable Remote Control? (y/n)") yanıtladıktan sonra üçüncü bir soruda
+bekliyordu: "Choose [1/2] (default: 1):" (oturumlar aynı klasörde mi, ayrı
+çalışma kopyasında mı açılsın). Betik artık `--spawn=same-dir` veriyor (soru
+hiç çıkmasın), çıkarsa `1` yanıtlıyor. Ayrıca: sorular ekranın son altı
+satırında aranır, adres iki dakikada gelmezse ekranın son satırları Telegram'a
+yazılır (bir sonraki bilinmeyen soru kendini göstersin diye), beş dakikada
+gelmezse oturum kapatılıp yeniden denenir, `kur` adres yokken servisi yeniden
+başlatır. Aynı kayıt şunu da gösterdi: program `.claude/settings.json`'daki 20
+izin kuralını tanıdı.
 
 Sıradaki işler, öncelik sırasıyla:
 
-1. Karabasan geçmiş ölçümünün (`araclar/analiz.sh`) sunucudaki ilk raporunu
-   oku: stratejiler yalnız izinli durumda çalışsaydı sonuç değişir miydi?
-   Ahmet dosyayı iletecek. Üçüncü uyum denemesi beş adımda da temiz geçti.
+1. Ahmet'in ileteceği üç şeyi oku: (a) uzak oturum için "Claude sunucuda hazır"
+   mesajı geldi mi; gelmediyse "açılışta bekliyor" mesajındaki ekran satırları,
+   (b) dördüncü uyum denemesi (yeni dört
+   strateji gerçek motorda ilk kez), (c) Karabasan geçmiş ölçümü (`ANALIZ_SURUMU=3`):
+   stratejiler yalnız izinli durumda çalışsaydı ve stop daha geniş olsaydı
+   sonuç değişir miydi? Raporda "Stop dar" çıkan strateji olursa geniş stoplu
+   hali ayrı bir sanal bot olarak eklemeyi Ahmet'e öner; ayarı değiştirme.
 2. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).
    Asıl soru bununla yanıtlanır: stratejiler yalnız "Yeşil" dönemde
@@ -282,9 +314,16 @@ Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
 - Motor görüntüsünde saat dilimi verisinin bulunması (yoksa sayfa UTC gösterir).
 - `claude auth login` ekranının tmux içinde bağlantıyı ve kod sorusunu
   provadaki gibi göstermesi; `claude remote-control`'ün açılış sorularının
-  ("Enable Remote Control? (y/n)", "Trust ...? [y/N]") metni ve oturum
-  adresini ekrana yazması (`araclar/claude_sunucu.sh` bunlara göre yazıldı).
+  ("Enable Remote Control? (y/n)", "Trust ...? [y/N]") metni gerçek sunucuda
+  görüldü (11 Ekim); `--spawn=same-dir` verilince üçüncü sorunun çıkmaması ve
+  programın oturum adresini `https://claude.ai/code...` biçiminde ekrana yazması
+  henüz görülmedi.
 - `.claude/settings.json` içindeki izin kurallarının yazımı.
+- Stop sonrası izlemenin sunucudan Binance'in açık mum adreslerine (`api.binance.com/api/v3/klines`,
+  `fapi.binance.com/fapi/v1/klines`) ulaşabilmesi ve yanıt biçimi; `kayitci` kapsayıcısının botların
+  `db/*.sqlite` dosyalarını okuyup `kayit/stop_sonrasi.json` yazabilmesi. Yalnız sahte bir Binance
+  sunucusuyla baştan sona denendi. Çalışmazsa Dersler ekranı "henüz izlenmiş stop yok" demeye devam eder
+  ve `/gunluk` ile değil, `docker compose logs kayitci` ile görülür (sunucudaki Claude oturumu bakabilir).
 - Yeni sonuç sayfası (11 Ekim 2026) yalnız buradaki Chromium'da, telefon ve masaüstü genişliğinde
   denendi: ekran geçişi, halkadaki dilime dokunma, yerinde tazeleme, bağlantı kopunca uyarı, betiksiz dosya
   hali. Ahmet'in telefonundaki tarayıcıda (Safari) ve Telegram'ın dosya görüntüleyicisinde denenmedi.

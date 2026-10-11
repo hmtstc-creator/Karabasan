@@ -308,6 +308,35 @@ def botlar_metni(ozet: dict) -> str:
     return "\n".join(satirlar)
 
 
+def dersler_metni(ozet: dict) -> str:
+    """Stop sonrası izlemenin özeti: stop daha geniş olsaydı ne olurdu?"""
+    from .stop_sonrasi import carpan_metni
+
+    satirlar = ["Dersler: stop daha geniş olsaydı ne olurdu?", ""]
+    izlenen = [b for b in ozet["botlar"] if (b.get("stop_sonrasi") or {}).get("stop_sayisi")]
+    if not izlenen:
+        satirlar.append("Henüz izlenmiş stop yok. Bir işlem stop olduktan sonra, süresi dolunca izlenir.")
+    for b in izlenen:
+        s = b["stop_sonrasi"]
+        satirlar.append(
+            f"{b['ad']} [{b['kod']}]: {s['stop_sayisi']} stop izlendi, {s['hedefi_goren']} tanesinde "
+            "fiyat süre dolmadan hedefi gördü."
+        )
+        satirlar.append("  Fark: " + ", ".join(
+            f"{carpan_metni(c['carpan'])} kat {_sayi(c['fark_tutar'])} USDT" for c in s["carpanlar"]
+        ))
+        satirlar.append("  " + s["karar"]["metin"])
+        satirlar.append("")
+    satirlar.append(
+        "Fark yalnız stop olan işlemlerin toplamıdır ve geriye bakıştır. Hiçbir ayar kendiliğinden değişmez."
+    )
+    return "\n".join(satirlar)
+
+
+def ders_bildirimi(ders: dict) -> str:
+    return f"Yeni ders: {ders.get('ad', '')} [{ders.get('kod', '')}]\n\n{ders.get('metin', '')}\n\nAyrıntı: /dersler"
+
+
 YARDIM = """Karabasan komutları
 
 /durum  Genel durum: kaç bot çalışıyor, kaç işlem, toplam sonuç
@@ -317,6 +346,7 @@ YARDIM = """Karabasan komutları
 /gunluk s1-spot  Tek bir botun kayıtları
 /uyum  Uyum denemesi raporu
 /olcum  Karabasan geçmiş ölçümü (stratejilerin duruma göre sonucu)
+/dersler  Stop sonrası izleme: stop daha geniş olsaydı ne olurdu
 /kurulum  Kurulum kaydı
 /sinav_baslat  30 günlük sınavın saatini başlatır
 /claude  Sunucudaki Claude'un durumu; giriş yapılmadıysa giriş bağlantısı ister
@@ -403,6 +433,8 @@ class Servis:
         if ad == "/olcum":
             return self._dosya("karabasan_gecmis.txt", "Karabasan geçmiş ölçümü", 2000,
                                "Karabasan geçmiş ölçümü henüz çalışmadı.")
+        if ad == "/dersler":
+            return [("mesaj", dersler_metni(self.ozet()))]
         if ad == "/kurulum":
             return self._dosya("kurulum.txt", "Kurulum kaydı (son satırlar)", 400,
                                "Kurulum kaydı bulunamadı.")
@@ -557,6 +589,7 @@ class Servis:
         simdi = self._simdi()
         ozet = self.ozet()
         self._saglik(sahip, ozet, simdi)
+        self._yeni_dersler(sahip, ozet)
         yerel = yerel_saat(simdi)
         bugun = yerel.strftime("%Y-%m-%d")
         if yerel.hour >= OZET_SAATI and self.durum.get("son_ozet_gunu") != bugun:
@@ -568,6 +601,21 @@ class Servis:
                 self.tg.mesaj(sahip, durum_metni(ozet, "Günlük özet") + ek)
             self.durum["son_ozet_gunu"] = bugun
             self._durum_yaz()
+
+    def _yeni_dersler(self, sahip: int, ozet: dict) -> None:
+        """Stop sonrası izleme yeni bir karara vardıysa bir kez haber verir."""
+        bicim = "%Y-%m-%dT%H:%M:%SZ"
+        son = self.durum.get("son_ders") or ""
+        yeni = [
+            d for d in reversed(ozet.get("dersler") or [])
+            if d.get("zaman") is not None and d["zaman"].strftime(bicim) > son
+        ]
+        if not yeni:
+            return
+        for ders in yeni:
+            self.tg.mesaj(sahip, ders_bildirimi(ders))
+        self.durum["son_ders"] = max(d["zaman"].strftime(bicim) for d in yeni)
+        self._durum_yaz()
 
     def _saglik(self, sahip: int, ozet: dict, simdi: datetime) -> None:
         """Bir bot susarsa bir kez, geri gelince bir kez haber verir."""

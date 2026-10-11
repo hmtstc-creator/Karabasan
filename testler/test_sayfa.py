@@ -91,12 +91,66 @@ class SayfaTesti(unittest.TestCase):
         self.assertNotIn("http-equiv", html)
         self.assertIn("kendini tazelemez", html)
 
-    def test_dort_ekran_ve_gezinti(self):
+    def test_ekranlar_ve_gezinti(self):
         html = sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI))
         for kimlik, _ad in sayfa.EKRANLAR:
             self.assertEqual(html.count(f'<section id="{kimlik}" class="ekran">'), 1)
             self.assertIn(f'<a href="#{kimlik}">', html)
             self.assertIn(f"'{kimlik}'", sayfa.betik(60))   # betik de aynı ekranları tanır
+
+    def test_dersler_ekrani_bosken_ne_bekledigini_soyler(self):
+        ozet = sonuc.genel_ozet(self.klasor, SIMDI)
+        html = sayfa.html_uret(ozet)
+        self.assertEqual([k for k, _ in sayfa.EKRANLAR], ["ana", "botlar", "islemler", "dersler", "sinav"])
+        self.assertIn("Henüz izlenmiş stop yok.", html)
+        sirada = sum(b["nedenler"].get("stop", 0) for b in ozet["botlar"])
+        self.assertIn(f"Şu an {sirada} stop sırada.", html)
+        self.assertIn("Henüz ders yok. Bir botun 30 stopu izlenince", html)
+        self.assertIn("Karar hiçbir ayarı değiştirmez.", html)
+        self.assertNotIn("Son ders,", html)
+
+    def test_dersler_ekrani_izlenen_stoplari_ve_dersi_gosterir(self):
+        from karabasan import stop_sonrasi as ss
+
+        def kayit(k, fark):
+            zaman = (SIMDI - timedelta(days=3, minutes=-k)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            return {"bot": "s2-spot", "kod": "S2", "parite": "SOL/USDT", "yon": "alim",
+                    "giris_zamani": zaman, "cikis_zamani": zaman, "gercek_net_yuzde": -1.15,
+                    "hedefi_gordu": fark > 0, "en_kotu_yuzde": -1.6,
+                    "alternatif": {c: {"sonuc": "hedef" if fark > 0 else "stop", "net_yuzde": -1.15 + fark}
+                                   for c in ("1.5", "2", "3")}}
+
+        with tempfile.TemporaryDirectory() as gecici:
+            klasor = sahte_sinav_klasoru(Path(gecici) / "veri", SIMDI)
+            ss.dosya_yaz(ss.dosya_yolu(klasor), {
+                "surum": 1, "basarisiz": {"s2-spot#7": 3}, "son_tur": "2026-11-02T09:20:00Z",
+                "islemler": {f"s2-spot#{900 + k}": kayit(k, 2.7 if k % 3 else -0.5) for k in range(12)},
+                "dersler": [{"zaman": "2026-11-01T08:00:00Z", "bot": "s1-spot", "kod": "S1",
+                             "ad": "Yükselişte düşüşü al", "karar": "yerinde", "carpan": None,
+                             "stop_sayisi": 44, "metin": "Stop yerinde görünüyor. <b>örnek</b>"}],
+            })
+            html = sayfa.html_uret(sonuc.genel_ozet(klasor, SIMDI))
+        duz = " ".join(html.split())
+        self.assertIn("12 stop izlendi; 8 tanesinde fiyat, işlemin süresi dolmadan kâr hedefini gördü.", duz)
+        self.assertIn("1 stop için fiyat verisi alınamadı; hesaba girmiyor.", duz)
+        self.assertIn("Stop 1,5 kat geniş olsaydı (%1,5)", duz)
+        self.assertIn("8 tanesi hedefe ulaşır, 4 tanesi yine stop olur, 0 tanesinde süre dolardı", duz)
+        # 12 stop karar için az: fark soluk yazılır, artı diye renklendirilmez.
+        self.assertIn('<span class="secenek-net erken">+9,80', duz)        # (8×2,7 − 4×0,5) × 50 / 100
+        self.assertIn('<span class="karar yetersiz">Veri yetersiz</span>', duz)
+        # Ders kaydı ve ana ekrandaki şerit; ders metni HTML olarak çalışmaz.
+        self.assertIn("<strong>Son ders, 01.11 10:00:</strong> S1 Yükselişte düşüşü al.", duz)
+        self.assertIn("Stop yerinde görünüyor. &lt;b&gt;örnek&lt;/b&gt;", duz)
+        self.assertNotIn("<b>örnek", html)
+        self.assertIn("Son izleme turu: 02.11 11:20.", duz)
+        self.assertIn("Stop sonrası: izlenen 12 stopun 8 tanesinde", duz)           # bot kartı
+
+    def test_stop_olan_islemin_sonrasi_satirinda_yazar(self):
+        ozet = sonuc.genel_ozet(self.klasor, SIMDI)
+        stop = next(i for i in ozet["son_islemler"] if i["neden"] == "stop")
+        stop["stop_sonrasi"] = "stop 1,5 kat geniş olsaydı hedefe ulaşırdı"
+        html = sayfa.html_uret(ozet)
+        self.assertIn('<span class="alt sonra">Sonrası: stop 1,5 kat geniş olsaydı hedefe ulaşırdı</span>', html)
 
     def test_halkada_her_bot_bir_dilimdir(self):
         ozet = sonuc.genel_ozet(self.klasor, SIMDI)

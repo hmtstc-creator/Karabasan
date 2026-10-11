@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Karabasan geçmiş ölçümü: stratejiler yalnız izinli durumda çalışsaydı ne olurdu?
 
-Sunucudaki geçmiş mum verisinde iki iş yapar:
+Sunucudaki geçmiş mum verisinde üç iş yapar:
 
 1. Karabasan puanını ve durumunu geçmişe dönük hesaplar (karabasan.gecmis_olcum).
 2. Bağımsız benzetimin her işlemini, açıldığı andaki Karabasan durumuyla
    etiketler ve sonucu duruma göre ayırır.
+3. Stop genişliğini sınar: aynı sinyaller, stop 1,5 / 2 / 3 kat geniş olsaydı
+   sonuç ne olurdu (dönemin iki yarısında ayrı ayrı).
 
 Kapsayıcı içinde çalıştırılır:
 
@@ -26,6 +28,8 @@ KOK = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(KOK))
 
 from karabasan import gecmis_olcum as go  # noqa: E402
+from karabasan import karne as kr  # noqa: E402
+from karabasan import stop_sonrasi as ss  # noqa: E402
 from karabasan.benzetim import benzet  # noqa: E402
 from karabasan.botlar import ayarlari_yukle  # noqa: E402
 from karabasan.kural import basabas_orani, kural_yukle  # noqa: E402
@@ -48,6 +52,43 @@ def strateji_satirlari() -> list[tuple]:
 
 
 DURUMLAR = ("YESIL", "SARI", "KIRMIZI", "SIYAH")
+STOP_CARPANLARI = (1.0,) + tuple(ss.CARPANLAR)
+
+
+def genis_stoplu(kural: dict, carpan: float) -> dict:
+    """Kuralın, stopu 'carpan' kat geniş olan kopyası. Başka hiçbir şey değişmez."""
+    kopya = {**kural, "cikis": dict(kural["cikis"])}
+    kopya["cikis"]["zarar_durdur_yuzde"] = float(kural["cikis"]["zarar_durdur_yuzde"]) * carpan
+    return kopya
+
+
+def stop_degerlendirmesi(satirlar: list[dict], stop_sayisi: int, tutar: float) -> str:
+    """Stop genişliği tablosundan tek cümlelik sonuç. Kural stop_sonrasi.karar_ver ile aynıdır."""
+    simdiki = satirlar[0]
+    farklar = [
+        {
+            "carpan": s["carpan"],
+            "fark_tutar": s["net"] - simdiki["net"],
+            "fark_tutar_ilk_yari": s["ilk"] - simdiki["ilk"],
+            "fark_tutar_son_yari": s["son"] - simdiki["son"],
+            "fark_yuzde": (s["net"] - simdiki["net"]) / tutar * 100.0,
+        }
+        for s in satirlar[1:]
+    ]
+    karar = ss.karar_ver(stop_sayisi, farklar)
+    en_iyi = max(farklar, key=lambda f: f["fark_tutar"])
+    if karar["kod"] == "yetersiz":
+        return f"Karar için en az {ss.EN_AZ_STOP} stop gerekir; bu dönemde {stop_sayisi} var."
+    if karar["kod"] == "dar":
+        secilen = next(s for s in satirlar if s["carpan"] == karar["carpan"])
+        ek = " Yine de sonuç ekside kalıyor." if secilen["net"] < 0 else ""
+        return (f"Stop dar görünüyor: {ss.carpan_metni(karar['carpan'])} kat stop bu dönemde "
+                f"{_sayi(secilen['net'] - simdiki['net'], 2, True)} USDT fark ederdi ve fark iki yarıya da yayılıyor.{ek} "
+                "Ayrı bir sanal botla denenebilir.")
+    if karar["kod"] == "yerinde":
+        return "Stop yerinde görünüyor: daha geniş stop bu dönemde sonucu kötüleştirirdi."
+    return (f"Kararsız: en iyi seçenek {ss.carpan_metni(en_iyi['carpan'])} kat stop "
+            f"({_sayi(en_iyi['fark_tutar'], 2, True)} USDT fark), ama fark küçük ya da yalnız bir yarıdan geliyor.")
 
 
 def dosyadan_yukle(coin: str, dilim: str, piyasa: str) -> pd.DataFrame | None:
@@ -126,10 +167,13 @@ def rapor_uret(yukle=dosyadan_yukle, gun: int = 30, ayar: dict | None = None) ->
 
     baslik = f"  {'':<22} {'İşlem':>6} {'Kazanma %':>9} {'Net bek. %':>11} {'Kâr fakt.':>9} {'Net USDT':>10}"
     ozet = []
+    stop_tablosu = []
+    orta = baslangic + (son - baslangic) / 2
     for ad, kod, piyasa, coinler in strateji_satirlari():
         kural = kural_yukle(kod)
         komisyon = float(ayar["komisyon_yuzde"][piyasa])
         tum = []
+        genis = {carpan: [] for carpan in STOP_CARPANLARI[1:]}
         for coin in coinler:
             df = yukle(coin, kural["zaman_dilimi"], piyasa)
             if df is None:
@@ -138,6 +182,23 @@ def rapor_uret(yukle=dosyadan_yukle, gun: int = 30, ayar: dict | None = None) ->
             islemler = [i for i in benzet(df, kural, komisyon_yuzde=komisyon)
                         if i["giris_zamani"] >= baslangic]
             tum += go.islemleri_etiketle(islemler, gecmis)
+            for carpan in genis:
+                genis[carpan] += [i for i in benzet(df, genis_stoplu(kural, carpan), komisyon_yuzde=komisyon)
+                                  if i["giris_zamani"] >= baslangic]
+        stop_satirlari = []
+        for carpan, liste in [(1.0, tum)] + list(genis.items()):
+            k = kr.karne(liste, tutar, bakiye)
+            stop_satirlari.append({
+                "carpan": carpan,
+                "stop_yuzde": float(kural["cikis"]["zarar_durdur_yuzde"]) * carpan,
+                "islem": k["islem_sayisi"],
+                "kazanma": k["kazanma_orani"],
+                "net": k["net_tutar"],
+                "ilk": kr.karne([i for i in liste if i["giris_zamani"] < orta], tutar, bakiye)["net_tutar"],
+                "son": kr.karne([i for i in liste if i["giris_zamani"] >= orta], tutar, bakiye)["net_tutar"],
+                "stop_olan": sum(1 for i in liste if i["neden"] == "zarar_durdur"),
+            })
+        stop_tablosu.append((ad, kural, stop_satirlari))
         karneler = go.duruma_gore_karne(tum, tutar, bakiye)
         izinli_durumlar = list(kural.get("izinli_durumlar", []))
         izinli = go.izinli_karne(tum, izinli_durumlar, tutar, bakiye)
@@ -167,6 +228,26 @@ def rapor_uret(yukle=dosyadan_yukle, gun: int = 30, ayar: dict | None = None) ->
     yaz("* işareti, stratejinin tasarımda izinli olduğu durumu gösterir.")
     yaz("\"Yalnız izinli\" satırı bir yaklaşıktır: gerçekte bir işlem atlanınca sonraki işlemlerin")
     yaz("sırası da değişebilir.")
+    yaz("")
+    yaz("STOP GENİŞLİĞİ: aynı sinyaller, stop daha geniş olsaydı ne olurdu?")
+    yaz("- Her satır baştan sona yeniden oynatılmıştır: geniş stopla işlem daha uzun açık kalır,")
+    yaz("  o sırada gelen sinyaller atlanır; işlem sayısının değişmesi bundandır.")
+    yaz("- İlk yarı ve son yarı, dönemin iki yarısındaki net sonuçtur. Bir seçenek yalnız bir")
+    yaz("  yarıda iyiyse şans olabilir. Rastgele üretilmiş veride bile bazı satırlar iyi görünür;")
+    yaz("  \"Stop dar\" sonucu için iyileşmenin en az dörtte biri her iki yarıdan da gelmelidir.")
+    yaz("- Bu tabloya bakıp en iyi stopu seçmek geçmişe ezberdir. \"Stop dar\" sonucu yalnız bir")
+    yaz("  öneridir; geniş stoplu hal ayrı bir sanal botla denenmeden ayar değişmez.")
+    yaz("")
+    for ad, kural, stop_satirlari in stop_tablosu:
+        yaz(f"{ad}: {kural['ad']} (hedef %{kural['cikis']['kar_hedefi_yuzde']:g}, "
+            f"süre {kural['cikis']['sure_asimi_dakika']} dk)")
+        yaz(f"  {'Stop':<16} {'İşlem':>6} {'Kazanma %':>9} {'Net USDT':>10} {'İlk yarı':>10} {'Son yarı':>10} {'Stop olan':>10}")
+        for s in stop_satirlari:
+            etiket = f"%{s['stop_yuzde']:g}".replace(".", ",") + (" (şimdiki)" if s["carpan"] == 1.0 else "")
+            yaz(f"  {etiket:<16} {s['islem']:>6} {_sayi(s['kazanma'], 1):>9} {_sayi(s['net'], 2, True):>10} "
+                f"{_sayi(s['ilk'], 2, True):>10} {_sayi(s['son'], 2, True):>10} {s['stop_olan']:>10}")
+        yaz("  Sonuç: " + stop_degerlendirmesi(stop_satirlari, stop_satirlari[0]["stop_olan"], tutar))
+        yaz("")
     if eksik:
         yaz(f"UYARI: {eksik} veri dosyası bulunamadı ({VERI}).")
     return "\n".join(satirlar), eksik

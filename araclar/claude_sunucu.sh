@@ -141,8 +141,13 @@ WantedBy=multi-user.target"
 
     if giris_var_mi; then
         systemctl enable karabasan-claude.service > /dev/null 2>&1 || true
-        if [ "$DEGISTI" -eq 1 ] || ! systemctl is-active --quiet karabasan-claude.service; then
-            systemctl restart karabasan-claude.service || true
+        # Oturum adresi yoksa oturum açılamamış ya da açılışta takılmış demektir:
+        # servis "çalışıyor" görünse de yeniden başlat ki bu betiğin yeni hali denensin
+        # ve sonuç (hazır ya da takıldı) Telegram'a yeniden yazılsın.
+        if [ "$DEGISTI" -eq 1 ] || ! systemctl is-active --quiet karabasan-claude.service \
+                || [ ! -s "$DURUM_KLASORU/claude_adresi" ]; then
+            rm -f "$DURUM_KLASORU/claude_bildirilen"
+            systemctl restart --no-block karabasan-claude.service || true
         fi
     elif [ ! -f "$DURUM_KLASORU/claude_giris_istendi" ]; then
         # Giriş bağlantısı ilk kurulumda bir kez kendiliğinden gönderilir;
@@ -258,25 +263,54 @@ oturum() {
     fi
     oturum_tmux kill-server 2> /dev/null || true
     rm -f "$DURUM_KLASORU/claude_adresi"
+    # --spawn=same-dir: verilmezse program "Choose [1/2] (default: 1):" diye sorar.
+    # 10 Ekim'deki ilk açılış bu soruda takılı kalmıştı (kayıt: /gunluk claude).
     oturum_tmux new-session -d -s claude -x 250 -y 50 -c "$KLASOR" \
-        "claude remote-control --name '$OTURUM_ADI'"
+        "claude remote-control --name '$OTURUM_ADI' --spawn=same-dir"
     yaz "Oturum başlatıldı."
-    local EKRAN="" ADRES="" ESKI_ADRES="" SON_YANIT=0 SIMDI SAYAC=0 YANIT_SAYISI=0 SON_SATIR
+    local EKRAN="" ADRES="" ESKI_ADRES="" SON_YANIT=0 SIMDI SAYAC=0 YANIT_SAYISI=0 SON_SATIRLAR SORU
+    local BASLANGIC TAKILDI_YAZILDI=0
+    BASLANGIC="$(date +%s)"
     while oturum_tmux has-session -t claude 2> /dev/null; do
         EKRAN="$(oturum_ekrani)"
         printf '%s\n' "$EKRAN" > "$VERI/logs/claude_ekrani.txt"
         SIMDI="$(date +%s)"
-        # İlk açılıştaki iki soru: özelliği aç ve bu klasöre güven. Yalnız soru
-        # ekranın son satırında yanıtsız duruyorsa ve en fazla dört kez yanıtlanır;
-        # çalışan oturuma başıboş tuş gönderilmez.
-        SON_SATIR="$(printf '%s\n' "$EKRAN" | grep -v '^[[:space:]]*$' | tail -1)"
-        if [ "$YANIT_SAYISI" -lt 4 ] && [ $((SIMDI - SON_YANIT)) -ge 10 ] && printf '%s' "$SON_SATIR" \
-                | grep -Eq '(Enable Remote Control\? *\(y/n\)|Trust .*\[y/N\])[[:space:]]*$'; then
-            oturum_tmux send-keys -t claude y
+        # İlk açılıştaki sorular: bu klasöre güven, özelliği aç, oturumlar aynı klasörde
+        # açılsın (sonuncusu --spawn ile zaten verildi; yine sorarsa diye). Soru ekranın
+        # son satırlarındaysa yanıtlanır (altında bir ipucu satırı olabilir). Oturum adresi
+        # görüldükten sonra hiçbir tuş gönderilmez; açılışta da en fazla altı kez.
+        SON_SATIRLAR="$(printf '%s\n' "$EKRAN" | grep -v '^[[:space:]]*$' | tail -6)"
+        SORU="$(printf '%s\n' "$SON_SATIRLAR" \
+            | grep -E 'Enable Remote Control\? *\(y/n\)|Trust .*\[y/N\]|Choose \[1/2\] \(default: 1\)' | tail -1 || true)"
+        if [ -z "$ESKI_ADRES" ] && [ -n "$SORU" ] && [ "$YANIT_SAYISI" -lt 6 ] \
+                && [ $((SIMDI - SON_YANIT)) -ge 10 ]; then
+            if printf '%s' "$SORU" | grep -q 'Choose \[1/2\]'; then
+                oturum_tmux send-keys -t claude 1     # same-dir: oturumlar bu klasörde çalışır
+            else
+                oturum_tmux send-keys -t claude y
+            fi
             oturum_tmux send-keys -t claude Enter
             SON_YANIT="$SIMDI"
             YANIT_SAYISI=$((YANIT_SAYISI + 1))
-            yaz "Açılış sorusu yanıtlandı: $(printf '%s' "$SON_SATIR" | cut -c1-80)"
+            yaz "Açılış sorusu yanıtlandı: $(printf '%s' "$SORU" | cut -c1-80)"
+        fi
+        # Adres iki dakikada gelmediyse açılış takılmıştır: son ekranı bir kez bildir
+        # (kendi kendine teşhis), beş dakikada gelmediyse kapatıp baştan dene.
+        if [ -z "$ESKI_ADRES" ] && [ $((SIMDI - BASLANGIC)) -ge "${CLAUDE_TAKILMA_SANIYE:-120}" ] \
+                && [ "$TAKILDI_YAZILDI" -eq 0 ]; then
+            TAKILDI_YAZILDI=1
+            yaz "Açılış takıldı. Son ekran: $(printf '%s' "$SON_SATIRLAR" | cut -c1-200 | tr '\n' '|')"
+            if [ "$(cat "$DURUM_KLASORU/claude_bildirilen" 2> /dev/null)" != "takildi" ]; then
+                echo takildi > "$DURUM_KLASORU/claude_bildirilen"
+                bildir "Claude'un sunucudaki oturumu açılışta bekliyor; iki dakikadır oturum adresi gelmedi. Ekranın son satırları (bunu Claude'a ilet):
+
+$(printf '%s' "$SON_SATIRLAR" | cut -c1-200)"
+            fi
+        fi
+        if [ -z "$ESKI_ADRES" ] && [ $((SIMDI - BASLANGIC)) -ge "${CLAUDE_VAZGECME_SANIYE:-300}" ]; then
+            yaz "Beş dakikada açılmadı; oturum kapatılıp yeniden denenecek."
+            oturum_tmux kill-server 2> /dev/null || true
+            break
         fi
         ADRES="$(printf '%s\n' "$EKRAN" | grep -Eo 'https://claude\.ai/code[^[:space:]]*' | tail -1 || true)"
         if [ -n "$ADRES" ] && [ "$ADRES" != "$ESKI_ADRES" ]; then
@@ -299,11 +333,18 @@ Orada yazdıkların sunucunun içinde çalışır. Sunucuda bir şeyi değiştir
     yaz "Oturum kapandı. Son ekran: $(printf '%s' "$EKRAN" | grep -v '^[[:space:]]*$' | tail -6 | cut -c1-300)"
     rm -f "$DURUM_KLASORU/claude_adresi"
     durum_yaz
-    if [ -z "$ESKI_ADRES" ] && [ "$(cat "$DURUM_KLASORU/claude_bildirilen" 2> /dev/null)" != "sorun" ]; then
-        # Hiç açılamadı: bir kez haber ver, sonra sessizce yeniden dene.
-        echo sorun > "$DURUM_KLASORU/claude_bildirilen"
-        bildir "Claude'un sunucudaki oturumu açılamadı. /kurulum yazıp gelen dosyayı Claude'a ilet."
-    fi
+    case "$(cat "$DURUM_KLASORU/claude_bildirilen" 2> /dev/null)" in
+        sorun | takildi) ;;  # zaten bildirildi; sessizce yeniden dene
+        *)
+            if [ -z "$ESKI_ADRES" ]; then
+                # Hiç açılamadı: nedenini (son ekranı) bir kez yaz, sonra sessizce yeniden dene.
+                echo sorun > "$DURUM_KLASORU/claude_bildirilen"
+                bildir "Claude'un sunucudaki oturumu açılamadı. Ekranın son satırları (bunu Claude'a ilet):
+
+$(printf '%s' "$EKRAN" | grep -v '^[[:space:]]*$' | tail -8 | cut -c1-200)"
+            fi
+            ;;
+    esac
     return 1
 }
 
