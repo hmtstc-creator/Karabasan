@@ -7,6 +7,9 @@ kullandığı adlardır: date, open, high, low, close, volume.
 
 from __future__ import annotations
 
+import bisect
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -295,3 +298,129 @@ def ust_dilimden_hizala(
     hedef = pd.to_datetime(taban_tarih, utc=True)
     hizali = hazir.reindex(pd.DatetimeIndex(hedef), method="ffill")
     return pd.Series(hizali.to_numpy(), index=taban_tarih.index)
+
+
+# --------------------------------------------------------------------------
+# Uyumsuzluk (divergence)
+# --------------------------------------------------------------------------
+#
+# Kavram, Ahmet'in gönderdiği TradingView göstergesinden ("Divergence for Many
+# Indicators v4", LonesomeTheBlue, MPL 2.0) alındı; kod kopyalanmadı, aynı fikir
+# burada baştan yazıldı. Fiyat yeni bir dip yaparken göstergenin dip yapmaması
+# (ya da tersi) uyumsuzluktur:
+#
+#   normal boğa:  fiyat daha düşük dip, gösterge daha yüksek dip (dönüş işareti)
+#   gizli boğa:   fiyat daha yüksek dip, gösterge daha düşük dip (trendin sürmesi)
+#   ayı tarafı:   aynısı tepelerle, ters yönde.
+#
+# Dipler / tepeler kapanış fiyatının salınım noktalarıdır (her iki yanında 'uzunluk'
+# mum). Bir salınım noktası ancak 'uzunluk' mum sonra kesinleşir; bir mumdaki sonuç
+# yalnız o mumda kesinleşmiş noktaları kullanır (geleceğe bakmaz). Karşılaştırma bir
+# önceki mumla yapılır, son mum gösterge ya da fiyatın o yöne dönmesiyle onaylar.
+# İki nokta arasında ne fiyat ne gösterge, iki noktayı birleştiren doğrunun öbür
+# yanına geçmemelidir (aradaki hareket "temiz" olmalı).
+
+UYUMSUZLUK_GOSTERGELERI = ("macd", "macd_fark", "rsi", "stokastik", "cci", "momentum",
+                           "obv", "hacimli_macd", "cmf", "mfi")
+UYUMSUZLUK_EN_FAZLA_MUM = 100      # en eski salınım noktası bu kadar mum geride olabilir
+UYUMSUZLUK_EN_FAZLA_NOKTA = 10     # en yeni kaç salınım noktasına bakılır
+UYUMSUZLUK_EN_AZ_MUM = 5           # iki nokta arası en az bu kadar mum
+
+
+def _uyumsuzluk_gostergeleri(df: pd.DataFrame) -> dict[str, np.ndarray]:
+    k, y, d, h = df["close"], df["high"], df["low"], df["volume"]
+    cizgi, _sinyal, fark = macd(k, 12, 26, 9)
+    en_dusuk14, en_yuksek14 = d.rolling(14).min(), y.rolling(14).max()
+    stok = (100.0 * (k - en_dusuk14) / (en_yuksek14 - en_dusuk14).replace(0, np.nan)).rolling(3).mean()
+    tipik = (y + d + k) / 3.0
+    sapma = tipik.rolling(10).apply(lambda x: np.mean(np.abs(x - x.mean())), raw=True)
+    cci = (tipik - tipik.rolling(10).mean()) / (0.015 * sapma.replace(0, np.nan))
+    yon = np.sign(k.diff().fillna(0.0))
+    obv = (yon * h).cumsum()
+    hacimli = (k * h).rolling(12).sum() / h.rolling(12).sum() - (k * h).rolling(26).sum() / h.rolling(26).sum()
+    aralik = (y - d).replace(0, np.nan)
+    cmf_carpan = (((k - d) - (y - k)) / aralik).fillna(0.0)
+    cmf = (cmf_carpan * h).rolling(21).sum() / h.rolling(21).sum().replace(0, np.nan)
+    para = tipik * h
+    artan = para.where(tipik > tipik.shift(1), 0.0).rolling(14).sum()
+    azalan = para.where(tipik < tipik.shift(1), 0.0).rolling(14).sum()
+    mfi = 100.0 - 100.0 / (1.0 + artan / azalan.replace(0, np.nan))
+    seriler = {"macd": cizgi, "macd_fark": fark, "rsi": rsi(k, 14), "stokastik": stok, "cci": cci,
+               "momentum": k - k.shift(10), "obv": obv, "hacimli_macd": hacimli, "cmf": cmf, "mfi": mfi}
+    return {ad: seriler[ad].to_numpy(dtype=float) for ad in UYUMSUZLUK_GOSTERGELERI}
+
+
+def _salinim_noktalari(kapanis: np.ndarray, uzunluk: int) -> tuple[list[int], list[int]]:
+    """Kapanışın dip ve tepe noktaları (sıra numaraları). Nokta p, p + uzunluk mumunda kesinleşir."""
+    dipler, tepeler = [], []
+    for p in range(uzunluk, len(kapanis) - uzunluk):
+        sol = kapanis[p - uzunluk:p]
+        sag = kapanis[p + 1:p + uzunluk + 1]
+        deger = kapanis[p]
+        if deger < sol.min() and deger <= sag.min():
+            dipler.append(p)
+        if deger > sol.max() and deger >= sag.max():
+            tepeler.append(p)
+    return dipler, tepeler
+
+
+def _temiz_mi(seri: list, p: int, s: int, boga: bool) -> bool:
+    """p ile s arasındaki mumlar, iki noktayı birleştiren doğrunun öbür yanına geçmiyor mu?"""
+    egim = (seri[s] - seri[p]) / (s - p)
+    for i in range(p + 1, s):
+        dogru = seri[p] + egim * (i - p)
+        if (seri[i] < dogru) if boga else (seri[i] > dogru):
+            return False
+    return True
+
+
+def uyumsuzluk(df: pd.DataFrame, uzunluk: int = 5, tip: str = "ikisi") -> pd.DataFrame:
+    """Her mum için boğa ve ayı uyumsuzluğu gösteren gösterge sayısı (0-10).
+
+    tip: "normal", "gizli" ya da "ikisi".
+    Dönen tablo: 'boga', 'ayi' sütunları.
+    """
+    kapanis_dizi = df["close"].to_numpy(dtype=float)
+    n = len(kapanis_dizi)
+    dipler, tepeler = _salinim_noktalari(kapanis_dizi, uzunluk)
+    # Mum mum döngüde düz liste numpy dizisinden çok daha hızlı.
+    kapanis = kapanis_dizi.tolist()
+    gostergeler = {ad: seri.tolist() for ad, seri in _uyumsuzluk_gostergeleri(df).items()}
+    normal = tip in ("normal", "ikisi")
+    gizli = tip in ("gizli", "ikisi")
+    boga = np.zeros(n, dtype=int)
+    ayi = np.zeros(n, dtype=int)
+
+    def ara(noktalar: list[int], t: int, seri: np.ndarray, boga_mi: bool) -> bool:
+        s = t - 1
+        # Onay: son mumda gösterge ya da fiyat beklenen yöne dönmüş olmalı.
+        if boga_mi and not (seri[t] > seri[s] or kapanis[t] > kapanis[s]):
+            return False
+        if not boga_mi and not (seri[t] < seri[s] or kapanis[t] < kapanis[s]):
+            return False
+        # En yeni kesinleşmiş noktadan (p + uzunluk <= t) geriye.
+        son = bisect.bisect_right(noktalar, t - uzunluk)
+        for p in noktalar[max(0, son - UYUMSUZLUK_EN_FAZLA_NOKTA):son][::-1]:
+            if t - p > UYUMSUZLUK_EN_FAZLA_MUM:
+                break
+            if t - p <= UYUMSUZLUK_EN_AZ_MUM or math.isnan(seri[p]) or math.isnan(seri[s]):
+                continue
+            if boga_mi:
+                eslesti = (normal and seri[s] > seri[p] and kapanis[s] < kapanis[p]) or \
+                          (gizli and seri[s] < seri[p] and kapanis[s] > kapanis[p])
+            else:
+                eslesti = (normal and seri[s] < seri[p] and kapanis[s] > kapanis[p]) or \
+                          (gizli and seri[s] > seri[p] and kapanis[s] < kapanis[p])
+            if eslesti and _temiz_mi(seri, p, s, boga_mi) and _temiz_mi(kapanis, p, s, boga_mi):
+                return True
+        return False
+
+    for t in range(2, n):
+        for seri in gostergeler.values():
+            if math.isnan(seri[t]) or math.isnan(seri[t - 1]):
+                continue
+            if ara(dipler, t, seri, True):
+                boga[t] += 1
+            if ara(tepeler, t, seri, False):
+                ayi[t] += 1
+    return pd.DataFrame({"boga": boga, "ayi": ayi}, index=df.index)

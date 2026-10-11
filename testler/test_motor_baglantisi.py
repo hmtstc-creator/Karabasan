@@ -392,7 +392,8 @@ class BagimsizKarsilastirma(unittest.TestCase):
         for bot, _s, _k, _p in botlar.BOTLAR:
             self.assertIn(bot, metin)
         # Günlük mum yalnız onu isteyen botlar (Smartmoney, vadeli) için okunur.
-        self.assertEqual(sum(1 for ad in okunan if "-1d-" in ad), 2 * len(karsilastir.COINLER))
+        gunluk_isteyen = sum(1 for b in botlar.BOTLAR if b[2].startswith("SM"))
+        self.assertEqual(sum(1 for ad in okunan if "-1d-" in ad), gunluk_isteyen * len(karsilastir.COINLER))
         self.assertTrue(all(ad.endswith("-vadeli.feather") for ad in okunan if "-1d-" in ad))
         # Smartmoney botları bu veride işlem açtı (günlük veri gerçekten kullanıldı).
         for bot in ("sm-vadeli", "smk-vadeli"):
@@ -415,7 +416,8 @@ class BagimsizKarsilastirma(unittest.TestCase):
                 mock.patch.object(sys, "argv", ["karsilastir.py", "30"]), \
                 contextlib.redirect_stdout(cikti):
             self.assertEqual(karsilastir.main(), 1)
-        self.assertIn(f"UYARI: {2 * len(karsilastir.COINLER)} veri dosyası bulunamadı", cikti.getvalue())
+        gunluk_isteyen = sum(1 for b in botlar.BOTLAR if b[2].startswith("SM"))
+        self.assertIn(f"UYARI: {gunluk_isteyen * len(karsilastir.COINLER)} veri dosyası bulunamadı", cikti.getvalue())
 
     def test_veri_yoksa_uyarir(self):
         import contextlib
@@ -571,7 +573,7 @@ class UyumDenemesiTesti(unittest.TestCase):
 
     SAHTE_DOCKER = r'''#!/bin/bash
 case "$*" in
-  *list-strategies*) echo "KarabasanTaban SMVadeli $SAHTE_SON_SINIF";;
+  *list-strategies*) echo "KarabasanTaban SMVadeli SMKVadeli SMDVadeli $SAHTE_SON_SINIF";;
   *"--version"*) echo "freqtrade 2026.9";;
   *download-data*) echo "docker $*" >> "$SAHTE_KAYIT"
                    [ "$SAHTE_MOD" = "gunluk_inmez" ] && case "$*" in *"--timeframes 1d"*) echo "freqtrade - ERROR - veri yok"; exit 1;; esac
@@ -613,7 +615,7 @@ exit 0
             docker.chmod(0o755)
             ortam = {**os.environ, "PATH": f"{kok / 'bin'}:{os.environ['PATH']}", "SAHTE_MOD": mod,
                      "SAHTE_KAYIT": str(kok / "cagrilar.txt"),
-                     "SAHTE_SON_SINIF": "" if mod == "sinif_eksik" else "SMKVadeli"}
+                     "SAHTE_SON_SINIF": "" if mod == "sinif_eksik" else "SMDKVadeli"}
             sonuc = subprocess.run(["bash", str(kok / "araclar" / "uyum_denemesi.sh")],
                                    capture_output=True, text=True, env=ortam)
             rapor = (kok / "user_data" / "logs" / "uyum_denemesi.txt").read_text(encoding="utf-8")
@@ -655,10 +657,10 @@ exit 0
         self.assertIn("SONUÇ: 1 adım kaldı.", rapor)
 
     def test_eksik_sinif_yakalanir(self):
-        # "SMVadeli" çıktıda var ama "SMKVadeli" yok: biri diğerinin yerine sayılmamalı.
+        # "SMDVadeli" çıktıda var ama "SMDKVadeli" yok: biri diğerinin yerine sayılmamalı.
         kod, rapor = self._calistir("sinif_eksik")
         self.assertEqual(kod, 1)
-        self.assertIn("Bulunamayan sınıflar: SMKVadeli", rapor)
+        self.assertIn("Bulunamayan sınıflar: SMDKVadeli", rapor)
 
     def test_ayar_hatasi_cikis_kodu_temiz_olsa_da_kalir(self):
         kod, rapor = self._calistir("ayar_hatasi")

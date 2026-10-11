@@ -95,14 +95,14 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 
 | Yol | İçerik |
 | --- | --- |
-| `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama) ve `piyasa_yapisi` (salınımlar, yapı kırılımı BOS / CHoCH, denge, emir blokları) |
+| `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama), `piyasa_yapisi` (salınımlar, yapı kırılımı BOS / CHoCH, denge, emir blokları) ve `uyumsuzluk` (10 göstergede normal / gizli boğa ve ayı uyumsuzluğu sayısı; kural türü `"uyumsuzluk"`, sütunlar `<ad>_boga`, `<ad>_ayi`) |
 | `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme. Bir gösterge `dilim` ile istediği üst dilimde hesaplanır (`"ust"`, `"15m"`, `"1h"`, `"1d"`). `borsa_dilimleri` içindeki dilimlerin mumları taban mumlardan toplanmaz, `ek_veri` ile dışarıdan verilir (motor, araçlar); boş tablo "veri yok, sinyal de yok" demektir |
-| `karabasan/stratejiler/*.json` | 12 Ekim 2026'dan beri yalnız iki strateji: SM (alım) ve SMK (açığa satış). Çıkarılan on iki kural (S1–S7 ve ters yönlüleri) `stratejiler/emekli/` altında durur; `tum_kurallar()` orayı okumaz ama `kural_yukle("S1")` koduyla bulur (eski raporlar ve testler için). Hangi botun çalıştığını yalnız `botlar.BOTLAR` belirler. Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
+| `karabasan/stratejiler/*.json` | 12 Ekim 2026'dan beri dört strateji: SM ve SMD (alım), SMK ve SMDK (açığa satış). Çıkarılan on iki kural (S1–S7 ve ters yönlüleri) `stratejiler/emekli/` altında durur; `tum_kurallar()` orayı okumaz ama `kural_yukle("S1")` koduyla bulur (eski raporlar ve testler için). Hangi botun çalıştığını yalnız `botlar.BOTLAR` belirler. Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
 | `karabasan/puan.py` | Karabasan puanı, durum makinesi, vetolar |
 | `karabasan/filtre.py` | Filtre (Elek): dört katman, elenme nedenleri |
 | `karabasan/karne.py` | İşlem ölçümleri ve 30. günün yedi karar ölçütü |
 | `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim |
-| `karabasan/botlar.py` | Sanal botların listesi (12 Ekim 2026'dan beri yalnız `sm-vadeli` 8081 ve `smk-vadeli` 8082, 1 kat vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
+| `karabasan/botlar.py` | Sanal botların listesi (12 Ekim 2026'dan beri `sm-vadeli` 8081, `smk-vadeli` 8082, `smd-vadeli` 8083, `smdk-vadeli` 8084; 1 kat vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder; aynı döngüde stop sonrası izleme turunu çalıştırır |
 | `karabasan/stop_sonrasi.py` | Stop sonrası izleme: stop olan işlemi kendi süresi dolana kadar izler, stop 1,5 / 2 / 3 kat geniş olsaydı ne olurdu hesaplar, bot başına karar çıkarır (yetersiz, dar, yerinde, kararsız), karar değişince ders yazar. Mumlar Binance'in herkese açık, anahtarsız fiyat verisinden gelir. Çıktı: `user_data/kayit/stop_sonrasi.json`. **Hiçbir ayarı değiştirmez** |
 | `karabasan/gecmis_olcum.py` | Karabasan puanını geçmiş mumlardan geriye dönük hesaplar (yaklaşık: dominans ve TOTAL2 yerine altcoin vekili); işlemleri açıldıkları andaki durumla etiketler |
@@ -181,7 +181,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 398 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 412 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -428,6 +428,25 @@ ayrı bir özet sayfası yap" dedi. Yapılan: `defter` servisi ve `/defter` sayf
   okunur açabilmesi (WAL). Sorun olursa `docker compose logs defter`.
 - Sonuç sayfası sunucusu yalnız Tailscale ile açılır ve Ahmet henüz onaylamadı;
   bu yüzden Telegram `/defter` hem kısa özeti hem sayfayı dosya olarak yollar.
+
+**SMD / SMDK: Smartmoney + uyumsuzluk + emir defteri (12 Ekim 2026, Ahmet'in
+isteğiyle, "geçmiş testine gerek yok, ileriye dönük izleyelim").** SM / SMK'nın
+bütün koşulları + son 12 mumda en az bir göstergede uyumsuzluk + girişte emir
+defteri onayı. Kurallarda `"defter_onayi": {"en_az_dengesizlik": 0.1}`; karar
+`karabasan.defter.defter_onayi`'de (ilk 20 kademe dengesizliği ≥ 0,1, defterin
+tamamı ve mikro fiyat aynı yönde), çağrı bağlantı katmanının
+`confirm_trade_entry`'sinde (`dp.orderbook(pair, 100)`; yalnız `dry_run` / `live`
+kipinde; defter okunamazsa girmez). Çıkış SM ile aynı (%0,8 / %3 / 240 dk).
+- Uyumsuzluk kavramı Ahmet'in gönderdiği TradingView göstergesinden (MPL 2.0);
+  kod kopyalanmadı, `g.uyumsuzluk` baştan yazıldı. Parite başına 2.000 mumda
+  ~0,15 sn (60 parite ~9 sn / 5 dk).
+- Geçmiş testi, uyum denemesi ve 12 aylık test defter onayını uygulayamaz;
+  oradaki SMD sayıları defter süzgeci olmadan, yani olduğundan fazladır.
+  `UYUM_SURUMU=10` (yeni sınıflar gerçek motorda ilk kez yüklenecek).
+- Sunucuda doğrulanacak: `dp.orderbook()`'un sanal modda vadeli defteri vermesi,
+  `confirm_trade_entry`'nin bu motor sürümünde bu imzayla çağrılması, kayıttaki
+  "defter onayladı / onaylamadı" satırları (`/gunluk smd-vadeli`).
+- Bellek: dört bot (~1,8 GB) + defter servisi; sorun beklenmiyor.
 
 Sıradaki işler, öncelik sırasıyla:
 

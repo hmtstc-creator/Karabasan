@@ -3,7 +3,7 @@
 Burada işlem mantığı YOKTUR. Mantık karabasan/ paketindedir ve orada
 test edilir; bu dosya yalnız o mantığı motorun beklediği biçime çevirir.
 
-Her sanal bot için bir sınıf vardır (SMVadeli, SMKVadeli).
+Her sanal bot için bir sınıf vardır (SMVadeli, SMKVadeli, SMDVadeli ...).
 Sınıfın kâr hedefi, stopu, zaman dilimi ve yönü kural dosyasından gelir:
 karabasan/stratejiler/<kod>.json
 
@@ -171,6 +171,34 @@ class KarabasanTaban(IStrategy):
             dataframe["exit_short"] = 0
         return dataframe
 
+    def confirm_trade_entry(self, pair: str, order_type: str, amount: float, rate: float,
+                            time_in_force: str, current_time: datetime, entry_tag, side: str,
+                            **kwargs) -> bool:
+        """Kural 'defter_onayi' istiyorsa girişten hemen önce emir defterine bakar.
+
+        Karar karabasan.defter.defter_onayi'dedir. Yalnız canlı ve sanal modda çalışır:
+        geçmiş testinde geçmişin emir defteri yoktur, o yüzden orada bu adım atlanır.
+        Defter okunamazsa işlem açılmaz.
+        """
+        ayar = self.kural.get("defter_onayi")
+        saglayici = getattr(self, "dp", None)
+        if not ayar or saglayici is None:
+            return True
+        kip = getattr(getattr(saglayici, "runmode", None), "value", "")
+        if kip not in ("live", "dry_run"):
+            return True
+        from karabasan.defter import defter_onayi
+
+        try:
+            kitap = saglayici.orderbook(pair, 100)
+            onay, aciklama = defter_onayi("alim" if side == "long" else "satis", kitap["bids"], kitap["asks"],
+                                          float(ayar["en_az_dengesizlik"]))
+        except Exception as hata:  # noqa: BLE001 - defter yoksa girme, bot durmasın
+            logger.warning("%s %s: emir defteri okunamadı, işlem açılmadı: %s", self.kural.get("kod"), pair, hata)
+            return False
+        logger.info("%s %s: %s", self.kural.get("kod"), pair, aciklama)
+        return onay
+
     def custom_exit(self, pair: str, trade: Trade, current_time: datetime, current_rate: float,
                     current_profit: float, **kwargs):
         sure = timedelta(minutes=int(self.kural["cikis"]["sure_asimi_dakika"]))
@@ -191,3 +219,11 @@ class SMVadeli(KarabasanTaban):
 
 class SMKVadeli(KarabasanTaban):
     kural_kodu, piyasa = "SMK", "vadeli"
+
+
+class SMDVadeli(KarabasanTaban):
+    kural_kodu, piyasa = "SMD", "vadeli"
+
+
+class SMDKVadeli(KarabasanTaban):
+    kural_kodu, piyasa = "SMDK", "vadeli"

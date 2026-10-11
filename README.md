@@ -175,7 +175,7 @@ emirler piyasa emri olduğu için alıcı (taker) oranı kullanılır. Hesabınd
 oranlar farklıysa Claude'a yaz; değeri depoda o günceller, sunucu kendisi alır.
 
 Bot ekranları (hazır motorun kendi İngilizce ekranı), Tailscale açıkken
-`http://karabasan:8081` ve `http://karabasan:8082` adresindedir. Kullanıcı adı
+`http://karabasan:8081` ile `http://karabasan:8084` arasındadır. Kullanıcı adı
 `karabasan`, parola sunucudaki `.env` dosyasındadır. Günlük kullanımda
 gerekmez; sonuç sayfası ve Telegram yeterlidir.
 
@@ -185,6 +185,8 @@ gerekmez; sonuç sayfası ve Telegram yeterlidir.
 | --- | --- | --- | --- | --- |
 | sm-vadeli | SM Smartmoney: geri çekilme sonrası yapı kırılımıyla alım | Günlük trend ve 1 saatlik yapı yukarıyken, 15 dakikalıkta geri çekilmeden sonra 5 dakikalık yapı yukarı kırılınca alır | Vadeli, 1 kat | 8081 |
 | smk-vadeli | SMK Smartmoney: tepki sonrası yapı kırılımıyla satış | SM'nin tersi | Vadeli, 1 kat | 8082 |
+| smd-vadeli | SMD Smartmoney + uyumsuzluk + emir defteri: alım | SM'nin bütün koşulları, son 1 saatte en az bir göstergede boğa uyumsuzluğu, girişte emir defterinde alıcılar belirgin kalabalık | Vadeli, 1 kat | 8083 |
+| smdk-vadeli | SMDK Smartmoney + uyumsuzluk + emir defteri: satış | SMD'nin tersi | Vadeli, 1 kat | 8084 |
 
 **12 Ekim 2026'dan beri yalnız Smartmoney çalışır (Ahmet'in isteğiyle).** Aynı
 gün 12 aylık geçmiş testi (11.10.2025–11.10.2026) on iki botun hepsini ekside
@@ -202,6 +204,33 @@ Her botun 1.000 USDT sanal bakiyesi vardır, işlem başına 50 USDT kullanır,
 aynı anda en fazla 20 pozisyon açar. Tüm emirler piyasa emridir ve karşı
 taraftan fiyatlanır; bu, sonuçları olduğundan iyi göstermemek için seçilmiş
 kötümser bir varsayımdır.
+
+### Smartmoney + uyumsuzluk + emir defteri (SMD ve SMDK)
+
+12 Ekim 2026'da Ahmet'in isteğiyle eklendi; geçmiş testi yapılmadan, ileriye
+dönük izlenmek üzere. Üç parçayı birleştirir:
+
+1. **Smartmoney'nin dört katmanı aynen.** Günlük trend, 1 saatlik yapı,
+   15 dakikalıkta geri çekilme, 5 dakikalıkta hacimli yapı kırılımı.
+2. **Uyumsuzluk.** Ahmet'in gönderdiği TradingView göstergesinin (LonesomeTheBlue,
+   "Divergence for Many Indicators v4") fikri; kod kopyalanmadı, Python'da baştan
+   yazıldı (`karabasan/gostergeler.py`, `uyumsuzluk`). On gösterge: MACD, MACD
+   histogramı, RSI, stokastik, CCI, momentum, OBV, hacim ağırlıklı MACD, Chaikin
+   para akışı, para akışı endeksi. Alımda son 12 mumda (1 saat) en az birinde boğa
+   uyumsuzluğu aranır. Örnek: fiyat yeni dip yaparken gösterge yeni dip yapmıyor.
+   Ya da fiyat daha yüksek dip yaparken gösterge daha düşük dip yapıyor; buna
+   "gizli" uyumsuzluk denir ve trendin sürdüğünü gösterir. Dip ve tepeler her iki
+   yanında 5 mum olan noktalardır; bir nokta ancak 5 mum sonra kesinleşir. Geleceğe
+   bakılmaz.
+3. **Girişte emir defteri onayı.** Sinyal gelince motor emir defterini okur. Alımda
+   en iyi 20 kademede alıcılar satıcılardan en az %22 kalabalık değilse (dengesizlik
+   en az 0,1) işlem açılmaz. Defterin tamamı ve mikro fiyat da aynı yönü göstermelidir.
+   Açığa satışta tersi. Geçmiş testinde geçmişin defteri olmadığı için bu adım
+   orada atlanır.
+
+Çıkış Smartmoney ile aynı: hedef %0,8, stop %3, en uzun 4 saat. Kazandıracağı
+bilinmiyor; amaç, defter ve uyumsuzluk onayının Smartmoney'nin sonucunu
+değiştirip değiştirmediğini canlıda yan yana görmek (SM ile SMD, SMK ile SMDK).
 
 ### Emir defteri denemesi (BTC/USDT vadeli)
 

@@ -35,7 +35,9 @@ GOSTERGE_TURLERI = (
     "degisim_yuzde",
     "macd",
     "yapi",
+    "uyumsuzluk",
 )
+UYUMSUZLUK_TIPLERI = ("normal", "gizli", "ikisi")
 MACD_VARSAYILAN = {"hizli": 12, "yavas": 26, "sinyal": 9}
 # Piyasa yapısı (g.piyasa_yapisi): salınım uzunluğunun sınırları.
 YAPI_UZUNLUK_SINIRI = (2, 50)
@@ -100,6 +102,8 @@ def _gosterge_sutunlari(ad: str, tanim: dict) -> list[str]:
         return [f"{ad}_cizgi", f"{ad}_sinyal", f"{ad}_fark"]
     if tanim["tur"] == "yapi":
         return [f"{ad}_{sutun}" for sutun in g.YAPI_SUTUNLARI]
+    if tanim["tur"] == "uyumsuzluk":
+        return [f"{ad}_boga", f"{ad}_ayi"]
     return [ad]
 
 
@@ -232,6 +236,13 @@ def kural_dogrula(kural: dict) -> None:
                 raise KuralHatasi(f"'{ad}': 'blok_omru' 1 ile 1000 arasında tam sayı olmalı.")
             if tanim.get("kaynak") is not None:
                 raise KuralHatasi(f"'{ad}': piyasa yapısı mumun kendisinden hesaplanır, 'kaynak' almaz.")
+        if tur == "uyumsuzluk":
+            if not 2 <= tanim["periyot"] <= 20:
+                raise KuralHatasi(f"'{ad}': uyumsuzlukta 'periyot' (salınım uzunluğu) 2 ile 20 arasında olmalı.")
+            if tanim.get("tip", "ikisi") not in UYUMSUZLUK_TIPLERI:
+                raise KuralHatasi(f"'{ad}': 'tip' şunlardan biri olmalı: {', '.join(UYUMSUZLUK_TIPLERI)}")
+            if tanim.get("kaynak") is not None:
+                raise KuralHatasi(f"'{ad}': uyumsuzluk mumun kendisinden hesaplanır, 'kaynak' almaz.")
         if tur == "vwap" and ust_mu:
             raise KuralHatasi(f"'{ad}': VWAP yalnız taban dilimde hesaplanır.")
         if tur == "bollinger":
@@ -263,6 +274,12 @@ def kural_dogrula(kural: dict) -> None:
             raise KuralHatasi(f"'cikis' içinde zorunlu alan eksik: '{alan}'")
         _sinir_denetle(alan, cikis[alan])
     _sinir_denetle("bekleme_dakika", kural.get("bekleme_dakika", 0))
+
+    onay = kural.get("defter_onayi")
+    if onay is not None:
+        esik = onay.get("en_az_dengesizlik") if isinstance(onay, dict) else None
+        if isinstance(esik, bool) or not isinstance(esik, (int, float)) or not 0 <= esik < 1:
+            raise KuralHatasi("'defter_onayi' içinde 'en_az_dengesizlik' 0 ile 1 arasında olmalı.")
 
     for durum in kural.get("izinli_durumlar", []):
         if durum not in DURUMLAR:
@@ -362,6 +379,9 @@ def _mum_ihtiyaclari(kural: dict) -> tuple[int, dict[str, int]]:
         if tanim["tur"] == "macd":
             _, yavas, sinyal = _macd_ayarlari(tanim)
             ihtiyac = (yavas + sinyal) * 3
+        if tanim["tur"] == "uyumsuzluk":
+            # En eski karşılaştırılan nokta + göstergelerin (MACD, RSI...) oturması.
+            ihtiyac = g.UYUMSUZLUK_EN_FAZLA_MUM + periyot + (26 + 9) * 3
         if tanim["tur"] == "yapi":
             # Yapı, veri nereden başlarsa başlasın aynı yere otursun: salınımların ve yönün
             # yeniden kurulması, üstüne en eski geçerli bloğun ömrü.
@@ -406,6 +426,9 @@ def _tek_gosterge(cerceve: pd.DataFrame, ad: str, tanim: dict) -> dict:
         return {ad: g.atr_yuzde(cerceve, periyot)}
     if tur == "hacim_ort":
         return {ad: g.sma(cerceve["volume"], periyot)}
+    if tur == "uyumsuzluk":
+        u = g.uyumsuzluk(cerceve, periyot, tanim.get("tip", "ikisi"))
+        return {f"{ad}_boga": u["boga"], f"{ad}_ayi": u["ayi"]}
     if tur == "yapi":
         yapi = g.piyasa_yapisi(cerceve, periyot, _yapi_omru(tanim))
         return {f"{ad}_{sutun}": yapi[sutun] for sutun in g.YAPI_SUTUNLARI}

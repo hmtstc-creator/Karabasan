@@ -349,3 +349,27 @@ def islem_denetle(islem: dict, alis: float, satis: float, zaman: int) -> dict | 
         "net_usdt": net / 100.0 * ISLEM_TUTARI_USDT,
         "basarili": net > 0,
     }
+
+
+# --------------------------------------------------------------------------
+# Giriş anında defter onayı (SMD / SMDK botları)
+# --------------------------------------------------------------------------
+
+
+def defter_onayi(yon: str, alislar: list, satislar: list, en_az_dengesizlik: float = 0.1) -> tuple[bool, str]:
+    """Sinyal gelen anda emir defteri işlemin yönünü destekliyor mu?
+
+    Alımda: en iyi 20 kademede alış tarafı en az 'en_az_dengesizlik' kadar ağır
+    (örnek 0,1: alışlar satışlardan ~%22 fazla), defterin tamamında da alış tarafı
+    satıştan hafif değil ve mikro fiyat orta fiyatın üstünde (yakın alıcılar daha
+    kalabalık). Yani fiyatı yukarı itmek aşağı itmekten kolay görünüyor. Açığa satış tersi.
+    Dönen ikili: (onay, kayda yazılacak kısa açıklama).
+    """
+    o = defter_ozeti(alislar, satislar)
+    if yon == "alim":
+        onay = o["dengesizlik_20"] >= en_az_dengesizlik and o["dengesizlik_tum"] >= 0 and o["mikro_bps"] >= 0
+    else:
+        onay = o["dengesizlik_20"] <= -en_az_dengesizlik and o["dengesizlik_tum"] <= 0 and o["mikro_bps"] <= 0
+    aciklama = (f"defter {'onayladı' if onay else 'onaylamadı'}: dengesizlik ilk 20 kademe "
+                f"{o['dengesizlik_20']:+.2f}, tümü {o['dengesizlik_tum']:+.2f}, mikro fiyat {o['mikro_bps']:+.2f} bps")
+    return onay, aciklama

@@ -21,6 +21,9 @@ from pathlib import Path
 BOTLAR = [
     ("sm-vadeli", "SMVadeli", "SM", "vadeli"),
     ("smk-vadeli", "SMKVadeli", "SMK", "vadeli"),
+    # 12 Ekim 2026 (Ahmet'in isteği): Smartmoney + uyumsuzluk + girişte emir defteri onayı.
+    ("smd-vadeli", "SMDVadeli", "SMD", "vadeli"),
+    ("smdk-vadeli", "SMDKVadeli", "SMDK", "vadeli"),
 ]
 
 ILK_PORT = 8081

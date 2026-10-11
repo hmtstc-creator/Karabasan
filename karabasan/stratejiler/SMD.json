@@ -1,0 +1,133 @@
+{
+  "kod": "SMD",
+  "ad": "Smartmoney + uyumsuzluk + emir defteri: alım",
+  "yon": "alim",
+  "aciklama": "Smartmoney'nin dört katmanı (günlük trend yukarı, 1 saatlik yapı yukarı, 15 dakikalıkta geri çekilme, 5 dakikalıkta hacimli yapı kırılımı) aynen aranır. Ek olarak: son 12 mumda (1 saat) en az bir göstergede boğa uyumsuzluğu olmalı; geri çekilmenin dibinde satış baskısının zayıfladığını gösterir. Girişten hemen önce emir defterine bakılır: yakın kademelerde alıcılar satıcılardan belirgin kalabalık değilse işlem açılmaz.",
+  "zaman_dilimi": "5m",
+  "borsa_dilimleri": [
+    "1d"
+  ],
+  "gostergeler": {
+    "kapanis_1g": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "1d"
+    },
+    "ema20_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 20,
+      "dilim": "1d"
+    },
+    "yapi1s": {
+      "tur": "yapi",
+      "periyot": 5,
+      "dilim": "1h"
+    },
+    "rsi14_1s": {
+      "tur": "rsi",
+      "periyot": 14,
+      "dilim": "1h"
+    },
+    "yapi15": {
+      "tur": "yapi",
+      "periyot": 5,
+      "dilim": "15m"
+    },
+    "yapi5": {
+      "tur": "yapi",
+      "periyot": 5
+    },
+    "rsi14": {
+      "tur": "rsi",
+      "periyot": 14
+    },
+    "hacim20": {
+      "tur": "hacim_ort",
+      "periyot": 20
+    },
+    "uyum5": {
+      "tur": "uyumsuzluk",
+      "periyot": 5,
+      "tip": "ikisi"
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "kapanis_1g",
+        "islem": ">",
+        "sag": "ema20_1g"
+      },
+      {
+        "sol": "yapi1s_yon",
+        "islem": ">",
+        "sag": 0
+      },
+      {
+        "sol": "rsi14_1s",
+        "islem": "<",
+        "sag": 70
+      },
+      {
+        "herhangi": [
+          {
+            "sol": "dusuk",
+            "islem": "<",
+            "sag": "yapi15_denge",
+            "son_n_mumda": 12
+          },
+          {
+            "sol": "dusuk",
+            "islem": "<=",
+            "sag": "yapi15_blok_ust",
+            "son_n_mumda": 12
+          }
+        ]
+      },
+      {
+        "sol": "yapi5_kirilim",
+        "islem": ">",
+        "sag": 0
+      },
+      {
+        "sol": "rsi14",
+        "islem": ">",
+        "sag": 50
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": 70
+      },
+      {
+        "sol": "hacim",
+        "islem": ">",
+        "sag": {
+          "ad": "hacim20",
+          "carpan": 1.2
+        }
+      },
+      {
+        "sol": "uyum5_boga",
+        "islem": ">=",
+        "sag": 1,
+        "son_n_mumda": 12
+      }
+    ]
+  },
+  "defter_onayi": {
+    "en_az_dengesizlik": 0.1
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 0.8,
+    "zarar_durdur_yuzde": 3.0,
+    "sure_asimi_dakika": 240
+  },
+  "izinli_durumlar": [
+    "YESIL",
+    "SARI"
+  ],
+  "bekleme_dakika": 120
+}

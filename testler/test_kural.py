@@ -24,7 +24,7 @@ class KuralDosyalari(unittest.TestCase):
     def test_tum_stratejiler_yuklenir(self):
         kurallar = k.tum_kurallar()
         self.assertEqual(sorted(kurallar),
-                         ["SM", "SMK"])
+                         ["SM", "SMD", "SMDK", "SMK"])
         for kod, kural in kurallar.items():
             with self.subTest(kod=kod):
                 self.assertEqual(kural["kod"], kod)
@@ -72,7 +72,7 @@ class KuralDosyalari(unittest.TestCase):
 
     def test_ters_yonlu_ciftler_ayni_cikisi_kullanir(self):
         kurallar = k.tum_kurallar()
-        for kod in ("SM",):
+        for kod in ("SM", "SMD"):
             self.assertEqual(kurallar[kod]["cikis"], kurallar[kod + "K"]["cikis"], kod)
             self.assertEqual(kurallar[kod]["gostergeler"], kurallar[kod + "K"]["gostergeler"], kod)
 
@@ -80,7 +80,7 @@ class KuralDosyalari(unittest.TestCase):
         kurallar = k.tum_kurallar()
         # 12 Ekim 2026'dan beri bütün stratejilerde hedef %0,8, stop %3:
         # (3 + 0,2) / (0,8 + 3) = %84,21.
-        beklenen = {"SM": 84.21, "SMK": 84.21}
+        beklenen = {"SM": 84.21, "SMK": 84.21, "SMD": 84.21, "SMDK": 84.21}
         for kod, oran in beklenen.items():
             self.assertAlmostEqual(k.basabas_orani(kurallar[kod], 0.20), oran, places=2)
 
