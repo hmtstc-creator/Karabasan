@@ -80,7 +80,10 @@ def benzet(
         else:
             giris_i = i + 1
             giris = acilis[giris_i] * (1 + kayma if alim else 1 - kayma)
-        giris_zamani = tarih[giris_i]
+        # İşlemin açılış anı emrin konduğu andır (hazır motor da böyle kaydeder; 14. uyum
+        # denemesinde motor açılışı limit emirde dolduğu mumdan 5-10 dk önce yazdı). Süre
+        # aşımı da oradan sayılır; çıkışlara ise emrin dolduğu mumdan itibaren bakılır.
+        giris_zamani = tarih[i + 1]
         if alim:
             hedef_fiyat, stop_fiyat = giris * (1 + hedef), giris * (1 - stop)
         else:

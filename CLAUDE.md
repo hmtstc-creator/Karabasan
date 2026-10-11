@@ -181,7 +181,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 461 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 462 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -565,11 +565,33 @@ inceleyelim; mevcut botlarda güncelle, yeni bot ekleme." Yapılan (beş botun h
   ana kadar kesilmiş tablo vermesi. Uyum raporunda motor / benzetim farkı buradan
   çıkarsa önce eşleştirmedeki "yalnız motor / yalnız benzetim" satırlarına bak.
 
+**On dördüncü uyum denemesi ve 12 aylık test (limitli giriş + RSI 80 / 20; 11 Ekim
+2026 19:27 UTC, Ahmet iletti).** Beş bot geçti; motor yapılandırmadaki `"entry":
+"limit"`'i aldı. Eşleştirmede "yalnız motor / yalnız benzetim" çiftleri aynı işlemdi:
+motor açılışı emrin konduğu mum olarak yazıyor, benzetim dolduğu mumu yazıyordu (5–10 dk
+fark; çıkış zamanları aynı, süre aşımı motorda konduğu andan). Benzetim buna uyduruldu
+(`giris_zamani = tarih[i + 1]`, süre oradan; çıkışlara dolduğu mumdan bakılır).
+`UYUM_SURUMU=15` eşleşmeyi yeniden sınar. Çıkış nedenleri iki tarafta neredeyse aynı
+(SM motor hedef 32 / süre 36 / stop 4, benzetim 32 / 35 / 4): dolduğu mumda hedef
+saymamak motorla uyumlu görünüyor.
+- Son 30 gün (benzetim, BTC dahil; önceki ayar → yeni): SM 112 / %52 / −3,03 → 86 /
+  %58 / −3,44; SMK 47 / %40 / −3,61 → 32 / %47 / −3,06; SMD 88 / %49 / −4,80 → 67 /
+  %58 / −2,38; SMDK 36 / %33 / −3,03 → 28 / %46 / −1,61; **Sniper 102 / %56 / −1,87
+  → 53 / %38 / −9,67** (stop 17 / 51). Limitli giriş Sniper'da ters seçim yaptı:
+  fiyat dönüşte geri çekilmeden giderse emir dolmuyor, geri gelip düşmeye devam
+  edince doluyor. Tek dönem; Ahmet'e söylendi, kendiliğinden geri alınmadı.
+- 12 aylık test (11.10.2025–11.10.2026; raporda tarih yoktu, büyük olasılıkla yeni
+  ayarla; artık rapor "Hazırlandı" satırı yazar): 5 / 5 bot ekside, hiçbiri 3 / 4
+  çeyrekte artıda değil. SMD 362 işlem %55,8 −11,54; SM 471 / %53,9 / −20,47;
+  SMDK 689 / %56,9 / −37,92; Sniper 613 / %45,7 / −43,07 (başa baş %59,3); SMK
+  955 / %56,2 / −54,12. Toplam −167,12 USDT. İşlem başına net −%0,06 ile −%0,14,
+  yani komisyon öncesi yine sıfıra yakın: kenar yok. Gerçek paraya geçme önerilmedi.
+
 Sıradaki işler, öncelik sırasıyla:
 
-0. On dördüncü uyum denemesinde limitli girişin motorla benzetimde tutup tutmadığına
-   bak (dolma sayısı, giriş fiyatı, dolduğu mumdaki çıkışlar). 12 aylık testin
-   (`YILLIK_SURUMU=4`) sonucunu Ahmet'e rakamla ve "tek dönem" uyarısıyla söyle.
+0. On beşinci uyum denemesinde limitli girişte "yalnız motor / yalnız benzetim"
+   çiftleri kaybolmalı (açılış zamanı düzeltmesi). Ahmet'in Sniper'daki limitli giriş
+   için kararını bekle (geri al ya da izlemeye devam).
 
 1. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).

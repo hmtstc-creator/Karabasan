@@ -141,6 +141,7 @@ def rapor_uret(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tu
     satirlar: list[str] = []
     yaz = satirlar.append
     yaz(f"12 aylık geçmiş testi: {baslangic:%d.%m.%Y} - {bitis:%d.%m.%Y} ({gun} gün)")
+    yaz(f"Hazırlandı: {pd.Timestamp.now(tz='UTC'):%d.%m.%Y %H:%M} UTC. Ayarlar o anki kural dosyalarından.")
     yaz("Coinler: ETH, SOL, XRP, DOGE (vadelide BTC yok). İşlem başına "
         f"{tutar:g} USDT, 1 kat kaldıraç, komisyon dahil.")
     yaz("Hesap: bağımsız benzetim. 11 Ekim 2026'da hazır motorla işlem işlem karşılaştırıldı;")

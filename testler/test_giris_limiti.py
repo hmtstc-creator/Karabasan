@@ -99,9 +99,20 @@ class LimitBenzetimi(unittest.TestCase):
         self.assertEqual(len(islemler), 1)
         i = islemler[0]
         self.assertAlmostEqual(i["giris_fiyati"], 100.6 * 0.995)
-        self.assertEqual(i["giris_zamani"], df["date"].iloc[23])
+        # Açılış anı emrin konduğu mum (hazır motor da öyle kaydeder), dolduğu mum değil.
+        self.assertEqual(i["giris_zamani"], df["date"].iloc[21])
         self.assertEqual(i["neden"], "kar_hedefi")               # 24. mumda %1 hedef
         self.assertEqual(i["cikis_zamani"], df["date"].iloc[25])
+
+    def test_sure_asimi_emrin_kondugu_andan_sayilir(self):
+        # Emir 21. mumda konur, 23. mumda dolar; 60 dk süre 21. mumdan sayılır (motor gibi).
+        df = mumlar([(100, 100.7, 99.9, 100.6), (100.6, 100.8, 100.3, 100.5),
+                     (100.5, 100.7, 100.2, 100.4), (100.4, 100.5, 100.0, 100.3)]
+                    + [(100.3, 100.5, 100.2, 100.3)] * 15)
+        i = b.benzet(df, deneme_kurali())[0]
+        self.assertEqual(i["neden"], "sure_asimi")
+        self.assertEqual(i["giris_zamani"], df["date"].iloc[21])
+        self.assertEqual(i["cikis_zamani"] - i["giris_zamani"], pd.Timedelta(minutes=60))
 
     def test_suresinde_dolmazsa_islem_yok(self):
         df = mumlar([(100, 100.7, 99.9, 100.6)] + [(100.6, 101.5, 100.3, 101.2)] * 10)
@@ -114,7 +125,7 @@ class LimitBenzetimi(unittest.TestCase):
                        (100.6, 100.6, 99.9, 100.1), (100.1, 100.3, 99.0, 99.2)])
         islemler = b.benzet(df, deneme_kurali())
         self.assertEqual(len(islemler), 1)
-        self.assertEqual(islemler[0]["giris_zamani"], df["date"].iloc[26])
+        self.assertEqual(islemler[0]["giris_zamani"], df["date"].iloc[26])   # emir de dolum da 26. mumda
         self.assertEqual(islemler[0]["neden"], "zarar_durdur")
 
     def test_doldugu_mumda_hedef_sayilmaz_stop_sayilir(self):
@@ -133,7 +144,7 @@ class LimitBenzetimi(unittest.TestCase):
         islemler = b.benzet(df, deneme_kurali(yon="aciga_satis"), komisyon_yuzde=0.05)
         self.assertEqual(len(islemler), 1)
         self.assertAlmostEqual(islemler[0]["giris_fiyati"], 99.4 * 1.005)
-        self.assertEqual(islemler[0]["giris_zamani"], df["date"].iloc[22])
+        self.assertEqual(islemler[0]["giris_zamani"], df["date"].iloc[21])
         self.assertEqual(islemler[0]["neden"], "kar_hedefi")
 
     def test_limitsiz_kural_eskisi_gibi(self):
