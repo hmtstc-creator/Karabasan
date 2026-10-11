@@ -2,7 +2,7 @@
   "kod": "SM",
   "ad": "Smartmoney: geri çekilme sonrası yapı kırılımıyla alım",
   "yon": "alim",
-  "aciklama": "Dört katman birlikte aranır. Günlük: son kapanan gün 20 günlük ortalamanın üstünde. 1 saatlik: son yapı kırılımı yukarı ve RSI 70'in altında. 15 dakikalık: fiyat son bir saatte indirimli bölgeye (aralığın alt yarısına) inmiş ya da bir alım bloğuna dokunmuş. 5 dakikalık: yapı yukarı kırılıyor, RSI 50 ile 70 arasında, hacim ortalamanın 1,2 katından fazla.",
+  "aciklama": "Dört katman birlikte aranır. Günlük: son kapanan gün 20 günlük ortalamanın üstünde. 1 saatlik: son yapı kırılımı yukarı ve RSI 80'in altında. 15 dakikalık: fiyat son bir saatte indirimli bölgeye (aralığın alt yarısına) inmiş ya da bir alım bloğuna dokunmuş; 15 dakikalık RSI 65'in altında (üst dilim henüz şişmemiş). 5 dakikalık: yapı yukarı kırılıyor, RSI 50 ile 80 arasında ve 3 mum öncesinden yüksek (yukarı dönmüş), hacim ortalamanın 1,2 katından fazla. Giriş piyasa emriyle değil: sinyalden sonra fiyatın biraz altına (oynaklığın yarısı kadar, %0,1–0,6) limit emir konur, 15 dakikada dolmazsa iptal edilir.",
   "zaman_dilimi": "5m",
   "borsa_dilimleri": [
     "1d"
@@ -29,6 +29,11 @@
       "tur": "rsi",
       "periyot": 14,
       "dilim": "1h"
+    },
+    "rsi14_15": {
+      "tur": "rsi",
+      "periyot": 14,
+      "dilim": "15m"
     },
     "yapi15": {
       "tur": "yapi",
@@ -63,7 +68,7 @@
       {
         "sol": "rsi14_1s",
         "islem": "<",
-        "sag": 70
+        "sag": 80
       },
       {
         "herhangi": [
@@ -94,7 +99,20 @@
       {
         "sol": "rsi14",
         "islem": "<",
-        "sag": 70
+        "sag": 80
+      },
+      {
+        "sol": "rsi14",
+        "islem": ">",
+        "sag": {
+          "ad": "rsi14",
+          "kaydir": 3
+        }
+      },
+      {
+        "sol": "rsi14_15",
+        "islem": "<",
+        "sag": 65
       },
       {
         "sol": "hacim",
@@ -105,6 +123,12 @@
         }
       }
     ]
+  },
+  "giris_limiti": {
+    "atr_kat": 0.5,
+    "en_az_yuzde": 0.1,
+    "en_fazla_yuzde": 0.6,
+    "sure_dakika": 15
   },
   "cikis": {
     "kar_hedefi_yuzde": 0.8,

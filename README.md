@@ -170,8 +170,8 @@ Başlangıç değerleri `karabasan/botlar.py` içindedir:
 "komisyon_yuzde": { "spot": 0.075, "vadeli": 0.05 }
 ```
 
-Değerler yüzdedir ve taraf başınadır: 0.075, %0,075 demektir. Sınavda tüm
-emirler piyasa emri olduğu için alıcı (taker) oranı kullanılır. Hesabındaki
+Değerler yüzdedir ve taraf başınadır: 0.075, %0,075 demektir. Girişler limit
+emir olsa da her emre alıcı (taker) oranı uygulanır; bu kötümser bir varsayımdır. Hesabındaki
 oranlar farklıysa Claude'a yaz; değeri depoda o günceller, sunucu kendisi alır.
 
 Bot ekranları (hazır motorun kendi İngilizce ekranı), Tailscale açıkken
@@ -202,9 +202,25 @@ başa baş için işlemlerin yaklaşık %82'si kazanmalıdır. Vadelide 50 USDT'
 işlem tutarıyla BTC işlem görmez.
 
 Her botun 1.000 USDT sanal bakiyesi vardır, işlem başına 50 USDT kullanır,
-aynı anda en fazla 20 pozisyon açar. Tüm emirler piyasa emridir ve karşı
+aynı anda en fazla 20 pozisyon açar. Çıkışlar ve stoplar piyasa emridir ve karşı
 taraftan fiyatlanır; bu, sonuçları olduğundan iyi göstermemek için seçilmiş
 kötümser bir varsayımdır.
+
+**Limitli giriş (12 Ekim 2026, Ahmet'in isteği: "sinyal geldikten sonra daha
+aşağıdan al, yukarıdan sat").** Beş botun hepsinde giriş piyasa emriyle değil,
+limit emirle yapılır: sinyal gelince alımda fiyatın biraz altına, açığa satışta
+biraz üstüne emir konur. Uzaklık o anki oynaklığın (5 dakikalık ATR yüzdesi, son
+14 mumun ortalama mum boyu) yarısıdır; en az %0,1, en çok %0,6. Emir 15 dakika
+(3 mum) içinde dolmazsa iptal edilir ve o işlem açılmaz. Kâr hedefi, stop ve
+süre dolduğu fiyattan hesaplanır. Bağımsız benzetim kötümserdir: emrin dolduğu
+mumda fiyatın tepesi hedefi geçse de hedef sayılmaz (tepe, fiyat limite inmeden
+önce görülmüş olabilir), stop sayılır. Bedeli: fiyat hiç geri çekilmeden giderse
+işlem kaçar; en güçlü hareketlerin bir kısmı böyle kaçabilir.
+
+**RSI sınırları (aynı gün, Ahmet'in isteği).** 70 / 30 sınırları 80 / 20'ye açıldı.
+5 dakikalık RSI'ın gerçekten dönmüş olması aranır (3 mum öncesinden yüksek;
+açığa satışta düşük) ve 15 dakikalık RSI'ın nerede olduğuna sınır kondu:
+Smartmoney alımında 65'in altı, satışında 35'in üstü; Sniper'da 50'nin altı.
 
 ### Smartmoney + uyumsuzluk + emir defteri (SMD ve SMDK)
 
@@ -251,10 +267,12 @@ Altı koşul birlikte aranır (yalnız alım):
    mumun dibi arasında hiç işlem görmeden geçilen fiyat aralığı. En az %0,05
    boyunda olmalı; fiyat altında kapanınca ya da 3 saat dolunca geçersiz.
 4. **Momentum:** MACD histogramı sıfırın üstünde.
-5. **RSI:** 5 dakikalık RSI 50 ile 70 arasında (yukarı dönmüş, şişmemiş).
+5. **RSI:** 5 dakikalık RSI 50 ile 80 arasında ve 3 mum öncesinden yüksek (yukarı
+   dönmüş); 15 dakikalık RSI hâlâ 50'nin altında (üst dilim toparlanmadan, erken giriş).
 6. **Hacim:** son 15 dakikada bir mumun hacmi 20 mumluk ortalamanın 1,5 katından fazla.
 
-Çıkış: %1,2 kâr, %1,5 stop ya da en çok 3 saat; stoptan sonra aynı coine 30 dakika
+Giriş: fiyatın biraz altına limit emir (oynaklığın yarısı, %0,1–0,6), 15 dakikada
+dolmazsa iptal. Çıkış: %1,2 kâr, %1,5 stop ya da en çok 3 saat; stoptan sonra aynı coine 30 dakika
 girilmez. Komisyon gidiş-dönüş %0,1 olduğu için kazanan işlem net ~%1,1, kaybeden
 ~−%1,6 getirir; başa baş için işlemlerin yaklaşık %59'u kazanmalıdır.
 
@@ -303,9 +321,10 @@ yazıldı. Dört katman birlikte aranır (alım hali; satış hali her birinin t
 | Katman | Dilim | Koşul |
 | --- | --- | --- |
 | Günlük trend | 1 gün | Son kapanan günün kapanışı, 20 günlük üstel ortalamanın üstünde |
-| Yapı | 1 saat | Son yapı kırılımı yukarı (BOS ya da CHoCH); RSI 70'in altında |
-| Geri çekilme | 15 dakika | Son bir saatte fiyat aralığın alt yarısına ("indirimli bölge") inmiş ya da bir alım bloğuna dokunmuş |
-| Tetik | 5 dakika | Bu mumda yapı yukarı kırılıyor; RSI 50 ile 70 arasında; hacim son 20 mumun ortalamasının 1,2 katından fazla |
+| Yapı | 1 saat | Son yapı kırılımı yukarı (BOS ya da CHoCH); RSI 80'in altında |
+| Geri çekilme | 15 dakika | Son bir saatte fiyat aralığın alt yarısına ("indirimli bölge") inmiş ya da bir alım bloğuna dokunmuş; 15 dakikalık RSI 65'in altında |
+| Tetik | 5 dakika | Bu mumda yapı yukarı kırılıyor; RSI 50 ile 80 arasında ve 3 mum öncesinden yüksek; hacim son 20 mumun ortalamasının 1,2 katından fazla |
+| Giriş | 5 dakika | Fiyatın biraz altına limit emir (oynaklığın yarısı, %0,1–0,6); 15 dakikada dolmazsa iptal |
 
 Çıkış: kâr hedefi %0,8, stop %3 (12 Ekim 2026'dan beri bütün botlarda aynı), en uzun süre 4 saat; stop sonrası aynı
 coine 2 saat bekleme. Vadeli komisyonuyla zarar etmemek için gereken kazanma

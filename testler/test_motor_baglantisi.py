@@ -290,10 +290,22 @@ class Yapilandirma(unittest.TestCase):
         self.assertAlmostEqual(vadeli["fee"], 0.0005)
 
     def test_piyasa_emri_karsi_taraftan_fiyatlanir(self):
-        y = self.uret.bot_yapilandirmasi("sm-spot", "SM", "spot", self.ayar)
+        y = self.uret.bot_yapilandirmasi("s1-spot", "S1", "spot", self.ayar)   # giriş limiti yok
         self.assertEqual(y["entry_pricing"]["price_side"], "other")
         self.assertEqual(y["exit_pricing"]["price_side"], "other")
         self.assertEqual(y["order_types"]["entry"], "market")
+        self.assertEqual(y["unfilledtimeout"]["entry"], 10)
+
+    def test_giris_limiti_isteyen_kural_limit_emirle_girer(self):
+        """12 Ekim 2026: sinyalden sonra daha iyi fiyattan giriş; dolmazsa süresinde iptal."""
+        for kod in ("SM", "SMK", "SMD", "SMDK", "SNIPER"):
+            y = self.uret.bot_yapilandirmasi("deneme", kod, "vadeli", self.ayar)
+            self.assertEqual(y["order_types"]["entry"], "limit", kod)
+            self.assertEqual(y["unfilledtimeout"]["entry"], 15, kod)
+            self.assertEqual(y["unfilledtimeout"]["unit"], "minutes")
+            for alan in ("exit", "stoploss", "emergency_exit", "force_exit"):
+                self.assertEqual(y["order_types"][alan], "market", (kod, alan))
+            self.assertTrue(y["dry_run"])
 
     def test_kara_liste_sabit_coinleri_tutar_ama_jup_gibi_coinleri_tutmaz(self):
         import re

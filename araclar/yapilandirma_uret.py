@@ -89,7 +89,11 @@ def parite_listeleri(piyasa: str, ayar: dict) -> list[dict]:
 
 
 def bot_yapilandirmasi(bot: str, kural_kodu: str, piyasa: str, ayar: dict) -> dict:
-    kural_yukle(kural_kodu)  # kural dosyası bozuksa burada, üretim sırasında dursun
+    kural = kural_yukle(kural_kodu)  # kural dosyası bozuksa burada, üretim sırasında dursun
+    # Kural 'giris_limiti' istiyorsa giriş, sinyalden sonra fiyatın biraz altına (açığa
+    # satışta üstüne) konan limit emirdir; süresinde dolmazsa iptal edilir. Fiyatı
+    # stratejinin custom_entry_price'ı verir. Çıkışlar her zaman piyasa emri.
+    limit = kural.get("giris_limiti")
     yapi = {
         "bot_name": bot,
         "dry_run": True,
@@ -103,8 +107,9 @@ def bot_yapilandirmasi(bot: str, kural_kodu: str, piyasa: str, ayar: dict) -> di
         "cancel_open_orders_on_exit": False,
         "force_entry_enable": False,
         "initial_state": "running",
-        "unfilledtimeout": {"entry": 10, "exit": 10, "exit_timeout_count": 0, "unit": "minutes"},
-        # Tüm emirler piyasa emridir ve karşı taraftan fiyatlanır: kötümser varsayım.
+        "unfilledtimeout": {"entry": int(limit["sure_dakika"]) if limit else 10, "exit": 10,
+                            "exit_timeout_count": 0, "unit": "minutes"},
+        # Piyasa emirleri karşı taraftan fiyatlanır: kötümser varsayım.
         "entry_pricing": {
             "price_side": "other",
             "use_order_book": True,
@@ -114,7 +119,7 @@ def bot_yapilandirmasi(bot: str, kural_kodu: str, piyasa: str, ayar: dict) -> di
         },
         "exit_pricing": {"price_side": "other", "use_order_book": True, "order_book_top": 1},
         "order_types": {
-            "entry": "market",
+            "entry": "limit" if limit else "market",
             "exit": "market",
             "emergency_exit": "market",
             "force_entry": "market",

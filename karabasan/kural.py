@@ -307,6 +307,10 @@ def kural_dogrula(kural: dict) -> None:
         if isinstance(esik, bool) or not isinstance(esik, (int, float)) or not 0 <= esik < 1:
             raise KuralHatasi("'defter_onayi' içinde 'en_az_dengesizlik' 0 ile 1 arasında olmalı.")
 
+    limit = kural.get("giris_limiti")
+    if limit is not None:
+        _giris_limiti_dogrula(limit, taban_dk)
+
     for durum in kural.get("izinli_durumlar", []):
         if durum not in DURUMLAR:
             raise KuralHatasi(f"'izinli_durumlar' içinde tanınmayan durum: {durum!r}")
@@ -595,6 +599,54 @@ def _kosul(df: pd.DataFrame, kosul: dict) -> pd.Series:
     return dogru.astype(bool)
 
 
+GIRIS_LIMITI_ATR_PERIYODU = 14
+
+
+def _giris_limiti_dogrula(limit, taban_dk: int) -> None:
+    """'giris_limiti': sinyalden sonra fiyatın biraz altına (açığa satışta üstüne) limit emir.
+
+    {"atr_kat": 0.5, "en_az_yuzde": 0.1, "en_fazla_yuzde": 0.6, "sure_dakika": 15}
+    Uzaklık = atr_kat x ATR yüzdesi, [en_az, en_fazla] aralığına kırpılır. Emir
+    'sure_dakika' içinde dolmazsa iptal edilir.
+    """
+    if not isinstance(limit, dict):
+        raise KuralHatasi("'giris_limiti' bir sözlük olmalı.")
+    sayilar = {}
+    for alan, (alt, ust) in {"atr_kat": (0.0, 3.0), "en_az_yuzde": (0.0, 2.0),
+                             "en_fazla_yuzde": (0.01, 3.0)}.items():
+        deger = limit.get(alan)
+        if isinstance(deger, bool) or not isinstance(deger, (int, float)) or not alt <= deger <= ust:
+            raise KuralHatasi(f"'giris_limiti' içinde '{alan}' {alt} ile {ust} arasında sayı olmalı.")
+        sayilar[alan] = float(deger)
+    if sayilar["en_az_yuzde"] > sayilar["en_fazla_yuzde"]:
+        raise KuralHatasi("'giris_limiti': 'en_az_yuzde', 'en_fazla_yuzde'den büyük olamaz.")
+    sure = limit.get("sure_dakika")
+    if (not isinstance(sure, int) or isinstance(sure, bool) or not taban_dk <= sure <= 240
+            or sure % taban_dk):
+        raise KuralHatasi(f"'giris_limiti' içinde 'sure_dakika' {taban_dk} ile 240 arasında ve "
+                          f"{taban_dk}'in katı olmalı.")
+
+
+def giris_limit_yuzde(df: pd.DataFrame, kural: dict) -> pd.Series:
+    """Her mumda, o mumun sinyaline konacak limit emrin fiyattan uzaklığı (yüzde).
+
+    Kural 'giris_limiti' tanımlamıyorsa 0 (piyasa emri). Yalnız o mum ve öncesinden
+    hesaplanır; ATR henüz oturmadıysa en küçük uzaklık kullanılır.
+    """
+    limit = kural.get("giris_limiti")
+    if not limit:
+        return pd.Series(0.0, index=df.index)
+    atr = g.atr_yuzde(df, GIRIS_LIMITI_ATR_PERIYODU)
+    uzaklik = (float(limit["atr_kat"]) * atr).clip(float(limit["en_az_yuzde"]), float(limit["en_fazla_yuzde"]))
+    return uzaklik.fillna(float(limit["en_az_yuzde"]))
+
+
+def limit_fiyati(fiyat: float, uzaklik_yuzde: float, alim: bool) -> float:
+    """Alımda fiyatın uzaklık kadar altı, açığa satışta üstü."""
+    oran = float(uzaklik_yuzde) / 100.0
+    return float(fiyat) * (1.0 - oran if alim else 1.0 + oran)
+
+
 def giris_sinyali(df: pd.DataFrame, kural: dict) -> pd.Series:
     """Göstergeleri eklenmiş tabloda giriş koşulunun sağlandığı mumları işaretler."""
     sinyal = _kosul(df, kural["giris"])
@@ -618,6 +670,7 @@ def sinyal_uret(df: pd.DataFrame, kural: dict, ek_veri: dict | None = None) -> p
     tablo = gosterge_ekle(df, kural, ek_veri)
     tablo["sinyal"] = giris_sinyali(tablo, kural)
     tablo["cikis_sinyal"] = cikis_sinyali(tablo, kural)
+    tablo["giris_limit_yuzde"] = giris_limit_yuzde(tablo, kural)
     return tablo
 
 

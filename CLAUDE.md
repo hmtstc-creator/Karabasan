@@ -96,12 +96,12 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | Yol | İçerik |
 | --- | --- |
 | `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama), `piyasa_yapisi` (salınımlar, yapı kırılımı BOS / CHoCH, denge, emir blokları), `uyumsuzluk` (10 göstergede normal / gizli boğa ve ayı uyumsuzluğu sayısı; kural türü `"uyumsuzluk"`, sütunlar `<ad>_boga`, `<ad>_ayi`) `donchian_topluluk` (emekli SNIPERG: birkaç uzunlukta Donchian kanal modelinin trendde olan payı, 0–1) ve `fvg` (adil değer boşluğu; kural türü `"fvg"`, sütunlar `<ad>_boga`, `<ad>_boga_ust`, `<ad>_boga_alt` ve ayı karşılıkları) |
-| `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme. Bir gösterge `dilim` ile istediği üst dilimde hesaplanır (`"ust"`, `"15m"`, `"1h"`, `"1d"`). `borsa_dilimleri` içindeki dilimlerin mumları taban mumlardan toplanmaz, `ek_veri` ile dışarıdan verilir (motor, araçlar); boş tablo "veri yok, sinyal de yok" demektir |
+| `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme. Bir gösterge `dilim` ile istediği üst dilimde hesaplanır (`"ust"`, `"15m"`, `"1h"`, `"1d"`). `borsa_dilimleri` içindeki dilimlerin mumları taban mumlardan toplanmaz, `ek_veri` ile dışarıdan verilir (motor, araçlar); boş tablo "veri yok, sinyal de yok" demektir. `giris_limiti` varsa giriş limit emirdir: `giris_limit_yuzde` (ATR × kat, kırpılmış), `limit_fiyati` |
 | `karabasan/stratejiler/*.json` | 12 Ekim 2026'dan beri beş strateji: SM, SMD ve SNIPER (alım), SMK ve SMDK (açığa satış). Çıkarılan kurallar (S1–S7 ve ters yönlüleri, Sniper'ın ilk hali SNIPERG) `stratejiler/emekli/` altında durur; `tum_kurallar()` orayı okumaz ama `kural_yukle("S1")` koduyla bulur (eski raporlar ve testler için). Hangi botun çalıştığını yalnız `botlar.BOTLAR` belirler. Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
 | `karabasan/puan.py` | Karabasan puanı, durum makinesi, vetolar |
 | `karabasan/filtre.py` | Filtre (Elek): dört katman, elenme nedenleri |
 | `karabasan/karne.py` | İşlem ölçümleri ve 30. günün yedi karar ölçütü |
-| `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim |
+| `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim (limitli girişte emrin dolduğu mumda hedef sayılmaz) |
 | `karabasan/botlar.py` | Sanal botların listesi (12 Ekim 2026'dan beri `sm-vadeli` 8081, `smk-vadeli` 8082, `smd-vadeli` 8083, `smdk-vadeli` 8084, `sniper5-vadeli` 8085; 1 kat vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder; aynı döngüde stop sonrası izleme turunu çalıştırır |
 | `karabasan/stop_sonrasi.py` | Stop sonrası izleme: stop olan işlemi kendi süresi dolana kadar izler, stop 1,5 / 2 / 3 kat geniş olsaydı ne olurdu hesaplar, bot başına karar çıkarır (yetersiz, dar, yerinde, kararsız), karar değişince ders yazar. Mumlar Binance'in herkese açık, anahtarsız fiyat verisinden gelir. Çıktı: `user_data/kayit/stop_sonrasi.json`. **Hiçbir ayarı değiştirmez** |
@@ -181,7 +181,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 443 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 461 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -540,10 +540,36 @@ SMD / SMDK önceki denemeyle aynı. "Found orphan containers (kb-sniper-vadeli)"
 uyarısı beklenen: uyum 9. adımda, eski kapsayıcıyı 10. adımdaki
 `up --remove-orphans` kaldırır.
 
+**Limitli giriş ve RSI 80 / 20 (12 Ekim 2026, Ahmet'in isteği; yeni bot yok).**
+Ahmet: "sinyal geldiği andan itibaren daha aşağıdan alım ya da yukarıdan açığa satış
+yapman gerekiyor; sniper ve sm'ye odaklan, daha etkili göstergeler ekle; 5 dk'da
+yükselmiş RSI 15 dk'da nerede, buna limit belirle; RSI 70 / 30 ise 80 / 20 yapıp
+inceleyelim; mevcut botlarda güncelle, yeni bot ekleme." Yapılan (beş botun hepsi):
+- Kural alanı `giris_limiti` (`atr_kat` 0,5, `en_az_yuzde` 0,1, `en_fazla_yuzde`
+  0,6, `sure_dakika` 15): uzaklık = 0,5 × ATR yüzdesi (14 mum), kırpılmış. Bağlantı
+  katmanı `custom_entry_price` ile sinyal mumunun (giriş mumundan bir önceki; tarih
+  ≤ şimdi tabana yuvarlanmış − 1 mum) `giris_limit_yuzde` satırını okur
+  (`dp.get_analyzed_dataframe`); okuyamazsa en küçük uzaklık. Yapılandırma:
+  `order_types.entry = "limit"`, `unfilledtimeout.entry = 15` dk; çıkışlar piyasa.
+- Benzetim: emir sinyal mumundan sonraki mumun açılışından hesaplanır, en çok 3
+  mum bekler (o mumlar dahil), dolarsa limit fiyatından (kayma yok); dolmazsa son
+  bekleyen mumun sinyali yeni emir açabilir. Dolduğu mumda hedef sayılmaz, stop sayılır.
+- RSI: SM / SMD 1 s RSI < 80, 5 dk RSI 50–80, 15 dk RSI < 65; SMK / SMDK 1 s RSI
+  > 20, 5 dk 20–50, 15 dk > 35; Sniper 5 dk 50–80, 15 dk < 50 (dip eşiği 15 dk
+  RSI < 35 aynen: 20 yapılsa neredeyse hiç işlem açmazdı; Ahmet'e söylendi). Hepsinde
+  5 dk RSI 3 mum öncesine göre dönmüş olmalı.
+- `UYUM_SURUMU=14`, `YILLIK_SURUMU=4`. Yapay veride hepsi yine kenarsız (beklenen).
+- **Gerçek motorda ilk kez:** `custom_entry_price`'ın bu imzayla çağrılması, geçmiş
+  testinde limit emrin mumlar boyunca beklemesi ve süre dolunca iptali, dolduğu mumda
+  çıkışların nasıl değerlendirildiği, `get_analyzed_dataframe`'in geçmiş testinde o
+  ana kadar kesilmiş tablo vermesi. Uyum raporunda motor / benzetim farkı buradan
+  çıkarsa önce eşleştirmedeki "yalnız motor / yalnız benzetim" satırlarına bak.
+
 Sıradaki işler, öncelik sırasıyla:
 
-0. 12 aylık testin (`YILLIK_SURUMU=3`) SMD / SMDK / Sniper sonucunu Ahmet'e
-   rakamla ve "tek dönem" uyarısıyla söyle.
+0. On dördüncü uyum denemesinde limitli girişin motorla benzetimde tutup tutmadığına
+   bak (dolma sayısı, giriş fiyatı, dolduğu mumdaki çıkışlar). 12 aylık testin
+   (`YILLIK_SURUMU=4`) sonucunu Ahmet'e rakamla ve "tek dönem" uyarısıyla söyle.
 
 1. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).

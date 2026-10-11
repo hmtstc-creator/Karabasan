@@ -2,7 +2,7 @@
   "kod": "SMK",
   "ad": "Smartmoney: tepki sonrası yapı kırılımıyla satış",
   "yon": "aciga_satis",
-  "aciklama": "Alım halinin tersi. Günlük: son kapanan gün 20 günlük ortalamanın altında. 1 saatlik: son yapı kırılımı aşağı ve RSI 30'un üstünde. 15 dakikalık: fiyat son bir saatte pahalı bölgeye (aralığın üst yarısına) çıkmış ya da bir satış bloğuna dokunmuş. 5 dakikalık: yapı aşağı kırılıyor, RSI 30 ile 50 arasında, hacim ortalamanın 1,2 katından fazla.",
+  "aciklama": "Alım halinin tersi. Günlük: son kapanan gün 20 günlük ortalamanın altında. 1 saatlik: son yapı kırılımı aşağı ve RSI 20'nin üstünde. 15 dakikalık: fiyat son bir saatte pahalı bölgeye (aralığın üst yarısına) çıkmış ya da bir satış bloğuna dokunmuş; 15 dakikalık RSI 35'in üstünde. 5 dakikalık: yapı aşağı kırılıyor, RSI 20 ile 50 arasında ve 3 mum öncesinden düşük, hacim ortalamanın 1,2 katından fazla. Giriş: sinyalden sonra fiyatın biraz üstüne (oynaklığın yarısı kadar, %0,1–0,6) limit satış emri, 15 dakikada dolmazsa iptal.",
   "zaman_dilimi": "5m",
   "borsa_dilimleri": [
     "1d"
@@ -29,6 +29,11 @@
       "tur": "rsi",
       "periyot": 14,
       "dilim": "1h"
+    },
+    "rsi14_15": {
+      "tur": "rsi",
+      "periyot": 14,
+      "dilim": "15m"
     },
     "yapi15": {
       "tur": "yapi",
@@ -63,7 +68,7 @@
       {
         "sol": "rsi14_1s",
         "islem": ">",
-        "sag": 30
+        "sag": 20
       },
       {
         "herhangi": [
@@ -94,7 +99,20 @@
       {
         "sol": "rsi14",
         "islem": ">",
-        "sag": 30
+        "sag": 20
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": {
+          "ad": "rsi14",
+          "kaydir": 3
+        }
+      },
+      {
+        "sol": "rsi14_15",
+        "islem": ">",
+        "sag": 35
       },
       {
         "sol": "hacim",
@@ -105,6 +123,12 @@
         }
       }
     ]
+  },
+  "giris_limiti": {
+    "atr_kat": 0.5,
+    "en_az_yuzde": 0.1,
+    "en_fazla_yuzde": 0.6,
+    "sure_dakika": 15
   },
   "cikis": {
     "kar_hedefi_yuzde": 0.8,

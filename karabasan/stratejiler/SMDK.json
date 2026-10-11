@@ -2,7 +2,7 @@
   "kod": "SMDK",
   "ad": "Smartmoney + uyumsuzluk + emir defteri: satış",
   "yon": "aciga_satis",
-  "aciklama": "SMD'nin ters yönlüsü: Smartmoney satış katmanları (günlük trend aşağı, 1 saatlik yapı aşağı, tepki, 5 dakikalıkta hacimli aşağı kırılım), son 12 mumda en az bir göstergede ayı uyumsuzluğu ve girişten hemen önce emir defterinde satıcıların belirgin kalabalık olması.",
+  "aciklama": "SMD'nin ters yönlüsü: Smartmoney satış katmanları (günlük trend aşağı, 1 saatlik yapı aşağı, tepki, 5 dakikalıkta hacimli aşağı kırılım), son 12 mumda en az bir göstergede ayı uyumsuzluğu ve girişten hemen önce emir defterinde satıcıların belirgin kalabalık olması. Giriş, sinyalden sonra fiyatın biraz üstüne konan limit satış emriyle (oynaklığın yarısı kadar, %0,1–0,6; 15 dakikada dolmazsa iptal).",
   "zaman_dilimi": "5m",
   "borsa_dilimleri": [
     "1d"
@@ -29,6 +29,11 @@
       "tur": "rsi",
       "periyot": 14,
       "dilim": "1h"
+    },
+    "rsi14_15": {
+      "tur": "rsi",
+      "periyot": 14,
+      "dilim": "15m"
     },
     "yapi15": {
       "tur": "yapi",
@@ -68,7 +73,7 @@
       {
         "sol": "rsi14_1s",
         "islem": ">",
-        "sag": 30
+        "sag": 20
       },
       {
         "herhangi": [
@@ -99,7 +104,20 @@
       {
         "sol": "rsi14",
         "islem": ">",
-        "sag": 30
+        "sag": 20
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": {
+          "ad": "rsi14",
+          "kaydir": 3
+        }
+      },
+      {
+        "sol": "rsi14_15",
+        "islem": ">",
+        "sag": 35
       },
       {
         "sol": "hacim",
@@ -116,6 +134,12 @@
         "son_n_mumda": 12
       }
     ]
+  },
+  "giris_limiti": {
+    "atr_kat": 0.5,
+    "en_az_yuzde": 0.1,
+    "en_fazla_yuzde": 0.6,
+    "sure_dakika": 15
   },
   "defter_onayi": {
     "en_az_dengesizlik": 0.1

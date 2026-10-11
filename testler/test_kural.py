@@ -236,14 +236,16 @@ class SmartmoneyMantigi(unittest.TestCase):
             gun_kapanisi, gun_ortalamasi = self._son_kapanan_gun(i)
             self.assertGreater(gun_kapanisi, gun_ortalamasi, i)                 # günlük trend yukarı
             self.assertEqual(tablo["yapi1s_yon"].iloc[i], 1, i)                 # 1 saatlik yapı yukarı
-            self.assertLess(tablo["rsi14_1s"].iloc[i], 70, i)
+            self.assertLess(tablo["rsi14_1s"].iloc[i], 80, i)
             pencere = slice(i - 11, i + 1)                                      # son bir saat
             indirimli = (dusuk.iloc[pencere] < tablo["yapi15_denge"].iloc[pencere]).any()
             bloga_dokundu = (dusuk.iloc[pencere] <= tablo["yapi15_blok_ust"].iloc[pencere]).any()
             self.assertTrue(indirimli or bloga_dokundu, i)                      # 15 dakikalık geri çekilme
             self.assertEqual(tablo["yapi5_kirilim"].iloc[i], 1, i)              # 5 dakikalık kırılım
             self.assertGreater(kapanis.iloc[i], tablo["yapi5_tepe"].iloc[i - 1], i)
-            self.assertTrue(50 < tablo["rsi14"].iloc[i] < 70, i)
+            self.assertTrue(50 < tablo["rsi14"].iloc[i] < 80, i)
+            self.assertGreater(tablo["rsi14"].iloc[i], tablo["rsi14"].iloc[i - 3], i)     # 5 dk RSI dönmüş
+            self.assertLess(tablo["rsi14_15"].iloc[i], 65, i)                              # 15 dk şişmemiş
             self.assertGreater(hacim.iloc[i], 1.2 * hacim.iloc[i - 19:i + 1].mean(), i)
 
     def test_satis_dort_katman(self):
@@ -253,14 +255,16 @@ class SmartmoneyMantigi(unittest.TestCase):
             gun_kapanisi, gun_ortalamasi = self._son_kapanan_gun(i)
             self.assertLess(gun_kapanisi, gun_ortalamasi, i)
             self.assertEqual(tablo["yapi1s_yon"].iloc[i], -1, i)
-            self.assertGreater(tablo["rsi14_1s"].iloc[i], 30, i)
+            self.assertGreater(tablo["rsi14_1s"].iloc[i], 20, i)
             pencere = slice(i - 11, i + 1)
             pahali = (yuksek.iloc[pencere] > tablo["yapi15_denge"].iloc[pencere]).any()
             bloga_dokundu = (yuksek.iloc[pencere] >= tablo["yapi15_sblok_alt"].iloc[pencere]).any()
             self.assertTrue(pahali or bloga_dokundu, i)
             self.assertEqual(tablo["yapi5_kirilim"].iloc[i], -1, i)
             self.assertLess(kapanis.iloc[i], tablo["yapi5_dip"].iloc[i - 1], i)
-            self.assertTrue(30 < tablo["rsi14"].iloc[i] < 50, i)
+            self.assertTrue(20 < tablo["rsi14"].iloc[i] < 50, i)
+            self.assertLess(tablo["rsi14"].iloc[i], tablo["rsi14"].iloc[i - 3], i)
+            self.assertGreater(tablo["rsi14_15"].iloc[i], 35, i)
             self.assertGreater(hacim.iloc[i], 1.2 * hacim.iloc[i - 19:i + 1].mean(), i)
 
     def test_ayni_mumda_hem_alim_hem_satis_olmaz(self):

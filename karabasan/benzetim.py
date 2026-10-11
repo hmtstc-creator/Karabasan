@@ -18,7 +18,7 @@ from __future__ import annotations
 import pandas as pd
 
 from . import gostergeler as g
-from .kural import sinyal_uret
+from .kural import limit_fiyati, sinyal_uret
 
 
 def benzet(
@@ -52,6 +52,10 @@ def benzet(
     kapanis = tablo["close"].to_numpy(dtype=float)
     sinyal = tablo["sinyal"].to_numpy(dtype=bool)
     cikis_sinyal = tablo["cikis_sinyal"].to_numpy(dtype=bool)
+    limit_uzaklik = tablo["giris_limit_yuzde"].to_numpy(dtype=float)
+    limit = kural.get("giris_limiti")
+    # Limit emir kaç mum bekler: konduğu mum dahil, süre dolana kadar.
+    limit_mum = int(limit["sure_dakika"]) // g.dilim_dakika(kural["zaman_dilimi"]) if limit else 0
 
     islemler: list[dict] = []
     kilit_bitis = None  # stop sonrası bekleme
@@ -62,9 +66,21 @@ def benzet(
             i += 1
             continue
 
-        giris_i = i + 1
+        if limit:
+            # Sinyal mumunun ardından gelen mumun açılışında, fiyatın biraz altına (açığa
+            # satışta üstüne) limit emir konur; fiyat oraya inerse o fiyattan dolar (kayma
+            # yok). Süresinde dolmazsa iptal edilir; son beklenen mumun sinyali yeni emir açabilir.
+            giris = limit_fiyati(acilis[i + 1], limit_uzaklik[i], alim)
+            son = min(i + limit_mum, n - 1)
+            giris_i = next((k for k in range(i + 1, son + 1)
+                            if (dusuk[k] <= giris if alim else yuksek[k] >= giris)), None)
+            if giris_i is None:
+                i = max(son, i + 1)
+                continue
+        else:
+            giris_i = i + 1
+            giris = acilis[giris_i] * (1 + kayma if alim else 1 - kayma)
         giris_zamani = tarih[giris_i]
-        giris = acilis[giris_i] * (1 + kayma if alim else 1 - kayma)
         if alim:
             hedef_fiyat, stop_fiyat = giris * (1 + hedef), giris * (1 - stop)
         else:
@@ -89,6 +105,10 @@ def benzet(
                 neden = "zarar_durdur"
                 cikis_fiyat = stop_fiyat * (1 - kayma if alim else 1 + kayma)
                 break
+            # Limit emrin dolduğu mumda tepe, fiyat limite inmeden önce görülmüş olabilir:
+            # kötümser olmak için o mumda hedef sayılmaz (stop sayılır).
+            if limit and j == giris_i:
+                hedef_oldu = False
             if hedef_oldu:
                 neden = "kar_hedefi"
                 cikis_fiyat = hedef_fiyat

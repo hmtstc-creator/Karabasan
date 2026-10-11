@@ -2,7 +2,7 @@
   "kod": "SNIPER",
   "ad": "Sniper: dip sonrası CHoCH + FVG ile kısa vuruş",
   "yon": "alim",
-  "aciklama": "5 dakikalık grafikte dipten dönüşü yakalar, %1,2 alıp çıkar. Altı koşul birlikte aranır. Dip görülmüş: son 3 saatte 15 dakikalık RSI 35'in altına inmiş. Yapı dönmüş: son 1 saatte 5 dakikalıkta yukarı CHoCH (düşüş yapısının ilk yukarı kırılımı) olmuş ve yapı hâlâ yukarı. Hızlı alım izi: son 30 dakikada bir boğa FVG'si (fiyat boşluğu) oluşmuş ya da fiyat açık bir boğa FVG'sine geri çekilip üstünde kapanmış. Momentum: MACD histogramı sıfırın üstünde. RSI 50 ile 70 arasında (yukarı dönmüş ama şişmemiş). Hacim: son 15 dakikada bir mumun hacmi 20 mumluk ortalamanın 1,5 katından fazla. Çıkış: %1,2 kâr, %1,5 stop ya da en çok 3 saat.",
+  "aciklama": "5 dakikalık grafikte dipten dönüşü yakalar, %1,2 alıp çıkar. Altı koşul birlikte aranır. Dip görülmüş: son 3 saatte 15 dakikalık RSI 35'in altına inmiş. Yapı dönmüş: son 1 saatte 5 dakikalıkta yukarı CHoCH (düşüş yapısının ilk yukarı kırılımı) olmuş ve yapı hâlâ yukarı. Hızlı alım izi: son 30 dakikada bir boğa FVG'si (fiyat boşluğu) oluşmuş ya da fiyat açık bir boğa FVG'sine geri çekilip üstünde kapanmış. Momentum: MACD histogramı sıfırın üstünde. 5 dakikalık RSI 50 ile 80 arasında ve 3 mum öncesinden yüksek (yukarı dönmüş); 15 dakikalık RSI ise hâlâ 50'nin altında (üst dilim henüz toparlanmamış, erken giriş). Hacim: son 15 dakikada bir mumun hacmi 20 mumluk ortalamanın 1,5 katından fazla. Giriş: sinyalden sonra fiyatın biraz altına limit emir (oynaklığın yarısı kadar, %0,1–0,6), 15 dakikada dolmazsa iptal. Çıkış: %1,2 kâr, %1,5 stop ya da en çok 3 saat.",
   "zaman_dilimi": "5m",
   "gostergeler": {
     "rsi14_15": {
@@ -87,7 +87,20 @@
       {
         "sol": "rsi14",
         "islem": "<",
-        "sag": 70
+        "sag": 80
+      },
+      {
+        "sol": "rsi14",
+        "islem": ">",
+        "sag": {
+          "ad": "rsi14",
+          "kaydir": 3
+        }
+      },
+      {
+        "sol": "rsi14_15",
+        "islem": "<",
+        "sag": 50
       },
       {
         "sol": "hacim",
@@ -99,6 +112,12 @@
         "son_n_mumda": 3
       }
     ]
+  },
+  "giris_limiti": {
+    "atr_kat": 0.5,
+    "en_az_yuzde": 0.1,
+    "en_fazla_yuzde": 0.6,
+    "sure_dakika": 15
   },
   "cikis": {
     "kar_hedefi_yuzde": 1.2,

@@ -33,9 +33,11 @@ from karabasan.kural import (  # noqa: E402
     borsa_dilimleri,
     cikis_sinyali,
     gereken_mum,
+    giris_limit_yuzde,
     giris_sinyali,
     gosterge_ekle,
     kural_yukle,
+    limit_fiyati,
 )
 
 
@@ -163,6 +165,7 @@ class KarabasanTaban(IStrategy):
             dataframe["enter_short"] = 0
         dataframe.loc[sinyal, sutun] = 1
         dataframe.loc[sinyal, "enter_tag"] = self.kural["kod"]
+        dataframe["giris_limit_yuzde"] = giris_limit_yuzde(dataframe, self.kural)
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
@@ -202,6 +205,33 @@ class KarabasanTaban(IStrategy):
             return False
         logger.info("%s %s: %s", self.kural.get("kod"), pair, aciklama)
         return onay
+
+    def custom_entry_price(self, pair: str, trade, current_time: datetime, proposed_rate: float,
+                           entry_tag, side: str, **kwargs) -> float:
+        """Kural 'giris_limiti' istiyorsa limit emrin fiyatı: sinyalden sonra daha iyi fiyat.
+
+        Uzaklık kural motorunda, sinyal mumunun satırında hesaplanır (giris_limit_yuzde).
+        O satır bulunamazsa en küçük uzaklık kullanılır; emir yine de piyasadan iyi fiyattır.
+        """
+        limit = self.kural.get("giris_limiti")
+        if not limit:
+            return proposed_rate
+        uzaklik = float(limit["en_az_yuzde"])
+        saglayici = getattr(self, "dp", None)
+        try:
+            tablo, _ = saglayici.get_analyzed_dataframe(pair=pair, timeframe=self.timeframe)
+            # Sinyal mumu: girişin yapıldığı mumdan bir önceki. Canlıda son kapanmış mum,
+            # geçmiş testinde de aynısı; daha yenisi (giriş mumunun kendisi) kullanılmaz.
+            mum = timedelta(minutes=g.dilim_dakika(self.timeframe))
+            simdi = current_time.timestamp() // mum.total_seconds() * mum.total_seconds()
+            sinir = datetime.fromtimestamp(simdi, tz=current_time.tzinfo) - mum
+            uygun = tablo[tablo["date"] <= sinir]
+            if len(uygun) and uygun["giris_limit_yuzde"].iloc[-1] == uygun["giris_limit_yuzde"].iloc[-1]:
+                uzaklik = float(uygun["giris_limit_yuzde"].iloc[-1])
+        except Exception as hata:  # noqa: BLE001 - tablo yoksa en küçük uzaklık; bot durmasın
+            logger.warning("%s %s: limit uzaklığı okunamadı, en küçüğü kullanıldı: %s",
+                           self.kural.get("kod"), pair, hata)
+        return limit_fiyati(proposed_rate, uzaklik, side == "long")
 
     def custom_exit(self, pair: str, trade: Trade, current_time: datetime, current_rate: float,
                     current_profit: float, **kwargs):
