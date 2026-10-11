@@ -21,6 +21,12 @@ from karabasan.kural import kural_yukle, sinyal_uret  # noqa: E402
 from testler.veri import yapay_mumlar  # noqa: E402
 
 
+def gunluk_kullanir(kural_kodu):
+    """Kuralın okuduğu günlük dahil bütün dilimler (kendi dilimi ve borsadan istediği dilimler)."""
+    kural = kural_yukle(kural_kodu)
+    return {kural["zaman_dilimi"], *kural.get("borsa_dilimleri", [])}
+
+
 def strateji_modulu():
     yol = KOK / "user_data" / "strategies" / "karabasan_stratejileri.py"
     tanim = importlib.util.spec_from_file_location("karabasan_stratejileri", yol)
@@ -122,14 +128,19 @@ class StratejiSiniflari(unittest.TestCase):
                 tablo = s.populate_indicators(df.copy(), {"pair": "TEST/USDT"})
                 tablo = s.populate_entry_trend(tablo, {"pair": "TEST/USDT"})
                 tablo = s.populate_exit_trend(tablo, {"pair": "TEST/USDT"})
-                beklenen = sinyal_uret(df, kural_yukle(kural_kodu))["sinyal"]
+                cekirdek = sinyal_uret(df, kural_yukle(kural_kodu))
+                beklenen = cekirdek["sinyal"]
                 sutun = "enter_short" if s.can_short else "enter_long"
                 self.assertEqual((tablo[sutun] == 1).tolist(), beklenen.tolist())
                 # enter_long sütunu her zaman bulunmalı; ters yönlüde hep sıfır
                 self.assertIn("enter_long", tablo.columns)
                 if s.can_short:
                     self.assertEqual(int(tablo["enter_long"].sum()), 0)
-                self.assertEqual(int(tablo["exit_long"].sum()), 0)
+                # Çıkış sinyali yalnız 'cikis > sinyal' tanımlayan kuralda (Sniper) bulunur
+                cikis = "exit_short" if s.can_short else "exit_long"
+                self.assertEqual((tablo[cikis] == 1).tolist(), cekirdek["cikis_sinyal"].tolist())
+                if s.can_short:
+                    self.assertEqual(int(tablo["exit_long"].sum()), 0)
                 if beklenen.any():
                     self.assertTrue((tablo.loc[beklenen, "enter_tag"] == kural_kodu).all())
 
@@ -391,8 +402,8 @@ class BagimsizKarsilastirma(unittest.TestCase):
         metin = cikti.getvalue()
         for bot, _s, _k, _p in botlar.BOTLAR:
             self.assertIn(bot, metin)
-        # Günlük mum yalnız onu isteyen botlar (Smartmoney, vadeli) için okunur.
-        gunluk_isteyen = sum(1 for b in botlar.BOTLAR if b[2].startswith("SM"))
+        # Günlük mum yalnız onu isteyen botlar (Smartmoney ve günlük çalışan Sniper) için okunur.
+        gunluk_isteyen = sum(1 for b in botlar.BOTLAR if "1d" in gunluk_kullanir(b[2]))
         self.assertEqual(sum(1 for ad in okunan if "-1d-" in ad), gunluk_isteyen * len(karsilastir.COINLER))
         self.assertTrue(all(ad.endswith("-vadeli.feather") for ad in okunan if "-1d-" in ad))
         # Smartmoney botları bu veride işlem açtı (günlük veri gerçekten kullanıldı).
@@ -416,7 +427,7 @@ class BagimsizKarsilastirma(unittest.TestCase):
                 mock.patch.object(sys, "argv", ["karsilastir.py", "30"]), \
                 contextlib.redirect_stdout(cikti):
             self.assertEqual(karsilastir.main(), 1)
-        gunluk_isteyen = sum(1 for b in botlar.BOTLAR if b[2].startswith("SM"))
+        gunluk_isteyen = sum(1 for b in botlar.BOTLAR if "1d" in gunluk_kullanir(b[2]))
         self.assertIn(f"UYARI: {gunluk_isteyen * len(karsilastir.COINLER)} veri dosyası bulunamadı", cikti.getvalue())
 
     def test_veri_yoksa_uyarir(self):
@@ -573,7 +584,7 @@ class UyumDenemesiTesti(unittest.TestCase):
 
     SAHTE_DOCKER = r'''#!/bin/bash
 case "$*" in
-  *list-strategies*) echo "KarabasanTaban SMVadeli SMKVadeli SMDVadeli $SAHTE_SON_SINIF";;
+  *list-strategies*) echo "KarabasanTaban SMVadeli SMKVadeli SMDVadeli SMDKVadeli $SAHTE_SON_SINIF";;
   *"--version"*) echo "freqtrade 2026.9";;
   *download-data*) echo "docker $*" >> "$SAHTE_KAYIT"
                    [ "$SAHTE_MOD" = "gunluk_inmez" ] && case "$*" in *"--timeframes 1d"*) echo "freqtrade - ERROR - veri yok"; exit 1;; esac
@@ -615,7 +626,7 @@ exit 0
             docker.chmod(0o755)
             ortam = {**os.environ, "PATH": f"{kok / 'bin'}:{os.environ['PATH']}", "SAHTE_MOD": mod,
                      "SAHTE_KAYIT": str(kok / "cagrilar.txt"),
-                     "SAHTE_SON_SINIF": "" if mod == "sinif_eksik" else "SMDKVadeli"}
+                     "SAHTE_SON_SINIF": "" if mod == "sinif_eksik" else "SniperVadeli"}
             sonuc = subprocess.run(["bash", str(kok / "araclar" / "uyum_denemesi.sh")],
                                    capture_output=True, text=True, env=ortam)
             rapor = (kok / "user_data" / "logs" / "uyum_denemesi.txt").read_text(encoding="utf-8")
@@ -646,8 +657,8 @@ exit 0
         self.assertEqual(len(gunluk), 1)
         self.assertIn("--trading-mode futures", gunluk[0])
         self.assertIn("ETH/USDT:USDT", gunluk[0])
-        self.assertIn("--days 200", gunluk[0])
-        self.assertIn("[GEÇTİ] Vadeli verisi indirildi (1d, 200 gün)", rapor)
+        self.assertIn("--days 800", gunluk[0])
+        self.assertIn("[GEÇTİ] Vadeli verisi indirildi (1d, 800 gün)", rapor)
         self.assertEqual(sum(1 for c in indirmeler if "--timeframes 5m 15m --days 45" in c), 2)
 
     def test_gunluk_veri_inmezse_kalir(self):
@@ -660,7 +671,7 @@ exit 0
         # "SMDVadeli" çıktıda var ama "SMDKVadeli" yok: biri diğerinin yerine sayılmamalı.
         kod, rapor = self._calistir("sinif_eksik")
         self.assertEqual(kod, 1)
-        self.assertIn("Bulunamayan sınıflar: SMDKVadeli", rapor)
+        self.assertIn("Bulunamayan sınıflar: SniperVadeli", rapor)
 
     def test_ayar_hatasi_cikis_kodu_temiz_olsa_da_kalir(self):
         kod, rapor = self._calistir("ayar_hatasi")
@@ -758,7 +769,7 @@ exit 0
         gunluk = [c for c in cagrilar.splitlines() if "--timeframes 1d" in c]
         self.assertEqual(len(gunluk), 1)
         self.assertIn("--trading-mode futures", gunluk[0])
-        self.assertIn("--days 200", gunluk[0])
+        self.assertIn("--days 800", gunluk[0])
         sira = cagrilar.splitlines()
         self.assertLess(sira.index(gunluk[0]), next(i for i, c in enumerate(sira) if "karabasan_gecmis.py" in c))
 

@@ -15,7 +15,7 @@ GUN=30
 INDIRILECEK_GUN=45
 # Borsadan ayrıca istenen büyük dilimler (günlük mumlar) için: sınanan 30 günün
 # öncesinde ortalamaların oturacağı kadar geçmiş gerekir.
-EK_GUN=200
+EK_GUN=800
 mkdir -p user_data/logs
 : > "$RAPOR"
 

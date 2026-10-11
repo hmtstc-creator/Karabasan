@@ -24,7 +24,7 @@ class KuralDosyalari(unittest.TestCase):
     def test_tum_stratejiler_yuklenir(self):
         kurallar = k.tum_kurallar()
         self.assertEqual(sorted(kurallar),
-                         ["SM", "SMD", "SMDK", "SMK"])
+                         ["SM", "SMD", "SMDK", "SMK", "SNIPER"])
         for kod, kural in kurallar.items():
             with self.subTest(kod=kod):
                 self.assertEqual(kural["kod"], kod)
@@ -65,8 +65,13 @@ class KuralDosyalari(unittest.TestCase):
             self.assertEqual(k.kural_yukle(k.STRATEJI_KLASORU / "emekli" / f"{kod}.json")["kod"], kod)
 
     def test_butun_stratejilerde_hedef_ve_stop_ayni(self):
-        """Ahmet'in isteği (12 Ekim 2026): 1 kat vadelide %0,8 hedef, %3 stop."""
+        """Ahmet'in isteği (12 Ekim 2026): 1 kat vadelide %0,8 hedef, %3 stop.
+
+        Sniper bilerek ayrıdır: günlük trend takibi, kâr hedefi yok, çıkış kanal sinyaliyle.
+        """
         for kod, kural in k.tum_kurallar().items():
+            if kod == "SNIPER":
+                continue
             self.assertEqual(kural["cikis"]["kar_hedefi_yuzde"], 0.8, kod)
             self.assertEqual(kural["cikis"]["zarar_durdur_yuzde"], 3.0, kod)
 

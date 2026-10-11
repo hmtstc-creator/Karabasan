@@ -17,7 +17,7 @@ GUN=30
 # (200 tane 4 saatlik mum); pay bırakılır.
 INDIRILECEK_GUN=80
 # Borsadan ayrıca istenen büyük dilimler (günlük mumlar) için indirilecek gün.
-EK_GUN=200
+EK_GUN=800
 mkdir -p user_data/logs
 : > "$KAYIT"
 

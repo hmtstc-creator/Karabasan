@@ -175,7 +175,7 @@ emirler piyasa emri olduğu için alıcı (taker) oranı kullanılır. Hesabınd
 oranlar farklıysa Claude'a yaz; değeri depoda o günceller, sunucu kendisi alır.
 
 Bot ekranları (hazır motorun kendi İngilizce ekranı), Tailscale açıkken
-`http://karabasan:8081` ile `http://karabasan:8084` arasındadır. Kullanıcı adı
+`http://karabasan:8081` ile `http://karabasan:8085` arasındadır. Kullanıcı adı
 `karabasan`, parola sunucudaki `.env` dosyasındadır. Günlük kullanımda
 gerekmez; sonuç sayfası ve Telegram yeterlidir.
 
@@ -187,6 +187,7 @@ gerekmez; sonuç sayfası ve Telegram yeterlidir.
 | smk-vadeli | SMK Smartmoney: tepki sonrası yapı kırılımıyla satış | SM'nin tersi | Vadeli, 1 kat | 8082 |
 | smd-vadeli | SMD Smartmoney + uyumsuzluk + emir defteri: alım | SM'nin bütün koşulları, son 1 saatte en az bir göstergede boğa uyumsuzluğu, girişte emir defterinde alıcılar belirgin kalabalık | Vadeli, 1 kat | 8083 |
 | smdk-vadeli | SMDK Smartmoney + uyumsuzluk + emir defteri: satış | SMD'nin tersi | Vadeli, 1 kat | 8084 |
+| sniper-vadeli | SNIPER Sniper: çok uzunluklu kanal kırılımıyla trend takibi | Günlük mumda dokuz kanal modelinin çoğu yukarı kırılımdaysa alır, çoğu düşünce satar; kâr hedefi yok | Vadeli, 1 kat | 8085 |
 
 **12 Ekim 2026'dan beri yalnız Smartmoney çalışır (Ahmet'in isteğiyle).** Aynı
 gün 12 aylık geçmiş testi (11.10.2025–11.10.2026) on iki botun hepsini ekside
@@ -195,7 +196,7 @@ kural dosyaları kayıt için `karabasan/stratejiler/emekli/` altında durur (ne
 çıkarıldıkları oradaki BENIOKU.md'de). Smartmoney de o testte eksideydi
 (SM −30,17, SMK −26,69 USDT); en az kaybedenler onlardı.
 
-Çıkış: kâr hedefi %0,8, stop %3, 1 kat vadeli. Komisyon gidiş-dönüş %0,1
+Smartmoney botlarında çıkış: kâr hedefi %0,8, stop %3, 1 kat vadeli. Komisyon gidiş-dönüş %0,1
 olduğu için kazanan işlem net yaklaşık +%0,7, stop olan işlem −%3,1 getirir;
 başa baş için işlemlerin yaklaşık %82'si kazanmalıdır. Vadelide 50 USDT'lik
 işlem tutarıyla BTC işlem görmez.
@@ -231,6 +232,40 @@ dönük izlenmek üzere. Üç parçayı birleştirir:
 Çıkış Smartmoney ile aynı: hedef %0,8, stop %3, en uzun 4 saat. Kazandıracağı
 bilinmiyor; amaç, defter ve uyumsuzluk onayının Smartmoney'nin sonucunu
 değiştirip değiştirmediğini canlıda yan yana görmek (SM ile SMD, SMK ile SMDK).
+
+### Sniper (SNIPER)
+
+12 Ekim 2026'da Ahmet'in isteğiyle eklendi ("internette en çok kazananları bul,
+çok gelişmiş bir bot koy, adı sniper olsun"). Seçim gerekçesi: TradingView'de
+"en çok kazanan" diye görünen stratejilerin sonuçları denetlenmemiştir ve çoğu
+geçmişe ezberdir; 3Commas'ın hazır botları da borsa API anahtarı ister (bu
+aşamada yasak) ve pazar yerindeki kazançlar kısa, seçilmiş dönemlerdir. Açık
+yayımlanmış, komisyon dahil ve uzun dönemde sınanmış en güçlü kanıt günlük
+trend takibindedir: Zarattini, Pagani ve Barbon, "Catching Crypto Trends"
+(2025). Sniper o yöntemin sadeleştirilmiş halidir:
+
+- **Dokuz Donchian kanal modeli** (5, 10, 20, 30, 60, 90, 150, 250, 360 gün).
+  Her model, günlük kapanış son N günün en yüksek kapanışını aşınca "trendde"
+  olur. İzleyen stopu son N günün en yüksek ve en düşük kapanışının ortasıdır,
+  yalnız yukarı taşınır; kapanış onun altına inince model trendden çıkar.
+- **Giriş:** modellerin yarıdan fazlası trende girdiğinde (topluluk payı 0,5'i
+  yukarı keser) alım. **Çıkış:** pay 0,5'in altına inince bir sonraki günün
+  açılışında satış. Kâr hedefi yoktur; kazanan işlem trend sürdükçe açık kalır.
+  %10 sabit stop yalnız aşırı uç düşüşe karşı güvencedir; bir işlem en çok
+  90 gün açık kalır.
+- **Yalnız alım, 1 kat.** Makaledeki yöntem de yalnız alım yönlüdür.
+- **Sadeleştirmeler:** makale her modelin payını ayrı ağırlıklandırır ve pozisyon
+  büyüklüğünü oynaklığa göre ayarlar; burada sabit 50 USDT ve "çoğunluk" kararı
+  vardır. Sonuç makaledekinden farklı olabilir.
+
+Ne beklenmeli: günlük çalıştığı için az işlem açar, çoğu küçük kayıpla
+kapanır, kazancı az sayıdaki uzun trendden gelir.
+Kazanma oranı düşük görünür (yapay veride %32); bu yöntemin doğasıdır. Sinyaller yalnız
+günlük mum kapanınca (03:00 Türkiye saati) oluşur. İlk açılışta 735 günlük mum
+ister; o kadar geçmişi olmayan yeni coinlerde sinyal vermez. Yapay rastgele
+veride ne kazandırdı ne kaybettirdi; gerçek verideki sonucu 12 aylık testte ve
+canlıda görülecek. Geçmişte işe yaramış olması gelecekte de yarayacağı anlamına
+gelmez.
 
 ### Emir defteri denemesi (BTC/USDT vadeli)
 

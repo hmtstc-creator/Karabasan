@@ -9,6 +9,8 @@ Varsayımlar bilerek kötümserdir:
 - Aynı mumda hem stop hem hedef görülürse stop önce gerçekleşmiş sayılır.
 - Stop ve süre aşımı çıkışlarına kayma uygulanır; hedef limit emirdir, kaymaz.
 - Hedef ya da stopla kapanan mumun sinyali, bir sonraki mumda yeni işlem açabilir.
+- Kuralın çıkış sinyali varsa (cikis > sinyal), sinyal mumunun ardından gelen mumun
+  açılışında kapanır; o mumun kendi giriş sinyali bir sonraki mumda yeni işlem açabilir.
 """
 
 from __future__ import annotations
@@ -49,6 +51,7 @@ def benzet(
     dusuk = tablo["low"].to_numpy(dtype=float)
     kapanis = tablo["close"].to_numpy(dtype=float)
     sinyal = tablo["sinyal"].to_numpy(dtype=bool)
+    cikis_sinyal = tablo["cikis_sinyal"].to_numpy(dtype=bool)
 
     islemler: list[dict] = []
     kilit_bitis = None  # stop sonrası bekleme
@@ -71,6 +74,11 @@ def benzet(
         cikis_fiyat = None
         j = giris_i
         while j < n:
+            # Çıkış sinyali önceki mumun kapanışında oluştuysa işlem bu mumun açılışında kapanır.
+            if j > giris_i and cikis_sinyal[j - 1]:
+                neden = "cikis_sinyali"
+                cikis_fiyat = acilis[j] * (1 - kayma if alim else 1 + kayma)
+                break
             if alim:
                 stop_oldu = dusuk[j] <= stop_fiyat
                 hedef_oldu = yuksek[j] >= hedef_fiyat
@@ -99,7 +107,7 @@ def benzet(
             brut = (cikis_fiyat / giris - 1.0) * 100.0
         else:
             brut = (giris - cikis_fiyat) / giris * 100.0
-        cikis_zamani = tarih[j] + mum
+        cikis_zamani = tarih[j] if neden == "cikis_sinyali" else tarih[j] + mum
         islemler.append(
             {
                 "kod": kural["kod"],

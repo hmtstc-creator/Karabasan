@@ -36,6 +36,7 @@ GOSTERGE_TURLERI = (
     "macd",
     "yapi",
     "uyumsuzluk",
+    "donchian_topluluk",
 )
 UYUMSUZLUK_TIPLERI = ("normal", "gizli", "ikisi")
 MACD_VARSAYILAN = {"hizli": 12, "yavas": 26, "sinyal": 9}
@@ -45,9 +46,10 @@ YAPI_UZUNLUK_SINIRI = (2, 50)
 # Panelden ya da dosyadan aşılamayan sınırlar. Bir yazım hatası (örneğin
 # %1 yerine %100 stop) gerçek paraya ulaşmadan burada durur.
 SINIRLAR = {
-    "kar_hedefi_yuzde": (0.1, 20.0),
+    # Trend takibinde (Sniper) hedef pratikte yoktur ve işlem haftalarca sürebilir.
+    "kar_hedefi_yuzde": (0.1, 200.0),
     "zarar_durdur_yuzde": (0.1, 10.0),
-    "sure_asimi_dakika": (5, 10080),
+    "sure_asimi_dakika": (5, 129600),
     "bekleme_dakika": (0, 10080),
 }
 
@@ -219,6 +221,16 @@ def kural_dogrula(kural: dict) -> None:
             hizli, yavas, _ = _macd_ayarlari(tanim)
             if hizli >= yavas:
                 raise KuralHatasi(f"'{ad}': 'hizli' periyot 'yavas' periyottan küçük olmalı.")
+        elif tur == "donchian_topluluk":
+            uzunluklar = tanim.get("uzunluklar")
+            if (not isinstance(uzunluklar, list) or not 1 <= len(uzunluklar) <= 12
+                    or len(set(uzunluklar)) != len(uzunluklar)
+                    or not all(isinstance(u, int) and not isinstance(u, bool) and 2 <= u <= 400
+                               for u in uzunluklar)):
+                raise KuralHatasi(f"'{ad}': 'uzunluklar' 2 ile 400 arasında, birbirinden farklı "
+                                  "1-12 tam sayının listesi olmalı.")
+            if tanim.get("kaynak") is not None:
+                raise KuralHatasi(f"'{ad}': Donchian topluluğu kapanıştan hesaplanır, 'kaynak' almaz.")
         elif tur != "vwap":
             periyot = tanim.get("periyot")
             if not isinstance(periyot, int) or isinstance(periyot, bool) or not 1 <= periyot <= 1000:
@@ -274,6 +286,8 @@ def kural_dogrula(kural: dict) -> None:
             raise KuralHatasi(f"'cikis' içinde zorunlu alan eksik: '{alan}'")
         _sinir_denetle(alan, cikis[alan])
     _sinir_denetle("bekleme_dakika", kural.get("bekleme_dakika", 0))
+    if "sinyal" in cikis:
+        _kosul_dogrula(cikis["sinyal"], bilinen, "cikis > sinyal")
 
     onay = kural.get("defter_onayi")
     if onay is not None:
@@ -379,6 +393,9 @@ def _mum_ihtiyaclari(kural: dict) -> tuple[int, dict[str, int]]:
         if tanim["tur"] == "macd":
             _, yavas, sinyal = _macd_ayarlari(tanim)
             ihtiyac = (yavas + sinyal) * 3
+        if tanim["tur"] == "donchian_topluluk":
+            # Modellerin durumu geçmişe bağlıdır; en uzun kanalın iki katı kadar ısınma.
+            ihtiyac = 2 * max(tanim["uzunluklar"]) + 5
         if tanim["tur"] == "uyumsuzluk":
             # En eski karşılaştırılan nokta + göstergelerin (MACD, RSI...) oturması.
             ihtiyac = g.UYUMSUZLUK_EN_FAZLA_MUM + periyot + (26 + 9) * 3
@@ -426,6 +443,8 @@ def _tek_gosterge(cerceve: pd.DataFrame, ad: str, tanim: dict) -> dict:
         return {ad: g.atr_yuzde(cerceve, periyot)}
     if tur == "hacim_ort":
         return {ad: g.sma(cerceve["volume"], periyot)}
+    if tur == "donchian_topluluk":
+        return {ad: g.donchian_topluluk(cerceve["close"], list(tanim["uzunluklar"]))}
     if tur == "uyumsuzluk":
         u = g.uyumsuzluk(cerceve, periyot, tanim.get("tip", "ikisi"))
         return {f"{ad}_boga": u["boga"], f"{ad}_ayi": u["ayi"]}
@@ -565,10 +584,23 @@ def giris_sinyali(df: pd.DataFrame, kural: dict) -> pd.Series:
     return sinyal.fillna(False).astype(bool)
 
 
+def cikis_sinyali(df: pd.DataFrame, kural: dict) -> pd.Series:
+    """Kural 'cikis > sinyal' tanımlıyorsa çıkış koşulunun sağlandığı mumlar; yoksa hep yanlış.
+
+    Sinyal mumun kapanışında oluşur; işlem bir sonraki mumun açılışında kapanır
+    (hazır motor da böyle yapar).
+    """
+    kosul = kural["cikis"].get("sinyal")
+    if kosul is None:
+        return pd.Series(False, index=df.index)
+    return _kosul(df, kosul).fillna(False).astype(bool)
+
+
 def sinyal_uret(df: pd.DataFrame, kural: dict, ek_veri: dict | None = None) -> pd.DataFrame:
-    """Kısa yol: göstergeleri ekler ve 'sinyal' sütununu koyar."""
+    """Kısa yol: göstergeleri ekler, 'sinyal' ve 'cikis_sinyal' sütunlarını koyar."""
     tablo = gosterge_ekle(df, kural, ek_veri)
     tablo["sinyal"] = giris_sinyali(tablo, kural)
+    tablo["cikis_sinyal"] = cikis_sinyali(tablo, kural)
     return tablo
 
 

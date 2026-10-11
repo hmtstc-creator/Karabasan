@@ -24,6 +24,8 @@ BOTLAR = [
     # 12 Ekim 2026 (Ahmet'in isteği): Smartmoney + uyumsuzluk + girişte emir defteri onayı.
     ("smd-vadeli", "SMDVadeli", "SMD", "vadeli"),
     ("smdk-vadeli", "SMDKVadeli", "SMDK", "vadeli"),
+    # 12 Ekim 2026 (Ahmet'in isteği, adı "sniper"): günlük Donchian topluluğuyla trend takibi.
+    ("sniper-vadeli", "SniperVadeli", "SNIPER", "vadeli"),
 ]
 
 ILK_PORT = 8081
@@ -45,7 +47,11 @@ def ek_dilimler(piyasa: str) -> list[str]:
             kural = json.loads((klasor / f"{kural_kodu}.json").read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        for dilim in kural.get("borsa_dilimleri", []):
+        # Taban dilimi 5m / 15m dışında olan kural (Sniper: 1d) da o dilimin verisini ister.
+        istenen = list(kural.get("borsa_dilimleri", []))
+        if kural.get("zaman_dilimi") not in (None, "5m", "15m"):
+            istenen.append(kural["zaman_dilimi"])
+        for dilim in istenen:
             if dilim not in dilimler:
                 dilimler.append(str(dilim))
     return dilimler

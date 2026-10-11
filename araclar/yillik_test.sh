@@ -16,7 +16,7 @@ GUN=365
 # Göstergelerin ısınması için yılın başından önce pay bırakılır.
 INDIRILECEK_GUN=400
 # Günlük mum isteyen kurallar (Smartmoney) için daha uzun geçmiş.
-EK_GUN=600
+EK_GUN=1100
 PARITELER="ETH/USDT:USDT SOL/USDT:USDT XRP/USDT:USDT DOGE/USDT:USDT"
 mkdir -p user_data/logs
 : > "$KAYIT"

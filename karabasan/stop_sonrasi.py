@@ -429,6 +429,10 @@ def bir_tur(veri_klasoru: Path, simdi: datetime | None = None, getir=mum_getir, 
     for bot, _sinif, kural_kodu, piyasa in BOTLAR:
         kural = kural_yukle(kural_kodu)
         cikis = kural["cikis"]
+        if "sinyal" in cikis:
+            # Hedefsiz, sinyalle çıkan trend takibi (Sniper): "stop geniş olsaydı" sorusu
+            # sabit hedef ve süreye göre kurulu; burada anlamı yok, işlem 90 güne kadar sürer.
+            continue
         hedef, stop = float(cikis["kar_hedefi_yuzde"]), float(cikis["zarar_durdur_yuzde"])
         sure = float(cikis["sure_asimi_dakika"])
         komisyon = float(ayar["komisyon_yuzde"][piyasa])

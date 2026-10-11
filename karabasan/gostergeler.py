@@ -424,3 +424,46 @@ def uyumsuzluk(df: pd.DataFrame, uzunluk: int = 5, tip: str = "ikisi") -> pd.Dat
             if ara(tepeler, t, seri, False):
                 ayi[t] += 1
     return pd.DataFrame({"boga": boga, "ayi": ayi}, index=df.index)
+
+
+# --------------------------------------------------------------------------
+# Donchian topluluğu (Sniper)
+# --------------------------------------------------------------------------
+#
+# Zarattini, Pagani ve Barbon, "Catching Crypto Trends" (2025, SSRN 5209907):
+# günlük kapanışlarla, farklı uzunluklarda (5 ... 360 gün) birçok Donchian kanal
+# modeli birlikte. Her model, kapanış son L günün en yüksek kapanışını aşınca
+# "içeride" olur; izleyen stop, önceki stop ile son L günün en yüksek ve en düşük
+# kapanışlarının ortası arasındaki büyük olandır; kapanış stopun altına inince
+# model "dışarıda" olur. Topluluk değeri içerideki modellerin oranıdır (0-1).
+# Makaledeki oynaklığa göre pozisyon büyüklüğü burada yok (sabit işlem tutarı).
+
+
+def donchian_topluluk(kapanis: pd.Series, uzunluklar: list[int]) -> pd.Series:
+    """İçeride olan Donchian modellerinin oranı (0 ile 1 arası). Yalnız geçmişe bakar."""
+    k = kapanis.to_numpy(dtype=float)
+    n = len(k)
+    toplam = np.zeros(n)
+    for L in uzunluklar:
+        onceki_tepe = kapanis.rolling(L).max().shift(1).to_numpy()       # bugün hariç son L gün
+        orta = ((kapanis.rolling(L).max() + kapanis.rolling(L).min()) / 2.0).to_numpy()
+        icerde = False
+        stop = -np.inf
+        durum = np.zeros(n)
+        for t in range(n):
+            if np.isnan(onceki_tepe[t]):
+                continue
+            if icerde:
+                if k[t] < stop:
+                    icerde = False
+                else:
+                    stop = max(stop, orta[t])
+            if not icerde and k[t] > onceki_tepe[t]:
+                icerde = True
+                stop = orta[t]
+            durum[t] = 1.0 if icerde else 0.0
+        toplam += durum
+    sonuc = pd.Series(toplam / len(uzunluklar), index=kapanis.index)
+    # En uzun model hazır olana kadar oran eksik sayılır.
+    sonuc.iloc[:max(uzunluklar)] = np.nan
+    return sonuc

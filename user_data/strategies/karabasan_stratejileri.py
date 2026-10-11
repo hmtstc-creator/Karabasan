@@ -31,6 +31,7 @@ from karabasan import gostergeler as g  # noqa: E402
 from karabasan.botlar import ayarlari_yukle, net_hedef_orani  # noqa: E402
 from karabasan.kural import (  # noqa: E402
     borsa_dilimleri,
+    cikis_sinyali,
     gereken_mum,
     giris_sinyali,
     gosterge_ekle,
@@ -165,10 +166,13 @@ class KarabasanTaban(IStrategy):
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        # Çıkış yalnız kâr hedefi, stop ve süre aşımıyla olur; sinyalle çıkış yok.
+        # Çıkış kâr hedefi, stop ve süre aşımıyla olur; kural 'cikis > sinyal' tanımlıyorsa
+        # (Sniper) o sinyalle de. Sinyal mumun kapanışında, çıkış bir sonraki mumda.
         dataframe["exit_long"] = 0
         if self.can_short:
             dataframe["exit_short"] = 0
+        sinyal = cikis_sinyali(dataframe, self.kural)
+        dataframe.loc[sinyal, "exit_short" if self.can_short else "exit_long"] = 1
         return dataframe
 
     def confirm_trade_entry(self, pair: str, order_type: str, amount: float, rate: float,
@@ -227,3 +231,7 @@ class SMDVadeli(KarabasanTaban):
 
 class SMDKVadeli(KarabasanTaban):
     kural_kodu, piyasa = "SMDK", "vadeli"
+
+
+class SniperVadeli(KarabasanTaban):
+    kural_kodu, piyasa = "SNIPER", "vadeli"

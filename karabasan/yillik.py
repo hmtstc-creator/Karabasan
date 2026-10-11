@@ -100,7 +100,7 @@ def _sayi(deger, basamak=2, isaret=False) -> str:
 
 
 def _nedenler(islemler: list[dict]) -> dict[str, int]:
-    sayac = {"kar_hedefi": 0, "zarar_durdur": 0, "sure_asimi": 0}
+    sayac = {"kar_hedefi": 0, "zarar_durdur": 0, "sure_asimi": 0, "cikis_sinyali": 0}
     for i in islemler:
         sayac[i["neden"]] = sayac.get(i["neden"], 0) + 1
     return sayac
@@ -168,7 +168,12 @@ def rapor_uret(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tu
         c = kural["cikis"]
         basabas = basabas_orani(kural, 2 * komisyon)
         yaz(f"{bot}: {kod} {kural['ad']}")
-        yaz(f"  hedef %{_sayi(c['kar_hedefi_yuzde'], 1)}, stop %{_sayi(c['zarar_durdur_yuzde'], 1)}, "
+        sinyalle_cikar = "sinyal" in c
+        if kural.get("defter_onayi"):
+            yaz("  NOT: girişteki emir defteri onayı geçmişte uygulanamaz; işlem sayısı canlıdakinden fazladır.")
+        hedef_metni = ("hedef yok (çıkış kanal sinyaliyle)" if sinyalle_cikar
+                       else f"hedef %{_sayi(c['kar_hedefi_yuzde'], 1)}")
+        yaz(f"  {hedef_metni}, stop %{_sayi(c['zarar_durdur_yuzde'], 1)}, "
             f"en uzun {int(c['sure_asimi_dakika']) // 60} saat {int(c['sure_asimi_dakika']) % 60} dk")
         if eksikler:
             yaz(f"  UYARI: veri yok: {', '.join(eksikler)}")
@@ -179,12 +184,13 @@ def rapor_uret(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tu
                          "kazanma": None, "basabas": basabas})
             continue
         yaz(f"  İşlem {k['islem_sayisi']}, kazanma %{_sayi(k['kazanma_orani'], 1)} "
-            f"(başa baş %{_sayi(basabas, 1)}), işlem başına net %{_sayi(k['net_beklenti'], 3, True)}, "
+            f"(başa baş %{'-' if sinyalle_cikar else _sayi(basabas, 1)}), işlem başına net %{_sayi(k['net_beklenti'], 3, True)}, "
             f"kâr faktörü {_sayi(k['kar_faktoru'])}")
         yaz(f"  Net {_sayi(k['net_tutar'], 2, True)} USDT, en büyük düşüş %{_sayi(k['en_buyuk_dusus_yuzde'], 1)} "
             f"(1.000 USDT bakiyeye göre)")
         yaz(f"  Çıkışlar: hedef {nedenler['kar_hedefi']}, stop {nedenler['zarar_durdur']}, "
-            f"süre aşımı {nedenler['sure_asimi']}")
+            f"süre aşımı {nedenler['sure_asimi']}"
+            + (f", kanal sinyali {nedenler['cikis_sinyali']}" if sinyalle_cikar else ""))
         yaz("  Çeyrekler (net USDT): " + " | ".join(
             f"{p['baslangic']:%m.%Y}: {_sayi(p['net'], 2, True)} ({p['islem']})" for p in ceyrekler))
         arti = sum(1 for p in ceyrekler if p["net"] > 0)
@@ -194,6 +200,8 @@ def rapor_uret(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tu
         ozet.append({"bot": bot, "kod": kod, "islem": k["islem_sayisi"], "net": k["net_tutar"],
                      "arti_ceyrek": arti, "kazanma": k["kazanma_orani"], "basabas": basabas})
 
+        if sinyalle_cikar:
+            continue   # hedefsiz trend takibinde (Sniper) "stop = hedef" anlamsızdır
         alt_kural = stop_hedefe_esit(kural)
         alt_islemler, _ = islemleri_topla(alt_kural, piyasa, yukle, komisyon, baslangic, bitis)
         karsilastirma.append((bot, k, kr.karne(alt_islemler, tutar, bakiye)))
@@ -206,8 +214,8 @@ def rapor_uret(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tu
     yaz(f"  Hem artıda hem dört çeyreğin en az üçünde artı: {len(istikrarli)} bot"
         + (f" ({', '.join(o['kod'] for o in istikrarli)})" if istikrarli else ""))
     toplam = sum(o["net"] for o in ozet)
-    yaz(f"  12 botun toplamı: {_sayi(toplam, 2, True)} USDT "
-        f"(her bot 1.000 USDT sanal bakiyeyle; toplam 12.000 USDT)")
+    yaz(f"  {len(ozet)} botun toplamı: {_sayi(toplam, 2, True)} USDT "
+        f"(her bot {_sayi(bakiye, 0)} USDT sanal bakiyeyle)")
     sirali = sorted(ozet, key=lambda o: o["net"], reverse=True)
     yaz("  Sıralama (net USDT): " + ", ".join(f"{o['kod']} {_sayi(o['net'], 2, True)}" for o in sirali))
     yaz("")
