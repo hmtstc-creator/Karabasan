@@ -9,6 +9,7 @@ Adresler:
     /            Türkçe sonuç sayfası
     /veri.json   Aynı özetin ham hali
     /saglik      Sunucu ayakta mı (izleme için)
+    /defter      Emir defteri denemesinin özeti (BTC/USDT vadeli, sanal)
 
 Yalnız Python standart kütüphanesi ile karabasan paketini kullanır.
 """
@@ -109,6 +110,11 @@ def isleyici_uret(onbellek: Onbellek):
                 elif yol == "/veri.json":
                     govde = json.dumps(json_icin(onbellek.ozet()), ensure_ascii=False, indent=1)
                     self._yanit(200, "application/json; charset=utf-8", govde.encode("utf-8"))
+                elif yol == "/defter":
+                    from . import defter_sayfa
+
+                    ozet = defter_sayfa.ozet_cikar(onbellek.klasor / "kayit" / "defter.sqlite")
+                    self._yanit(200, "text/html; charset=utf-8", defter_sayfa.html_uret(ozet).encode("utf-8"))
                 elif yol in ("/", "/index.html"):
                     self._yanit(
                         200, "text/html; charset=utf-8",

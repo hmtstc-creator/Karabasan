@@ -109,6 +109,7 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | `karabasan/sonuc.py` | Botların SQLite kayıtlarını salt okunur okuyup özet çıkarır; dönem (ısınma, sınav, bitti) |
 | `karabasan/sayfa.py`, `karabasan/panel.py` | Türkçe sonuç sayfası ve sunucusu (8080; `/`, `/veri.json`, `/saglik`). Beş ekran: ana ekran (gösterge halkası), botlar, işlemler, dersler (stop sonrası izleme), sınav; ekran listesi `sayfa.EKRANLAR`'dadır, biçim ve betik oradan üretilir. Sunucudan açılan hali tek bir satır içi betik taşır (ekran geçişi, dakikada bir yerinde tazeleme); `panel.py` izin başlığını (CSP) o betiğin özetinden üretir. Telegram'ın `/sayfa` ile yolladığı dosya betiksizdir, ekranlar alt alta görünür |
 | `karabasan/haberci.py` | Telegram: kurulum bildirimleri, günlük özet, susan bot uyarısı, yeni ders bildirimi, komutlar (`/dersler` dahil) |
+| `karabasan/defter.py`, `karabasan/defter_servisi.py`, `karabasan/defter_sayfa.py` | Emir defteri denemesi (BTC/USDT vadeli, ileriye dönük, sanal): her saniye herkese açık defteri okur (`/fapi/v1/depth`, 100 kademe), dakikada bir 1 dk mumları; 15 özellik (dengesizlik, mikro fiyat, duvarlar, son getiriler, oynaklık, RSI, hacim, destek / direnç) ile 5 / 15 dk sonrası için sırt regresyonu (sabit terimsiz, yalnız olgunlaşmış kayıttan, 48 saat pencere, 3 saat ısınma, 5 dk'da bir eğitim). Tahmin ≥ %0,15 ise sanal pozisyon (100 USDT, hedef = tahmin, stop aynı uzaklık, süre = ufuk, ufuk başına tek işlem). Kayıt `user_data/kayit/defter.sqlite` (8 gün). Docker servisi `defter`; sayfa `/defter` (panel), Telegram `/defter`. Botlardan bağımsız |
 | `user_data/strategies/karabasan_stratejileri.py` | Freqtrade bağlantı katmanı. Kural `borsa_dilimleri` istiyorsa o mumları motordan ister (`informative_pairs`, `dp.get_pair_dataframe`) ve kural motoruna aktarır; veri gelmezse boş tablo verir ve kayda bir kez yazar |
 | `araclar/yapilandirma_uret.py` | Bot yapılandırmalarını ve `docker-compose.yml`'i üretir |
 | `araclar/uyum_denemesi.sh`, `araclar/karsilastir.py` | Sunucudaki uyum denemesi |
@@ -180,7 +181,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 372 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 398 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -404,6 +405,29 @@ köprüleri kalabilir; boşa dinler, zararsız. `UYUM_SURUMU=9`.
 - Sıradaki iş Ahmet'le yeni bir strateji. Yeni strateji = yeni kural dosyası ve
   `BOTLAR`'ın sonuna yeni bot; önce 12 aylık testten geçsin (`YILLIK_SURUMU`
   artır), sonuç dört çeyreğin en az üçünde artı değilse Ahmet'e açıkça söyle.
+
+**Emir defteri denemesi (12 Ekim 2026, Ahmet'in isteğiyle).** Ahmet "yalnız
+BTC vadeli, alım ve satış; her saniye emir defterine bakıp 5 ve 15 dakika sonra
+fiyatın ne olacağını hacim, RSI, destek / direnç ile kestir, kazanç görürsen
+pozisyon aç; geçmişe dönük değil ileriye dönük test et; mevcut sayfaları bozmadan
+ayrı bir özet sayfası yap" dedi. Yapılan: `defter` servisi ve `/defter` sayfası
+(Yapı tablosunda). Mevcut botlara, sayfaya ve ayarlara dokunulmadı.
+- Tahmin için önceden yazılmış bir formül yok; model servisin kendi kaydından
+  öğrenir ve yalnız sonucu belli olmuş anlardan öğrenir (5. kural testleri
+  `test_defter.py`'de). Sabit eğilim terimi yok (yoksa son saatlerin ortalama
+  hareketini geleceğe taşıyordu; yapay piyasada bu yüzden "değişmez"den kötü çıktı).
+- Yapay piyasada (defterde gerçekten ipucu olan) model yeterli kayıttan sonra
+  "değişmez" tahmininden iyi çıkıyor; bu yalnız düzeneğin çalıştığını gösterir.
+  Gerçek BTC defterinde 5-15 dakikalık bir ipucu olup olmadığı bilinmiyor;
+  Ahmet'e "kendi başına kazandıracağının bir garantisi yok" dendi. Sayfadaki
+  ölçüt: tahmin hatası "değişmez" hatasından küçük ve yön isabeti %50'den
+  belirgin büyük mü? Değilse işlemlerin sonucu şanstır.
+- Sunucuda doğrulanacak: `fapi.binance.com/fapi/v1/depth`'e saniyede bir
+  ulaşılabilmesi (ağırlık 5, dakikada 300; sınır 2.400), kapsayıcının
+  `kayit/defter.sqlite` yazabilmesi, panel ve habercinin aynı dosyayı salt
+  okunur açabilmesi (WAL). Sorun olursa `docker compose logs defter`.
+- Sonuç sayfası sunucusu yalnız Tailscale ile açılır ve Ahmet henüz onaylamadı;
+  bu yüzden Telegram `/defter` hem kısa özeti hem sayfayı dosya olarak yollar.
 
 Sıradaki işler, öncelik sırasıyla:
 

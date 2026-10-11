@@ -295,7 +295,7 @@ Birazdan gelecek raporu Claude'a ilet. Claude düzeltmeyi gönderince sunucu 5 d
         DEGISEN="$(git diff --name-only "$ONCEKI_SURUM" HEAD 2> /dev/null || true)"
         # Sayfa ve haberci kodu değiştiyse yalnız onlar yeniden başlar.
         if echo "$DEGISEN" | grep -Eq '^karabasan/'; then
-            docker compose restart kayitci panel haberci
+            docker compose restart kayitci panel haberci defter
         fi
         # Botlar yalnız kendilerini ilgilendiren bir dosya değiştiyse yeniden başlar.
         if echo "$DEGISEN" | grep -Eq '^(karabasan/(stratejiler/|kural\.py|gostergeler\.py|botlar\.py)|user_data/strategies/)'; then

@@ -132,6 +132,7 @@ ekranda "henüz canlı ölçülmüyor" yazar.
 | `/uyum` | Uyum denemesi raporu |
 | `/olcum` | Karabasan geçmiş ölçümü: stratejilerin sonucu piyasa durumuna ve stop genişliğine göre |
 | `/yillik` | 12 aylık geçmiş testi: her bot son bir yılda ne yapardı, dört çeyrek ayrı |
+| `/defter` | Emir defteri denemesi: BTC/USDT tahminleri ve sanal işlemlerin özeti, ayrıca tek sayfalık dosya |
 | `/dersler` | Stop sonrası izleme: stop daha geniş olsaydı ne olurdu, bot başına |
 | `/kurulum` | Kurulum kaydı |
 | `/sinav_baslat` | 30 günlük sınavın saatini başlatır (onay ister) |
@@ -201,6 +202,34 @@ Her botun 1.000 USDT sanal bakiyesi vardır, işlem başına 50 USDT kullanır,
 aynı anda en fazla 20 pozisyon açar. Tüm emirler piyasa emridir ve karşı
 taraftan fiyatlanır; bu, sonuçları olduğundan iyi göstermemek için seçilmiş
 kötümser bir varsayımdır.
+
+### Emir defteri denemesi (BTC/USDT vadeli)
+
+12 Ekim 2026'da Ahmet'in fikriyle eklendi. Botlardan ve stratejilerden ayrı
+çalışan bir servistir (`defter`). Yalnız ileriye dönük çalışır, çünkü geçmiş
+emir defteri verisi elde yok.
+
+- Her saniye Binance'in herkese açık emir defterini okur: en iyi 100 alış ve
+  100 satış kademesi.
+- Defterden alış / satış dengesizliği, en büyük emirlerin (duvarların)
+  uzaklığı ve alış-satış makası çıkarılır. Son fiyat hareketi, 1 dakikalık
+  mumlardan RSI, hacim ve son bir saatin dibi / tepesi (destek / direnç) eklenir.
+- Bu sayılardan fiyatın 5 ve 15 dakika sonra yüzde kaç değişeceği tahmin
+  edilir. Tahmin, servisin kendi kaydından öğrenen basit bir modelle yapılır.
+  Model en az 3 saatlik kayıt birikmeden tahmin vermez.
+- Tahmin edilen hareket %0,15'ten büyükse (gidiş-dönüş komisyon %0,10 ve pay)
+  sanal pozisyon açılır. Alım ya da açığa satış; 1 kat; 100 USDT. Hedef
+  tahmin edilen fiyattır, stop aynı uzaklıkta ters yöndedir. Süre dolunca o
+  anki fiyattan kapanır. Her ufukta aynı anda tek işlem açık olur.
+- Başarılı işlem: komisyon düşüldükten sonra artıda kapanan. 1 kat kaldıraçta
+  tasfiye (likidasyon) için fiyatın yaklaşık %100 ters gitmesi gerekir. Bu
+  yüzden her işlem için "en kötü an" da kaydedilir: fiyat en çok ne kadar
+  ters gitti.
+
+Sonuçlar sonuç sayfasında `/defter` adresinde ve Telegram'da `/defter` ile
+görülür. Sayfa, modelin "fiyat değişmez" tahmininden iyi olup olmadığını da
+gösterir. Kayıt: `user_data/kayit/defter.sqlite`, saniyelik kayıtlar 8 gün
+saklanır. Borsaya hiçbir emir gönderilmez, anahtar kullanılmaz.
 
 ### Smartmoney (SM ve SMK)
 

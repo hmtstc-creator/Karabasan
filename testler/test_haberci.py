@@ -269,6 +269,24 @@ class ServisTesti(Taban):
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/yillik"))
         self.assertIn("ÖZET".encode("utf-8"), self.sahte.belgeler()[-1])
 
+    def test_defter_komutu(self):
+        self._sahip_ol()
+        self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/defter"))
+        self.assertIn("henüz kayıt yazmadı", self.sahte.gonderilenler()[-1])
+        from karabasan import defter as d
+        from karabasan.defter_servisi import Servis
+
+        yol = self.klasor / "kayit" / "defter.sqlite"
+        servis = Servis(yol, getir_defter=lambda: ([(100.0, 1.0)], [(100.1, 1.0)]), getir_mumlar=lambda: [])
+        import time as _t
+
+        servis.adim(int(_t.time()))
+        servis.kapat()
+        self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/defter"))
+        self.assertIn("İşlem: 0 (başarılı 0, başarısız 0", self.sahte.gonderilenler()[-1])
+        self.assertIn("Emir defteri denemesi".encode("utf-8"), self.sahte.belgeler()[-1])
+        self.assertTrue(d.UFUKLAR)
+
     def test_bilinmeyen_komut(self):
         self._sahip_ol()
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/sat"))

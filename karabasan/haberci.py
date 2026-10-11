@@ -347,6 +347,7 @@ YARDIM = """Karabasan komutları
 /uyum  Uyum denemesi raporu
 /olcum  Karabasan geçmiş ölçümü (stratejilerin duruma göre sonucu)
 /yillik  12 aylık geçmiş testi (her bot son bir yılda ne yapardı)
+/defter  Emir defteri denemesi: BTC tahminleri ve sanal işlemler (özet ve sayfa)
 /dersler  Stop sonrası izleme: stop daha geniş olsaydı ne olurdu
 /kurulum  Kurulum kaydı
 /sinav_baslat  30 günlük sınavın saatini başlatır
@@ -435,6 +436,16 @@ class Servis:
         if ad == "/olcum":
             return self._dosya("karabasan_gecmis.txt", "Karabasan geçmiş ölçümü", 2000,
                                "Karabasan geçmiş ölçümü henüz çalışmadı.")
+        if ad == "/defter":
+            from . import defter_sayfa
+
+            ozet = defter_sayfa.ozet_cikar(self.klasor / "kayit" / "defter.sqlite")
+            yanit = [("mesaj", defter_sayfa.metin_ozeti(ozet))]
+            if ozet.get("var"):
+                yanit.append(("belge", "emir-defteri.html",
+                              defter_sayfa.html_uret(ozet, yenile_saniye=0).encode("utf-8"),
+                              "Emir defteri denemesi. Dosyaya dokun, tarayıcıda aç."))
+            return yanit
         if ad == "/yillik":
             return self._dosya("yillik_test.txt", "12 aylık geçmiş testi", 2000,
                                "12 aylık geçmiş testi henüz çalışmadı.")

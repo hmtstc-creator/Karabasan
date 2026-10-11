@@ -205,6 +205,20 @@ def compose_metni() -> str:
         *GUNLUK_SINIRI,
         "",
     ]
+    # Emir defteri denemesi: BTC/USDT vadeli defterini her saniye okur, tahmin ve
+    # sanal işlem kaydeder (karabasan.defter_servisi). Yalnız herkese açık veri; emir yok.
+    satirlar += [
+        "  defter:",
+        f"    image: {GORUNTU}",
+        "    container_name: kb-defter",
+        "    restart: unless-stopped",
+        "    volumes:",
+        "      - ./user_data:/freqtrade/user_data",
+        "      - ./karabasan:/freqtrade/karabasan:ro",
+        "    entrypoint: [\"python3\", \"-m\", \"karabasan.defter_servisi\"]",
+        *GUNLUK_SINIRI,
+        "",
+    ]
     # Türkçe sonuç sayfası. Kayıtları yalnız okur.
     satirlar += [
         "  panel:",
