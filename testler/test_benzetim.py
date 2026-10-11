@@ -88,6 +88,23 @@ class BenzetimTestleri(unittest.TestCase):
         islemler = benzet(df, kural(sure=600), komisyon_yuzde=0.0)
         self.assertEqual(len(islemler), 1)
 
+    def test_hedef_mumundaki_sinyal_sonraki_mumda_islem_acar(self):
+        """Hazır motor gibi: hedef mumun içinde gerçekleşir, o mumun sinyali hemen kullanılır."""
+        df = tablo([DUZ, DUZ, (100, 101.5, 99.9, 101.2), (101.2, 101.3, 101.1, 101.2), DUZ, DUZ],
+                   [0, 2])
+        islemler = benzet(df, kural(), komisyon_yuzde=0.0)
+        self.assertEqual([i["neden"] for i in islemler[:1]], ["kar_hedefi"])
+        self.assertEqual(len(islemler), 2)
+        self.assertEqual(islemler[1]["giris_zamani"], df["date"].iloc[3])
+
+    def test_sure_asimi_mumundaki_sinyal_bir_mum_bekler(self):
+        """Süre aşımı mumun kapanışında; motor bir sonraki mumun açılışında kapatır, o mumda girmez."""
+        df = tablo([DUZ] * 8, [0, 2, 3])
+        islemler = benzet(df, kural(sure=10), komisyon_yuzde=0.0)
+        self.assertEqual(islemler[0]["neden"], "sure_asimi")
+        self.assertEqual(islemler[0]["cikis_zamani"], df["date"].iloc[3])   # 2. mumun kapanışı
+        self.assertEqual(islemler[1]["giris_zamani"], df["date"].iloc[4])   # 2'nin değil, 3'ün sinyali
+
     def test_stop_sonrasi_bekleme(self):
         mumlar = [DUZ] * 30
         mumlar[2] = (100, 100.1, 98.5, 100)   # ilk işlem stop olur

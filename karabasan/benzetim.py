@@ -8,6 +8,7 @@ Varsayımlar bilerek kötümserdir:
 - Sinyal bir mumun kapanışında oluşur, işlem BİR SONRAKİ mumun açılışında açılır.
 - Aynı mumda hem stop hem hedef görülürse stop önce gerçekleşmiş sayılır.
 - Stop ve süre aşımı çıkışlarına kayma uygulanır; hedef limit emirdir, kaymaz.
+- Hedef ya da stopla kapanan mumun sinyali, bir sonraki mumda yeni işlem açabilir.
 """
 
 from __future__ import annotations
@@ -115,6 +116,11 @@ def benzet(
         )
         if neden == "zarar_durdur" and bekleme > pd.Timedelta(0):
             kilit_bitis = cikis_zamani + bekleme
-        # Aynı paritede aynı anda tek işlem: çıkış mumundan sonra devam et.
-        i = j + 1
+        # Aynı paritede aynı anda tek işlem. Hedef ve stop mumun içinde gerçekleşir;
+        # o mumun kapanışındaki sinyal bir sonraki mumda yeni işlem açabilir (hazır motor
+        # da böyle yapar: önce girişe, sonra çıkışa bakar). Süre aşımı mumun kapanışında
+        # olur; motor onu bir sonraki mumun açılışında kapatır, o mumda yeni giriş olmaz.
+        # 12 Ekim 2026'ya kadar burada hep j + 1 vardı: art arda sinyal veren S2'de motor
+        # benzetimden 26 işlem fazla saydı (uyum denemesi 7, işlem işlem eşleştirme).
+        i = j + 1 if neden == "sure_asimi" else j
     return islemler

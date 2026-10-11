@@ -179,7 +179,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 363 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 365 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -348,11 +348,33 @@ spot botların da vadeliye taşınmasını istedi. Yapılan:
 - Ahmet TradingView'den kod verebileceğini söyledi; verirse kavramı yeniden
   yaz, lisansı kopyalamaya izin vermiyorsa kodu kopyalama (Smartmoney'deki gibi).
 
+**%0,8 / %3 ayarının ilk gerçek sonucu olumsuz (11 Ekim 2026; uyum 7 ve
+geçmiş ölçüm 5, sunucudaki Claude'un özeti).** On iki botun on biri ekside;
+yalnız S4 artıda (+0,7 USDT). Kazanma oranları %33–73, başa baş için gereken
+%81,6'nın çok altında. Çıkışların çoğu süre aşımı: fiyat süre içinde ne %0,8
+lehe ne %3 aleyhe gidiyor. Ahmet'e söylendi. Ayar değiştirmeden önce Ahmet'e
+sor; sınav başlamadı ama her değişiklik yeni bir geçmişe ezber denemesidir.
+
+- s2/s3/s4-vadeli'nin 07:40–07:57 UTC sessizliği hata değildi: kapsayıcılar
+  yeni adlarıyla 07:56'da ilk kez oluşturuldu. Bellek bitmedi (OOM yok,
+  yeniden başlama 0). Takas 2 GB açık ve kullanılmıyor (doğrulandı); 12 bot
+  açıkken kullanılabilir bellek ~1,3 GB.
+- İşlem işlem eşleştirme (uyum 7): 12 botun 11'inde motor ile benzetim birebir
+  ya da ±2 işlem. S2'de 26 "yalnız motor" işlem vardı, benzetimde o an açık işlem
+  yoktu. Neden bulundu ve düzeltildi: hazır motor bir mumda önce girişe, sonra
+  çıkışa bakar; hedef ya da stopla mumun içinde kapanan işlemden sonra o mumun
+  sinyaliyle bir sonraki mumda yeniden girer. Benzetim o sinyali atlıyordu
+  (`i = j + 1`). S2 art arda kırılım sinyali verdiği ve %0,8 hedef çoğu kez
+  giriş mumunda görüldüğü için fark orada büyüdü. Süre aşımında motor bir
+  sonraki mumun açılışında kapatır ve o mumda girmez; benzetim bunu korur.
+  Açığa satıştaki eski ~%10 farkın da büyük ölçüde bu olduğu tahmin ediliyor;
+  doğrulanmadı. `UYUM_SURUMU=8` ile yeniden karşılaştırılacak; S2'de "yalnız
+  motor" sayısı 0'a yakın inmeli.
+
 Sıradaki işler, öncelik sırasıyla:
 
-0. Yedinci uyum denemesi ve beşinci geçmiş ölçüm: %0,8 / %3 ayarıyla on iki
-   botun sonucu ve S7 / S7K'nın ilk gerçek sonucu. Kazanma oranını %81,6 başa
-   baş eşiğiyle karşılaştırarak Ahmet'e rakamla söyle. Ayrıca altıncı uyum denemesi ve dördüncü geçmiş ölçüm raporlarında SM / SMK'ya
+0. Sekizinci uyum denemesinde eşleştirmeye bak: S2'nin "yalnız motor" sayısı
+   0'a yakın inmeli, açığa satış botları da birebir tutmalı. Ayrıca altıncı uyum denemesi ve dördüncü geçmiş ölçüm raporlarında SM / SMK'ya
    bak: motor günlük veriyi aldı mı, işlem sayıları benzetimle tutuyor mu,
    ilk gerçek sonuç ne? Sonucu Ahmet'e rakamla ve "tek dönem" uyarısıyla söyle.
 
@@ -365,10 +387,8 @@ Sıradaki işler, öncelik sırasıyla:
 3. 12 aylık geçmiş testi ve raporu (sonucu `user_data/gecmis_test.json`'a
    yazılır; 7. ölçüt bunu okur). S3 / S4'ün Kırmızı'da kazanması burada da
    görülüyor mu, bak.
-4. Beşinci uyum denemesinin eşleştirme bölümünü oku (sunucudaki Claude
-   okuyup iletebilir): açığa satıştaki %10 fazla işlemin nedeni benzetimde mi,
-   motorda mı? Benzetimde bir hata çıkarsa düzelt; motorun bilinen bir
-   davranışıysa benzetime ekle ya da burada not et.
+4. (Büyük ölçüde bitti: neden benzetimdeki yeniden giriş kuralıydı, düzeltildi.
+   8. uyum denemesinde doğrula.)
 5. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
 6. Sonuç sayfasına Karabasan durumu ve filtre hunisi (strateji ayrıntıları 11 Ekim'de eklendi; ana ekranda
    Karabasan için "henüz canlı ölçülmüyor" yazan bir şerit var, 1. iş bitince gerçek durumla değişecek).
