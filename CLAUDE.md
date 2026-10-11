@@ -372,6 +372,20 @@ sor; sınav başlamadı ama her değişiklik yeni bir geçmişe ezber denemesidi
   doğrulanmadı. `UYUM_SURUMU=8` ile yeniden karşılaştırılacak; S2'de "yalnız
   motor" sayısı 0'a yakın inmeli.
 
+**12 aylık geçmiş testinin sonucu: hiçbir stratejide kenar yok (12 Ekim 2026;
+11.10.2025–11.10.2026, %0,8 / %3, ETH SOL XRP DOGE, bağımsız benzetim).**
+On iki botun on ikisi de yıl sonunda ekside; hiçbiri dört çeyreğin üçünde
+artıda değil (en iyisi S4: 2 / 4). Toplam −1.053 USDT (12 × 1.000 USDT
+bakiyede yaklaşık −%8,8). En az kaybeden SMK −26,69, SM −30,17, S4 −31,12;
+en çok S6K −164,08, S3 −135,64, S5K −129,82. En büyük düşüş %3,2–16,8.
+Kazanma %39–63, başa baş %81,6. İşlem başına net −%0,04 ile −%0,14; gidiş
+dönüş komisyon %0,10 olduğundan komisyon öncesi sonuç sıfıra yakın: girişler
+yazı turadan iyi değil, kayıp çoğunlukla komisyon. Çıkışların yarıdan fazlası
+süre aşımı. "Stop = hedef" sütunu da hepsini ekside bırakıyor (yalnız bilgi).
+Rapor: `user_data/logs/yillik_test.txt`. Ahmet'e söylendi; gerçek paraya geçme
+önerilmedi. Bu stratejilerin ayarıyla oynamak sonucu kurtarmaz (her ayar yeni
+bir ezber denemesi); yön kararı Ahmet'in.
+
 Sıradaki işler, öncelik sırasıyla:
 
 0. Sekizinci uyum denemesinde eşleştirmeye bak: S2'nin "yalnız motor" sayısı
@@ -385,11 +399,8 @@ Sıradaki işler, öncelik sırasıyla:
    söyledi; canlı ölçüm bunu gerçek dominans ve TOTAL2 verisiyle sınar.
 2. Sanal işlemlerin açıldıkları andaki Karabasan durumu ve filtre puanlarıyla
    etiketlenmesi (botların SQLite kayıtları ile Karabasan kaydının birleşimi).
-3. 12 aylık geçmiş testi YAZILDI (12 Ekim 2026, Ahmet seçti), `YILLIK_SURUMU=1`
-   ile sunucuda ilk kez çalışacak. Raporu oku: kaç bot yıl sonunda artıda, kaç
-   tanesi dört çeyreğin en az üçünde artıda? Ahmet'e rakamla söyle; "stop =
-   hedef" sütunu ayar önerisi değildir. Karabasan durumuna göre ayırma bu
-   testte yok (S3 / S4'ün Kırmızı'da kazanması sorusu hâlâ açık).
+3. 12 aylık geçmiş testi BİTTİ (yukarıda): 12 / 12 ekside. Açık soru: Karabasan
+   durumuna göre ayırma bu testte yok (S3 / S4'ün Kırmızı'da kazanması).
 4. (Büyük ölçüde bitti: neden benzetimdeki yeniden giriş kuralıydı, düzeltildi.
    8. uyum denemesinde doğrula.)
 5. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
