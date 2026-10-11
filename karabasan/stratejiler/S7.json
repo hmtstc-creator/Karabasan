@@ -1,0 +1,71 @@
+{
+  "kod": "S7",
+  "ad": "Yükselişte aşırı düşüşü al (RSI 2)",
+  "yon": "alim",
+  "aciklama": "1 saatlik yükseliş trendinde ve fiyat 15 dakikalık 200 mumluk ortalamanın üstündeyken, 2 mumluk RSI 10'un altına inince (kısa, sert geri çekilme) alır; küçük bir tepki yükselişini hedefler.",
+  "zaman_dilimi": "15m",
+  "ust_zaman_dilimi": "1h",
+  "gostergeler": {
+    "kapanis_1s": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "ust"
+    },
+    "ema50_1s": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "ust"
+    },
+    "ema50_1s_egim": {
+      "tur": "degisim_yuzde",
+      "kaynak": "ema50_1s",
+      "periyot": 6,
+      "dilim": "ust"
+    },
+    "sma200": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 200
+    },
+    "rsi2": {
+      "tur": "rsi",
+      "periyot": 2
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "kapanis_1s",
+        "islem": ">",
+        "sag": "ema50_1s"
+      },
+      {
+        "sol": "ema50_1s_egim",
+        "islem": ">",
+        "sag": 0
+      },
+      {
+        "sol": "kapanis",
+        "islem": ">",
+        "sag": "sma200"
+      },
+      {
+        "sol": "rsi2",
+        "islem": "<",
+        "sag": 10
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 0.8,
+    "zarar_durdur_yuzde": 3.0,
+    "sure_asimi_dakika": 240
+  },
+  "izinli_durumlar": [
+    "YESIL",
+    "SARI"
+  ],
+  "bekleme_dakika": 240
+}

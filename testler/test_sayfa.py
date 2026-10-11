@@ -71,11 +71,11 @@ class SayfaTesti(unittest.TestCase):
         html = sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI))
         self.assertIn("Sınavın 12. günü.", html)
         self.assertIn("18 gün kaldı", html)
-        for bot in ("s1-spot", "s5k-vadeli", "s6-vadeli"):
+        for bot in ("s1-vadeli", "s5k-vadeli", "s7-vadeli"):
             self.assertIn(bot, html)
         # Botlar düz adlarıyla görünür.
         self.assertIn("Yükselişte düşüşü al", html)
-        self.assertIn("Likidite avı sonrası alım (akıllı para + RSI)", html)
+        self.assertIn("Yükselişte aşırı düşüşü al (RSI 2)", html)
         self.assertEqual(html.count('class="gun gecti'), 11)
         self.assertEqual(html.count('class="gun bugun'), 1)
 
@@ -115,7 +115,7 @@ class SayfaTesti(unittest.TestCase):
 
         def kayit(k, fark):
             zaman = (SIMDI - timedelta(days=3, minutes=-k)).strftime("%Y-%m-%dT%H:%M:%SZ")
-            return {"bot": "s2-spot", "kod": "S2", "parite": "SOL/USDT", "yon": "alim",
+            return {"bot": "s2-vadeli", "kod": "S2", "parite": "SOL/USDT", "yon": "alim",
                     "giris_zamani": zaman, "cikis_zamani": zaman, "gercek_net_yuzde": -1.15,
                     "hedefi_gordu": fark > 0, "en_kotu_yuzde": -1.6,
                     "alternatif": {c: {"sonuc": "hedef" if fark > 0 else "stop", "net_yuzde": -1.15 + fark}
@@ -124,9 +124,9 @@ class SayfaTesti(unittest.TestCase):
         with tempfile.TemporaryDirectory() as gecici:
             klasor = sahte_sinav_klasoru(Path(gecici) / "veri", SIMDI)
             ss.dosya_yaz(ss.dosya_yolu(klasor), {
-                "surum": 1, "basarisiz": {"s2-spot#7": 3}, "son_tur": "2026-11-02T09:20:00Z",
-                "islemler": {f"s2-spot#{900 + k}": kayit(k, 2.7 if k % 3 else -0.5) for k in range(12)},
-                "dersler": [{"zaman": "2026-11-01T08:00:00Z", "bot": "s1-spot", "kod": "S1",
+                "surum": 1, "basarisiz": {"s2-vadeli#7": 3}, "son_tur": "2026-11-02T09:20:00Z",
+                "islemler": {f"s2-vadeli#{900 + k}": kayit(k, 2.7 if k % 3 else -0.5) for k in range(12)},
+                "dersler": [{"zaman": "2026-11-01T08:00:00Z", "bot": "s1-vadeli", "kod": "S1",
                              "ad": "Yükselişte düşüşü al", "karar": "yerinde", "carpan": None,
                              "stop_sayisi": 44, "metin": "Stop yerinde görünüyor. <b>örnek</b>"}],
             })
@@ -134,7 +134,7 @@ class SayfaTesti(unittest.TestCase):
         duz = " ".join(html.split())
         self.assertIn("12 stop izlendi; 8 tanesinde fiyat, işlemin süresi dolmadan kâr hedefini gördü.", duz)
         self.assertIn("1 stop için fiyat verisi alınamadı; hesaba girmiyor.", duz)
-        self.assertIn("Stop 1,5 kat geniş olsaydı (%1,5)", duz)
+        self.assertIn("Stop 1,5 kat geniş olsaydı (%4,5)", duz)
         self.assertIn("8 tanesi hedefe ulaşır, 4 tanesi yine stop olur, 0 tanesinde süre dolardı", duz)
         # 12 stop karar için az: fark soluk yazılır, artı diye renklendirilmez.
         self.assertIn('<span class="secenek-net erken">+9,80', duz)        # (8×2,7 − 4×0,5) × 50 / 100
@@ -179,7 +179,8 @@ class SayfaTesti(unittest.TestCase):
     def test_strateji_ayrintisi_bot_kartinda(self):
         html = sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI))
         self.assertIn("MACD yukarı kesip", html)                      # S5'in açıklaması
-        self.assertIn("<dt>Kâr hedefi</dt><dd>%0,9</dd>", html)        # S5'in hedefi
+        self.assertIn("<dt>Kâr hedefi</dt><dd>%0,8</dd>", html)        # bütün botlarda hedef
+        self.assertIn("<dt>Stop</dt><dd>%3</dd>", html)
         self.assertIn("Tasarlandığı piyasa durumu: Kırmızı, Sarı.", html)
 
     def test_karabasan_olculmedigi_acikca_yazar(self):

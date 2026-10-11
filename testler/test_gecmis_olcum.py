@@ -201,11 +201,11 @@ class RaporTesti(unittest.TestCase):
         self.assertIn("ayarlanmamalıdır", self.metin)
 
     def test_izinli_durum_isaretlenir(self):
-        s1 = self.metin.split("S1 spot:")[1].split("S2 spot:")[0]
+        s1 = self.metin.split("S1 vadeli:")[1].split("S2 vadeli:")[0]
         self.assertIn("Yeşil *", s1)
         self.assertNotIn("Sarı *", s1)
         self.assertIn("Yalnız izinli (Yeşil)", s1)
-        s1k = self.metin.split("S1K vadeli:")[1].split("S2K vadeli:")[0]
+        s1k = self.metin.split("S1K vadeli:")[1].split("S7K vadeli:")[0]
         self.assertIn("Kırmızı *", s1k)
         self.assertIn("coinler: ETH, SOL, XRP, DOGE", s1k)   # vadelide BTC yok
 
@@ -230,7 +230,7 @@ class RaporTesti(unittest.TestCase):
     def test_durumlarin_toplami_hepsine_esit(self):
         import re
 
-        s2 = self.metin.split("S2 spot:")[1].split("S3 spot:")[0]
+        s2 = self.metin.split("S2 vadeli:")[1].split("S3 vadeli:")[0]
         sayilar = {}
         for satir in s2.splitlines():
             e = re.match(r"\s+(Yeşil|Sarı|Kırmızı|Siyah|Hepsi)[^\d-]*\s(\d+)\s", satir)
@@ -245,13 +245,13 @@ class RaporTesti(unittest.TestCase):
 
         bolum = self.metin.split("STOP GENİŞLİĞİ:")[1]
         self.assertIn("geçmişe ezberdir", bolum)
-        s1 = bolum.split("S1 spot:")[1].split("S2 spot:")[0]
+        s1 = bolum.split("S1 vadeli:")[1].split("S2 vadeli:")[0]
         satirlar = [x for x in s1.splitlines() if re.match(r"\s+%", x)]
-        self.assertEqual([x.split()[0] for x in satirlar], ["%1", "%1,5", "%2", "%3"])
+        self.assertEqual([x.split()[0] for x in satirlar], ["%3", "%4,5", "%6", "%9"])
         self.assertIn("(şimdiki)", satirlar[0])
         self.assertIn("Sonuç: ", s1)
         # Şimdiki stopun satırı, yukarıdaki süzgeçsiz sonuçla aynı işlem sayısını ve neti verir.
-        ust = self.metin.split("S1 spot:")[1].split("S2 spot:")[0]
+        ust = self.metin.split("S1 vadeli:")[1].split("S2 vadeli:")[0]
         hepsi = next(x for x in ust.splitlines() if "Hepsi (süzgeçsiz)" in x).split()
         simdiki = satirlar[0].split()
         self.assertEqual(simdiki[2], hepsi[2])        # işlem sayısı
@@ -265,8 +265,8 @@ class RaporTesti(unittest.TestCase):
 
         kural = kural_yukle("S4")
         kopya = self.modul.genis_stoplu(kural, 1.5)
-        self.assertAlmostEqual(kopya["cikis"]["zarar_durdur_yuzde"], 1.2)
-        self.assertEqual(kural["cikis"]["zarar_durdur_yuzde"], 0.8)            # asıl kural değişmedi
+        self.assertAlmostEqual(kopya["cikis"]["zarar_durdur_yuzde"], 4.5)
+        self.assertEqual(kural["cikis"]["zarar_durdur_yuzde"], 3.0)            # asıl kural değişmedi
         self.assertEqual({k: v for k, v in kopya.items() if k != "cikis"},
                          {k: v for k, v in kural.items() if k != "cikis"})
         self.assertEqual(kopya["cikis"]["kar_hedefi_yuzde"], kural["cikis"]["kar_hedefi_yuzde"])

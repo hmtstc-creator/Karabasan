@@ -97,12 +97,12 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | --- | --- |
 | `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama) ve `piyasa_yapisi` (salınımlar, yapı kırılımı BOS / CHoCH, denge, emir blokları) |
 | `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme. Bir gösterge `dilim` ile istediği üst dilimde hesaplanır (`"ust"`, `"15m"`, `"1h"`, `"1d"`). `borsa_dilimleri` içindeki dilimlerin mumları taban mumlardan toplanmaz, `ek_veri` ile dışarıdan verilir (motor, araçlar); boş tablo "veri yok, sinyal de yok" demektir |
-| `karabasan/stratejiler/*.json` | On iki strateji: S1–S6 ve SM (alım), S1K, S2K, S5K, S6K ve SMK (açığa satış). Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
+| `karabasan/stratejiler/*.json` | On iki strateji: S1–S5, S7 ve SM (alım), S1K, S5K, S6K, S7K ve SMK (açığa satış). Çıkarılanlar (S2K, S6) `stratejiler/emekli/` altında durur; `tum_kurallar()` orayı okumaz. Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
 | `karabasan/puan.py` | Karabasan puanı, durum makinesi, vetolar |
 | `karabasan/filtre.py` | Filtre (Elek): dört katman, elenme nedenleri |
 | `karabasan/karne.py` | İşlem ölçümleri ve 30. günün yedi karar ölçütü |
 | `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim |
-| `karabasan/botlar.py` | On iki sanal botun listesi (4 spot alım, 8 vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
+| `karabasan/botlar.py` | On iki sanal botun listesi (12 Ekim 2026'dan beri hepsi 1 kat vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder; aynı döngüde stop sonrası izleme turunu çalıştırır |
 | `karabasan/stop_sonrasi.py` | Stop sonrası izleme: stop olan işlemi kendi süresi dolana kadar izler, stop 1,5 / 2 / 3 kat geniş olsaydı ne olurdu hesaplar, bot başına karar çıkarır (yetersiz, dar, yerinde, kararsız), karar değişince ders yazar. Mumlar Binance'in herkese açık, anahtarsız fiyat verisinden gelir. Çıktı: `user_data/kayit/stop_sonrasi.json`. **Hiçbir ayarı değiştirmez** |
 | `karabasan/gecmis_olcum.py` | Karabasan puanını geçmiş mumlardan geriye dönük hesaplar (yaklaşık: dominans ve TOTAL2 yerine altcoin vekili); işlemleri açıldıkları andaki durumla etiketler |
@@ -178,7 +178,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 354 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 358 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -322,9 +322,32 @@ aralığı + hacim. Çıkış %1,2 / %0,8 / 240 dk. Ayrıntı README'de.
   "susmuş" saymaz. Yoksa listeye bot eklenen her güncellemede, yeni bot
   sırası gelip açılana kadar (8-10 dakika) Ahmet'e yanlış alarm giderdi.
 
+**Hedef %0,8, stop %3, hepsi vadeli (12 Ekim 2026, Ahmet'in isteğiyle).**
+Ahmet "en başarısız iki botu değiştir, amacımız 1 kat vadelide %0,8 yakalamak"
+dedi; stopu kendisi %3 seçti (önerilen "stop hedeften geniş olmasın"dı) ve
+spot botların da vadeliye taşınmasını istedi. Yapılan:
+- On iki stratejinin hepsinde hedef %0,8, stop %3; süre aşımları aynen kaldı.
+  Başa baş için işlemlerin %81,6'sı kazanmalı (vadeli, gidiş-dönüş %0,1). Stop
+  sonrası ölçüm daha önce hiçbir stratejide "stop dar" dememişti; Ahmet'e söylendi.
+- S1–S4 spot'tan vadeliye taşındı (`s1-spot` → `s1-vadeli`; eski kayıtlar
+  sayılmaz, kapılar aynı). Vadelide BTC işlem görmüyor (50 USDT < en küçük tutar).
+- En çok kaybeden iki strateji çıkarıldı: S6 (motor −18,11 USDT) ve S2K
+  (benzetim −17,61 USDT). Yerlerine S7 / S7K geldi: 15 dakikalık, 1 saatlik
+  trend yönünde, 200 mumluk ortalamanın doğru yanında, 2 mumluk RSI aşırı uca
+  gidince (alımda < 10, satışta > 90) trend yönünde küçük tepkiyi hedefler
+  (Connors RSI(2) fikri). Yalnız yapay veride sınandı (rastgele yürüyüşte
+  %70 kazanma, komisyon kadar kayıp; yani kendiliğinden kâr yok).
+- `UYUM_SURUMU=7`, `ANALIZ_SURUMU=5`: sunucuda uyum denemesi ve geçmiş ölçüm
+  yeni ayarla yeniden çalışır; botlar yeniden başlar (ısınma, sınav başlamadı).
+- Tasarım raporu güncellendi (strateji tablosu ve 12 Ekim notu).
+- Ahmet TradingView'den kod verebileceğini söyledi; verirse kavramı yeniden
+  yaz, lisansı kopyalamaya izin vermiyorsa kodu kopyalama (Smartmoney'deki gibi).
+
 Sıradaki işler, öncelik sırasıyla:
 
-0. Altıncı uyum denemesi ve dördüncü geçmiş ölçüm raporlarında SM / SMK'ya
+0. Yedinci uyum denemesi ve beşinci geçmiş ölçüm: %0,8 / %3 ayarıyla on iki
+   botun sonucu ve S7 / S7K'nın ilk gerçek sonucu. Kazanma oranını %81,6 başa
+   baş eşiğiyle karşılaştırarak Ahmet'e rakamla söyle. Ayrıca altıncı uyum denemesi ve dördüncü geçmiş ölçüm raporlarında SM / SMK'ya
    bak: motor günlük veriyi aldı mı, işlem sayıları benzetimle tutuyor mu,
    ilk gerçek sonuç ne? Sonucu Ahmet'e rakamla ve "tek dönem" uyarısıyla söyle.
 

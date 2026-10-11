@@ -250,7 +250,7 @@ PY
     adim "9/10 Uyum denemesi"
     # Uyum denemesinin içeriği değişince bu sayı artırılır; sunucu denemeyi bir
     # sonraki güncellemede kendiliğinden yeniden çalıştırır.
-    local UYUM_SURUMU=6 SURUM
+    local UYUM_SURUMU=7 SURUM
     SURUM="$(git rev-parse HEAD 2> /dev/null || echo bilinmiyor)"
     if [ "$(cat user_data/logs/uyum_gecti 2> /dev/null)" != "surum-$UYUM_SURUMU" ]; then
         if [ "$ILK" -eq 1 ]; then
@@ -323,7 +323,7 @@ print(' '.join(b[0] for b in BOTLAR))")"
     # Tek seferlik ölçümler. İçeriği değişince sayı artırılır; sunucu bir sonraki
     # güncellemede yeniden çalıştırıp raporu yollar. Başarısız olursa botlar ve
     # kurulum etkilenmez.
-    local ANALIZ_SURUMU=4
+    local ANALIZ_SURUMU=5
     # Arşiv ilk kez kuruluyorsa eldeki son raporlar da içine konur.
     if [ ! -d user_data/arsiv ]; then
         arsivle user_data/logs/uyum_denemesi.txt "uyum_denemesi_mevcut.txt"

@@ -103,7 +103,7 @@ def kayit(k, fark15, fark2=None, fark3=None, hedef=True):
         return {"sonuc": "hedef" if fark > 0 else "stop", "net_yuzde": gercek + fark}
 
     return {
-        "bot": "s1-spot",
+        "bot": "s1-vadeli",
         "cikis_zamani": (T0 + timedelta(hours=k)).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "giris_zamani": (T0 + timedelta(hours=k, minutes=-30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "gercek_net_yuzde": gercek,
@@ -199,18 +199,18 @@ class OzetVeKararTesti(unittest.TestCase):
     def test_ders_yalniz_karar_degisince_yazilir(self):
         dar = {"kod": "dar", "carpan": 1.5, "metin": "x"}
         yerinde = {"kod": "yerinde", "carpan": None, "metin": "y"}
-        self.assertFalse(ss.ders_gerekli_mi([], "s1-spot", {"kod": "yetersiz", "carpan": None, "metin": ""}, T0))
-        self.assertTrue(ss.ders_gerekli_mi([], "s1-spot", dar, T0))
+        self.assertFalse(ss.ders_gerekli_mi([], "s1-vadeli", {"kod": "yetersiz", "carpan": None, "metin": ""}, T0))
+        self.assertTrue(ss.ders_gerekli_mi([], "s1-vadeli", dar, T0))
         # "Kararsız" tek başına ders değildir; yalnız önceki bir sonucu geri alıyorsa yazılır.
         kararsiz = {"kod": "kararsiz", "carpan": None, "metin": "z"}
-        self.assertFalse(ss.ders_gerekli_mi([], "s1-spot", kararsiz, T0))
-        dersler = [{"zaman": T0.strftime("%Y-%m-%dT%H:%M:%SZ"), "bot": "s1-spot", "karar": "dar", "carpan": 1.5}]
-        self.assertFalse(ss.ders_gerekli_mi(dersler, "s1-spot", dar, T0 + timedelta(days=3)))
-        self.assertTrue(ss.ders_gerekli_mi(dersler, "s2-spot", dar, T0))            # başka bot
+        self.assertFalse(ss.ders_gerekli_mi([], "s1-vadeli", kararsiz, T0))
+        dersler = [{"zaman": T0.strftime("%Y-%m-%dT%H:%M:%SZ"), "bot": "s1-vadeli", "karar": "dar", "carpan": 1.5}]
+        self.assertFalse(ss.ders_gerekli_mi(dersler, "s1-vadeli", dar, T0 + timedelta(days=3)))
+        self.assertTrue(ss.ders_gerekli_mi(dersler, "s2-vadeli", dar, T0))            # başka bot
         # Karar değişti ama son dersin üstünden bir gün geçmedi: sınırda gidip gelmesin.
-        self.assertFalse(ss.ders_gerekli_mi(dersler, "s1-spot", yerinde, T0 + timedelta(hours=5)))
-        self.assertTrue(ss.ders_gerekli_mi(dersler, "s1-spot", yerinde, T0 + timedelta(hours=25)))
-        self.assertTrue(ss.ders_gerekli_mi(dersler, "s1-spot", kararsiz, T0 + timedelta(hours=25)))
+        self.assertFalse(ss.ders_gerekli_mi(dersler, "s1-vadeli", yerinde, T0 + timedelta(hours=5)))
+        self.assertTrue(ss.ders_gerekli_mi(dersler, "s1-vadeli", yerinde, T0 + timedelta(hours=25)))
+        self.assertTrue(ss.ders_gerekli_mi(dersler, "s1-vadeli", kararsiz, T0 + timedelta(hours=25)))
 
 
 class TurTesti(unittest.TestCase):
@@ -220,13 +220,13 @@ class TurTesti(unittest.TestCase):
         self.gecici = tempfile.TemporaryDirectory()
         self.klasor = Path(self.gecici.name)
         (self.klasor / "isinma_baslangici.txt").write_text((T0 - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))
-        # S1: hedef %1,2, stop %1,0, süre 240 dakika. Giriş fiyatı 100.
+        # S1: hedef %0,8, stop %3, süre 240 dakika, vadeli (komisyon %0,05). Giriş fiyatı 100.
         self.islemler = [
             ("SOL/USDT", T0, T0 + timedelta(minutes=30), -1.15, "stop_loss", False),          # süresi doldu
             ("XRP/USDT", T0, T0 + timedelta(minutes=50), 1.05, "roi", False),                 # stop değil
             ("ADA/USDT", T0 + timedelta(hours=3), T0 + timedelta(hours=3, minutes=20), -1.15, "stop_loss", False),
         ]
-        sahte_islem_db(self.klasor / "db" / "s1-spot.sqlite", self.islemler)
+        sahte_islem_db(self.klasor / "db" / "s1-vadeli.sqlite", self.islemler)
         self.istekler = []
 
     def tearDown(self):
@@ -245,15 +245,15 @@ class TurTesti(unittest.TestCase):
         self.assertEqual(sayim, {"izlenen": 1, "bekleyen": 1, "basarisiz": 0, "yeni_ders": 0})
         self.assertEqual([i[0] for i in self.istekler], ["SOL/USDT"])
         parite, piyasa, bas, bitis = self.istekler[0]
-        self.assertEqual(piyasa, "spot")
+        self.assertEqual(piyasa, "vadeli")
         self.assertEqual(bitis, T0 + timedelta(minutes=240))             # giriş + stratejinin süresi
         self.assertLessEqual(bas, T0 + timedelta(minutes=30))            # stop anını kapsar
         veri = json.loads(ss.dosya_yolu(self.klasor).read_text(encoding="utf-8"))
-        k = veri["islemler"]["s1-spot#1"]
-        self.assertEqual((k["bot"], k["kod"], k["parite"]), ("s1-spot", "S1", "SOL/USDT"))
+        k = veri["islemler"]["s1-vadeli#1"]
+        self.assertEqual((k["bot"], k["kod"], k["parite"]), ("s1-vadeli", "S1", "SOL/USDT"))
         self.assertAlmostEqual(k["gercek_net_yuzde"], -1.15)
         self.assertEqual(k["alternatif"]["1.5"]["sonuc"], "hedef")
-        self.assertAlmostEqual(k["alternatif"]["1.5"]["net_yuzde"], 1.2 - 0.15)
+        self.assertAlmostEqual(k["alternatif"]["1.5"]["net_yuzde"], 0.8 - 0.1)
 
     def test_izlenen_islem_yeniden_istenmez(self):
         simdi = T0 + timedelta(hours=4, minutes=10)
@@ -279,10 +279,10 @@ class TurTesti(unittest.TestCase):
         self.assertEqual(len(cagri), 2 * ss.DENEME_SINIRI)      # iki stop, üçer deneme
         veri = ss.dosya_oku(ss.dosya_yolu(self.klasor))
         self.assertEqual(veri["islemler"], {})
-        self.assertEqual(veri["basarisiz"], {"s1-spot#1": 3, "s1-spot#3": 3})
+        self.assertEqual(veri["basarisiz"], {"s1-vadeli#1": 3, "s1-vadeli#3": 3})
 
     def test_botlarin_kayit_dosyasi_degismez(self):
-        yol = self.klasor / "db" / "s1-spot.sqlite"
+        yol = self.klasor / "db" / "s1-vadeli.sqlite"
         once = yol.read_bytes()
         ss.bir_tur(self.klasor, T0 + timedelta(hours=8), getir=self.getir, ara=0)
         self.assertEqual(yol.read_bytes(), once)
@@ -293,8 +293,8 @@ class TurTesti(unittest.TestCase):
             ("SOL/USDT", T0 + timedelta(minutes=10 * k), T0 + timedelta(minutes=10 * k + 5), -1.15, "stop_loss", False)
             for k in range(36)
         ]
-        (self.klasor / "db" / "s1-spot.sqlite").unlink()
-        sahte_islem_db(self.klasor / "db" / "s1-spot.sqlite", islemler)
+        (self.klasor / "db" / "s1-vadeli.sqlite").unlink()
+        sahte_islem_db(self.klasor / "db" / "s1-vadeli.sqlite", islemler)
         simdi = T0 + timedelta(hours=12)
         ilk = ss.bir_tur(self.klasor, simdi, getir=self.getir, ara=0)
         self.assertEqual((ilk["izlenen"], ilk["bekleyen"], ilk["yeni_ders"]), (ss.TUR_SINIRI, 36 - ss.TUR_SINIRI, 0))
@@ -305,14 +305,14 @@ class TurTesti(unittest.TestCase):
         veri = ss.dosya_oku(ss.dosya_yolu(self.klasor))
         self.assertEqual(len(veri["dersler"]), 1)
         ders = veri["dersler"][0]
-        self.assertEqual((ders["bot"], ders["kod"], ders["karar"], ders["stop_sayisi"]), ("s1-spot", "S1", "dar", 36))
+        self.assertEqual((ders["bot"], ders["kod"], ders["karar"], ders["stop_sayisi"]), ("s1-vadeli", "S1", "dar", 36))
         self.assertEqual(ders["ad"], "Yükselişte düşüşü al")
 
     def test_ozet_sayfaya_gider(self):
         simdi = T0 + timedelta(hours=8)
         ss.bir_tur(self.klasor, simdi, getir=self.getir, ara=0)
         ozet = sonuc.genel_ozet(self.klasor, simdi)
-        s1 = next(b for b in ozet["botlar"] if b["bot"] == "s1-spot")
+        s1 = next(b for b in ozet["botlar"] if b["bot"] == "s1-vadeli")
         self.assertEqual(s1["stop_sonrasi"]["stop_sayisi"], 2)
         self.assertEqual(s1["stop_sonrasi"]["hedefi_goren"], 2)
         self.assertEqual(s1["stop_sonrasi"]["izlenmeyi_bekleyen"], 0)
@@ -325,7 +325,7 @@ class TurTesti(unittest.TestCase):
 
     def test_izleme_dosyasi_yokken_ozet_bos_gelir(self):
         ozet = sonuc.genel_ozet(self.klasor, T0 + timedelta(hours=8))
-        s1 = next(b for b in ozet["botlar"] if b["bot"] == "s1-spot")
+        s1 = next(b for b in ozet["botlar"] if b["bot"] == "s1-vadeli")
         self.assertEqual(s1["stop_sonrasi"]["stop_sayisi"], 0)
         self.assertEqual(s1["stop_sonrasi"]["izlenmeyi_bekleyen"], 2)
 

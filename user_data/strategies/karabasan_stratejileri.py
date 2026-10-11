@@ -3,7 +3,7 @@
 Burada işlem mantığı YOKTUR. Mantık karabasan/ paketindedir ve orada
 test edilir; bu dosya yalnız o mantığı motorun beklediği biçime çevirir.
 
-Her sanal bot için bir sınıf vardır (S1Spot, S1KVadeli, SMVadeli ...).
+Her sanal bot için bir sınıf vardır (S1Vadeli, S1KVadeli, SMVadeli ...).
 Sınıfın kâr hedefi, stopu, zaman dilimi ve yönü kural dosyasından gelir:
 karabasan/stratejiler/<kod>.json
 
@@ -185,28 +185,28 @@ class KarabasanTaban(IStrategy):
         return 1.0
 
 
-class S1Spot(KarabasanTaban):
-    kural_kodu, piyasa = "S1", "spot"
+class S1Vadeli(KarabasanTaban):
+    kural_kodu, piyasa = "S1", "vadeli"
 
 
-class S2Spot(KarabasanTaban):
-    kural_kodu, piyasa = "S2", "spot"
+class S2Vadeli(KarabasanTaban):
+    kural_kodu, piyasa = "S2", "vadeli"
 
 
-class S3Spot(KarabasanTaban):
-    kural_kodu, piyasa = "S3", "spot"
+class S3Vadeli(KarabasanTaban):
+    kural_kodu, piyasa = "S3", "vadeli"
 
 
-class S4Spot(KarabasanTaban):
-    kural_kodu, piyasa = "S4", "spot"
+class S4Vadeli(KarabasanTaban):
+    kural_kodu, piyasa = "S4", "vadeli"
 
 
 class S1KVadeli(KarabasanTaban):
     kural_kodu, piyasa = "S1K", "vadeli"
 
 
-class S2KVadeli(KarabasanTaban):
-    kural_kodu, piyasa = "S2K", "vadeli"
+class S7KVadeli(KarabasanTaban):
+    kural_kodu, piyasa = "S7K", "vadeli"
 
 
 class S5Vadeli(KarabasanTaban):
@@ -217,8 +217,8 @@ class S5KVadeli(KarabasanTaban):
     kural_kodu, piyasa = "S5K", "vadeli"
 
 
-class S6Vadeli(KarabasanTaban):
-    kural_kodu, piyasa = "S6", "vadeli"
+class S7Vadeli(KarabasanTaban):
+    kural_kodu, piyasa = "S7", "vadeli"
 
 
 class S6KVadeli(KarabasanTaban):

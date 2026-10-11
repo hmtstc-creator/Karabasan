@@ -92,8 +92,8 @@
     ]
   },
   "cikis": {
-    "kar_hedefi_yuzde": 1.2,
-    "zarar_durdur_yuzde": 0.7,
+    "kar_hedefi_yuzde": 0.8,
+    "zarar_durdur_yuzde": 3.0,
     "sure_asimi_dakika": 180
   },
   "izinli_durumlar": [

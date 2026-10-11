@@ -24,7 +24,7 @@ class KuralDosyalari(unittest.TestCase):
     def test_tum_stratejiler_yuklenir(self):
         kurallar = k.tum_kurallar()
         self.assertEqual(sorted(kurallar),
-                         ["S1", "S1K", "S2", "S2K", "S3", "S4", "S5", "S5K", "S6", "S6K", "SM", "SMK"])
+                         ["S1", "S1K", "S2", "S3", "S4", "S5", "S5K", "S6K", "S7", "S7K", "SM", "SMK"])
         for kod, kural in kurallar.items():
             with self.subTest(kod=kod):
                 self.assertEqual(kural["kod"], kod)
@@ -58,15 +58,29 @@ class KuralDosyalari(unittest.TestCase):
         kurallar = k.tum_kurallar()
         self.assertEqual(sorted(b[2] for b in BOTLAR), sorted(kurallar))
 
+    def test_emekli_stratejiler_yuklenmez_ama_okunabilir(self):
+        kurallar = k.tum_kurallar()
+        for kod in ("S2K", "S6"):
+            self.assertNotIn(kod, kurallar)
+            self.assertEqual(k.kural_yukle(k.STRATEJI_KLASORU / "emekli" / f"{kod}.json")["kod"], kod)
+
+    def test_butun_stratejilerde_hedef_ve_stop_ayni(self):
+        """Ahmet'in isteği (12 Ekim 2026): 1 kat vadelide %0,8 hedef, %3 stop."""
+        for kod, kural in k.tum_kurallar().items():
+            self.assertEqual(kural["cikis"]["kar_hedefi_yuzde"], 0.8, kod)
+            self.assertEqual(kural["cikis"]["zarar_durdur_yuzde"], 3.0, kod)
+
     def test_ters_yonlu_ciftler_ayni_cikisi_kullanir(self):
         kurallar = k.tum_kurallar()
-        for kod in ("S5", "S6", "SM"):
+        for kod in ("S5", "S7", "SM"):
             self.assertEqual(kurallar[kod]["cikis"], kurallar[kod + "K"]["cikis"], kod)
             self.assertEqual(kurallar[kod]["gostergeler"], kurallar[kod + "K"]["gostergeler"], kod)
 
     def test_basabas_oranlari_raporla_ayni(self):
         kurallar = k.tum_kurallar()
-        beklenen = {"S1": 54.55, "S2": 48.0, "S3": 60.0, "S4": 55.56}
+        # 12 Ekim 2026'dan beri bütün stratejilerde hedef %0,8, stop %3:
+        # (3 + 0,2) / (0,8 + 3) = %84,21.
+        beklenen = {"S1": 84.21, "S2": 84.21, "S3": 84.21, "S4": 84.21}
         for kod, oran in beklenen.items():
             self.assertAlmostEqual(k.basabas_orani(kurallar[kod], 0.20), oran, places=2)
 
@@ -92,7 +106,10 @@ class YeniStratejilerinMantigi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.df = yapay_mumlar(12000, tohum=17, oynaklik=0.003)
+        cls.df15 = yapay_mumlar(6000, dilim_dk=15, tohum=17, oynaklik=0.004)
         cls.kurallar = k.tum_kurallar()
+        # S6 emekli (12 Ekim 2026); ikizi S6K çalıştığı için mantık sınaması kalır.
+        cls.kurallar["S6"] = k.kural_yukle(k.STRATEJI_KLASORU / "emekli" / "S6.json")
 
     def _sinyaller(self, kod):
         tablo = k.sinyal_uret(self.df, self.kurallar[kod])
@@ -143,6 +160,36 @@ class YeniStratejilerinMantigi(unittest.TestCase):
             a = k.sinyal_uret(self.df, self.kurallar[uzun])["sinyal"]
             b = k.sinyal_uret(self.df, self.kurallar[kisa])["sinyal"]
             self.assertFalse((a & b).any(), uzun)
+        a = k.sinyal_uret(self.df15, self.kurallar["S7"])["sinyal"]
+        b = k.sinyal_uret(self.df15, self.kurallar["S7K"])["sinyal"]
+        self.assertFalse((a & b).any(), "S7")
+
+    def _sinyaller15(self, kod):
+        tablo = k.sinyal_uret(self.df15, self.kurallar[kod])
+        mumlar = [i for i in range(len(tablo)) if tablo["sinyal"].iloc[i]]
+        self.assertGreater(len(mumlar), 5, f"{kod} yapay veride neredeyse hiç sinyal vermedi")
+        return tablo, mumlar
+
+    def test_s7_yukselis_trendinde_rsi2_dibi(self):
+        tablo, mumlar = self._sinyaller15("S7")
+        kapanis = self.df15["close"]
+        sma200 = kapanis.rolling(200).mean()
+        rsi2 = g.rsi(kapanis, 2)
+        for i in mumlar:
+            self.assertLess(rsi2.iloc[i], 10, i)
+            self.assertGreater(kapanis.iloc[i], sma200.iloc[i], i)
+            self.assertGreater(tablo["ema50_1s_egim"].iloc[i], 0, i)
+            self.assertGreater(tablo["kapanis_1s"].iloc[i], tablo["ema50_1s"].iloc[i], i)
+
+    def test_s7k_dusus_trendinde_rsi2_tepesi(self):
+        tablo, mumlar = self._sinyaller15("S7K")
+        kapanis = self.df15["close"]
+        sma200 = kapanis.rolling(200).mean()
+        rsi2 = g.rsi(kapanis, 2)
+        for i in mumlar:
+            self.assertGreater(rsi2.iloc[i], 90, i)
+            self.assertLess(kapanis.iloc[i], sma200.iloc[i], i)
+            self.assertLess(tablo["ema50_1s_egim"].iloc[i], 0, i)
 
 
 class SmartmoneyMantigi(unittest.TestCase):

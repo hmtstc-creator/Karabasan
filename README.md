@@ -128,7 +128,7 @@ ekranda "henüz canlı ölçülmüyor" yazar.
 | `/durum` | Genel durum |
 | `/botlar` | Her botun sonucu |
 | `/sayfa` | Sonuç sayfasını dosya olarak yollar |
-| `/gunluk` | Botların son kayıt satırları; `/gunluk s1-spot` tek bot |
+| `/gunluk` | Botların son kayıt satırları; `/gunluk s1-vadeli` tek bot |
 | `/uyum` | Uyum denemesi raporu |
 | `/olcum` | Karabasan geçmiş ölçümü: stratejilerin sonucu piyasa durumuna ve stop genişliğine göre |
 | `/dersler` | Stop sonrası izleme: stop daha geniş olsaydı ne olurdu, bot başına |
@@ -181,23 +181,39 @@ gerekmez; sonuç sayfası ve Telegram yeterlidir.
 
 | Bot | Strateji | Ne yapar | Piyasa | Ekran |
 | --- | --- | --- | --- | --- |
-| s1-spot | S1 Yükselişte düşüşü al | Yükselen trendde aşırı satımdan dönüşü alır | Spot | 8081 |
-| s2-spot | S2 Tepe kırılımını al | Son 4 saatin tepesi hacimle kırılınca alır | Spot | 8082 |
-| s3-spot | S3 Yatay piyasada dipten al | Yatay piyasada bandın dibinden dönüşü alır | Spot | 8083 |
-| s4-spot | S4 Sert düşüşten dönüşü al | Fiyat gün içi ortalamadan çok uzaklaşınca dönüşü alır | Spot | 8084 |
+| s1-vadeli | S1 Yükselişte düşüşü al | Yükselen trendde aşırı satımdan dönüşü alır | Vadeli, 1 kat | 8081 |
+| s2-vadeli | S2 Tepe kırılımını al | Son 4 saatin tepesi hacimle kırılınca alır | Vadeli, 1 kat | 8082 |
+| s3-vadeli | S3 Yatay piyasada dipten al | Yatay piyasada bandın dibinden dönüşü alır | Vadeli, 1 kat | 8083 |
+| s4-vadeli | S4 Sert düşüşten dönüşü al | Fiyat gün içi ortalamadan çok uzaklaşınca dönüşü alır | Vadeli, 1 kat | 8084 |
 | s1k-vadeli | S1K Düşüşte yükselişi sat | S1'in tersi: düşen trendde tepkiyi açığa satar | Vadeli, 1 kat | 8085 |
-| s2k-vadeli | S2K Dip kırılımını sat | S2'nin tersi: dip hacimle kırılınca açığa satar | Vadeli, 1 kat | 8086 |
+| s7k-vadeli | S7K Düşüşte aşırı yükselişi sat (RSI 2) | S7'nin tersi | Vadeli, 1 kat | 8086 |
 | s5-vadeli | S5 Momentum vuruşu (MACD + RSI) | MACD yukarı kesip RSI yükselirken hacimli mumda alır; küçük hedef, hızlı çıkış | Vadeli, 1 kat | 8087 |
 | s5k-vadeli | S5K Momentum vuruşu, satış | S5'in tersi | Vadeli, 1 kat | 8088 |
-| s6-vadeli | S6 Likidite avı sonrası alım (akıllı para + RSI) | Fiyat son 2 saatin dibinin altına sarkıp yeniden üstünde kapanınca alır | Vadeli, 1 kat | 8089 |
-| s6k-vadeli | S6K Likidite avı sonrası satış | S6'nın tersi | Vadeli, 1 kat | 8090 |
+| s7-vadeli | S7 Yükselişte aşırı düşüşü al (RSI 2) | 15 dakikalıkta, yükseliş trendinde 2 mumluk RSI 10'un altına inince alır | Vadeli, 1 kat | 8089 |
+| s6k-vadeli | S6K Likidite avı sonrası satış | Fiyat son 2 saatin tepesinin üstüne çıkıp yeniden altında kapanınca açığa satar | Vadeli, 1 kat | 8090 |
 | sm-vadeli | SM Smartmoney: geri çekilme sonrası yapı kırılımıyla alım | Günlük trend ve 1 saatlik yapı yukarıyken, 15 dakikalıkta geri çekilmeden sonra 5 dakikalık yapı yukarı kırılınca alır | Vadeli, 1 kat | 8091 |
 | smk-vadeli | SMK Smartmoney: tepki sonrası yapı kırılımıyla satış | SM'nin tersi | Vadeli, 1 kat | 8092 |
+
+**12 Ekim 2026'dan beri (Ahmet'in isteğiyle) bütün botlar 1 kat vadelidedir ve
+hepsinde çıkış aynıdır: kâr hedefi %0,8, stop %3.** Komisyon gidiş-dönüş %0,1
+olduğu için kazanan işlem net yaklaşık +%0,7, stop olan işlem −%3,1 getirir;
+başa baş için işlemlerin yaklaşık %82'si kazanmalıdır. Süre aşımı her
+stratejinin kendi süresidir; stopa gitmeden süresi dolan işlem o anki fiyattan
+kapanır. S1–S4 spot'tan taşındı (bot adları `s1-spot` → `s1-vadeli`, eski
+kayıtları sayılmaz). En çok kaybeden iki strateji, S2K ve S6, çıkarıldı;
+yerlerine S7 ve S7K geldi (kural dosyaları `karabasan/stratejiler/emekli/`).
 
 Her botun 1.000 USDT sanal bakiyesi vardır, işlem başına 50 USDT kullanır,
 aynı anda en fazla 20 pozisyon açar. Tüm emirler piyasa emridir ve karşı
 taraftan fiyatlanır; bu, sonuçları olduğundan iyi göstermemek için seçilmiş
 kötümser bir varsayımdır.
+
+S7 ve S7K "RSI(2) geri çekilme" fikridir (Larry Connors'un hisse senetleri
+için yayımladığı kısa vadeli dönüş kuralından uyarlandı): trend yönündeyken
+2 mumluk RSI aşırı bir uca gidince, trend yönünde küçük bir tepkiyi hedefler.
+Seçilme nedeni küçük hedef ve geniş stopla uyumudur: bu tür kurallar çok
+sayıda küçük kazanç ve seyrek ama büyük kayıp üretir. Kriptoda kazandırıp
+kazandırmadığı bilinmiyor; yalnız yapay veride sınandı.
 
 S5 ve S6, 11 Ekim 2026'da eklendi ve S1-S4'ün "vadeli alım" botlarının yerine
 geçti. O dört bot spot'taki ikizleriyle aynı işlemleri açıyordu. Yeni
@@ -223,7 +239,7 @@ yazıldı. Dört katman birlikte aranır (alım hali; satış hali her birinin t
 | Geri çekilme | 15 dakika | Son bir saatte fiyat aralığın alt yarısına ("indirimli bölge") inmiş ya da bir alım bloğuna dokunmuş |
 | Tetik | 5 dakika | Bu mumda yapı yukarı kırılıyor; RSI 50 ile 70 arasında; hacim son 20 mumun ortalamasının 1,2 katından fazla |
 
-Çıkış: kâr hedefi %1,2, stop %0,8, en uzun süre 4 saat; stop sonrası aynı
+Çıkış: kâr hedefi %0,8, stop %3 (12 Ekim 2026'dan beri bütün botlarda aynı), en uzun süre 4 saat; stop sonrası aynı
 coine 2 saat bekleme. Vadeli komisyonuyla zarar etmemek için gereken kazanma
 oranı %45.
 
@@ -283,7 +299,7 @@ dosyasıdır. Örnek (`S1.json`, kısaltılmış):
   istenen dilimler (örnek: `["1d"]`). Günlük göstergeler için zorunludur.
 - İşlemler: `>`, `<`, `>=`, `<=`, `yukari_keser`, `asagi_keser`.
 - Bağlaçlar: `hepsi` (ve), `herhangi` (veya); iç içe yazılabilir.
-- Kâr hedefi ve stop fiyat hareketidir: 1.2, fiyat %1,2 lehe gidince kapat demektir.
+- Kâr hedefi ve stop fiyat hareketidir: 0.8, fiyat %0,8 lehe gidince kapat demektir.
 - Dosya hatalıysa bot başlamaz ve hatayı Türkçe söyler. Stop %10'dan,
   kâr hedefi %20'den büyük yazılamaz; bu sınırlar yazım hatalarına karşıdır.
 

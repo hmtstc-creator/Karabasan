@@ -129,7 +129,7 @@ class GenelOzetTesti(unittest.TestCase):
 
     def test_isinma_islemleri_sinava_sayilmaz(self):
         # Sahte veride her bota ısınma döneminden iki kârlı işlem konur.
-        self.assertEqual(self.botlar["s1-spot"]["islem_sayisi"], 130)
+        self.assertEqual(self.botlar["s1-vadeli"]["islem_sayisi"], 130)
         self.assertEqual(self.botlar["s5-vadeli"]["islem_sayisi"], 0)
 
     def test_kaydi_olmayan_bot_hata_tasir_ama_ozet_cikar(self):
@@ -142,7 +142,7 @@ class GenelOzetTesti(unittest.TestCase):
         self.assertAlmostEqual(t["net_tutar"], sum(b["net_tutar"] for b in self.ozet["botlar"]))
 
     def test_sinavda_yedi_olcut_gelir_karar_gelmez(self):
-        b = self.botlar["s1-spot"]
+        b = self.botlar["s1-vadeli"]
         self.assertEqual([o["no"] for o in b["olcutler"]], [1, 2, 3, 4, 5, 6, 7])
         self.assertIsNone(b["karar"])
         self.assertEqual(b["olcutler"][0]["durum"], "saglandi")       # 130 işlem
@@ -181,29 +181,29 @@ class GenelOzetTesti(unittest.TestCase):
         self.assertEqual(zamanlar, sorted(zamanlar, reverse=True))
 
     def test_bot_ozeti_kural_ayrintisini_tasir(self):
-        b = self.botlar["s6-vadeli"]
-        self.assertEqual(b["kod"], "S6")
+        b = self.botlar["s7-vadeli"]
+        self.assertEqual(b["kod"], "S7")
         self.assertIn("RSI", b["aciklama"])
-        self.assertEqual((b["hedef_yuzde"], b["stop_yuzde"], b["sure_asimi_dakika"]), (1.2, 0.7, 180))
+        self.assertEqual((b["hedef_yuzde"], b["stop_yuzde"], b["sure_asimi_dakika"]), (0.8, 3.0, 240))
         self.assertEqual(b["izinli_durumlar"], ["YESIL", "SARI"])
 
     def test_gunluk_dosyasi_olmayan_bot_calisiyor_sayilmaz(self):
         self.assertEqual(self.ozet["toplam"]["calisan_bot"], 0)
-        self.assertFalse(self.botlar["s1-spot"]["calisiyor"])
+        self.assertFalse(self.botlar["s1-vadeli"]["calisiyor"])
 
     def test_gunluk_tazeyse_calisiyor_bayatsa_degil(self):
         gunlukler = self.klasor / "logs"
         gunlukler.mkdir(exist_ok=True)
-        taze, bayat = gunlukler / "s1-spot.log", gunlukler / "s2-spot.log"
+        taze, bayat = gunlukler / "s1-vadeli.log", gunlukler / "s2-vadeli.log"
         for dosya, dakika in ((taze, 2), (bayat, 40)):
             dosya.write_text("satir\n")
             zaman = (SIMDI - timedelta(minutes=dakika)).timestamp()
             os.utime(dosya, (zaman, zaman))
         try:
             botlar = {b["bot"]: b for b in sonuc.genel_ozet(self.klasor, SIMDI)["botlar"]}
-            self.assertTrue(botlar["s1-spot"]["calisiyor"])
-            self.assertFalse(botlar["s2-spot"]["calisiyor"])
-            self.assertAlmostEqual(botlar["s2-spot"]["gunluk_yasi_dakika"], 40.0, places=1)
+            self.assertTrue(botlar["s1-vadeli"]["calisiyor"])
+            self.assertFalse(botlar["s2-vadeli"]["calisiyor"])
+            self.assertAlmostEqual(botlar["s2-vadeli"]["gunluk_yasi_dakika"], 40.0, places=1)
         finally:
             taze.unlink()
             bayat.unlink()
@@ -227,18 +227,18 @@ class GenelOzetTesti(unittest.TestCase):
             klasor = Path(gecici)
             sinav = SIMDI - timedelta(days=30, hours=1)
             (klasor / "sinav_baslangici.txt").write_text(sinav.strftime("%Y-%m-%dT%H:%M:%SZ"))
-            (klasor / "gecmis_test.json").write_text(json.dumps({"s1-spot": 0.2}))
+            (klasor / "gecmis_test.json").write_text(json.dumps({"s1-vadeli": 0.2}))
             islemler = []
             for k in range(140):
                 a = sinav + timedelta(hours=5 * k + 1)
                 kazandi = k % 10 < 7
                 islemler.append(("SOL/USDT", a, a + timedelta(minutes=30),
                                  1.05 if kazandi else -1.15, "roi" if kazandi else "stop_loss", False))
-            sahte_islem_db(klasor / "db" / "s1-spot.sqlite", islemler)
+            sahte_islem_db(klasor / "db" / "s1-vadeli.sqlite", islemler)
             ozet = sonuc.genel_ozet(klasor, SIMDI)
             botlar = {b["bot"]: b for b in ozet["botlar"]}
-            self.assertEqual(botlar["s1-spot"]["karar"], "gecti")
-            self.assertEqual(botlar["s2-spot"]["karar"], "kaldi")
+            self.assertEqual(botlar["s1-vadeli"]["karar"], "gecti")
+            self.assertEqual(botlar["s2-vadeli"]["karar"], "kaldi")
 
 
 if __name__ == "__main__":

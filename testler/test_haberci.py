@@ -175,7 +175,7 @@ class ServisTesti(Taban):
         from karabasan import stop_sonrasi
 
         def kayit(giris, gercek, fark):
-            return {"bot": "s1-spot", "kod": "S1", "parite": "SOL/USDT", "yon": "alim",
+            return {"bot": "s1-vadeli", "kod": "S1", "parite": "SOL/USDT", "yon": "alim",
                     "giris_zamani": giris, "cikis_zamani": giris, "gercek_net_yuzde": gercek,
                     "hedefi_gordu": fark > 0, "en_kotu_yuzde": -1.3,
                     "alternatif": {c: {"sonuc": "hedef" if fark > 0 else "stop", "net_yuzde": gercek + fark}
@@ -184,7 +184,7 @@ class ServisTesti(Taban):
         zaman = (SIMDI - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
         stop_sonrasi.dosya_yaz(stop_sonrasi.dosya_yolu(self.klasor), {
             "surum": 1, "basarisiz": {}, "dersler": [], "son_tur": zaman,
-            "islemler": {"s1-spot#900": kayit(zaman, -1.15, 2.2), "s1-spot#901": kayit(zaman, -1.15, -0.5)},
+            "islemler": {"s1-vadeli#900": kayit(zaman, -1.15, 2.2), "s1-vadeli#901": kayit(zaman, -1.15, -0.5)},
         })
         self.servis.guncelleme_isle(ozel_mesaj(2, 42, "/dersler"))
         metin = self.sahte.gonderilenler()[-1]
@@ -204,8 +204,8 @@ class ServisTesti(Taban):
         (metin,) = self.sahte.gonderilenler()
         self.assertIn("Sınavın 12. günü, 18 gün kaldı.", metin)
         self.assertIn("Kapanan işlem: 580", metin)
-        self.assertIn("En iyi: Yükselişte düşüşü al (s1-spot) +19,31 USDT", metin)
-        self.assertIn("En kötü: Sert düşüşten dönüşü al (s4-spot) −9,26 USDT", metin)
+        self.assertIn("En iyi: Yükselişte düşüşü al (s1-vadeli) +19,31 USDT", metin)
+        self.assertIn("En kötü: Sert düşüşten dönüşü al (s4-vadeli) −9,26 USDT", metin)
         self.assertIn("hepsi sanal", metin)
 
     def test_botlar_komutu_her_bota_bir_satir(self):
@@ -217,7 +217,7 @@ class ServisTesti(Taban):
         self.assertEqual(sum(1 for s in metin.splitlines() if ":" in s), len(BOTLAR))
         self.assertIn("Smartmoney: geri çekilme sonrası yapı kırılımıyla alım [sm-vadeli", metin)
         self.assertIn("Momentum vuruşu (MACD + RSI) [s5-vadeli, ses yok]: henüz kapanan işlem yok", metin)
-        self.assertIn("Yükselişte düşüşü al [s1-spot, ses yok]: 130 işlem", metin)
+        self.assertIn("Yükselişte düşüşü al [s1-vadeli, ses yok]: 130 işlem", metin)
 
     def test_sayfa_komutu_html_belgesi_yollar(self):
         self._sahip_ol()
@@ -229,14 +229,14 @@ class ServisTesti(Taban):
     def test_gunluk_komutu(self):
         self._sahip_ol()
         (self.klasor / "logs").mkdir()
-        (self.klasor / "logs" / "s1-spot.log").write_text("\n".join(f"satir {i}" for i in range(500)))
+        (self.klasor / "logs" / "s1-vadeli.log").write_text("\n".join(f"satir {i}" for i in range(500)))
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/gunluk"))
         toplu = self.sahte.belgeler()[0]
-        self.assertIn(b"===== s1-spot =====", toplu)
+        self.assertIn(b"===== s1-vadeli =====", toplu)
         self.assertIn(b"satir 499", toplu)
         self.assertNotIn(b"satir 400\n", toplu)
         self.assertIn("(kayıt yok)".encode("utf-8"), toplu)
-        self.servis.guncelleme_isle(ozel_mesaj(2, 42, "/gunluk s1-spot"))
+        self.servis.guncelleme_isle(ozel_mesaj(2, 42, "/gunluk s1-vadeli"))
         self.assertIn(b"satir 250", self.sahte.belgeler()[1])
 
     def test_gunluk_komutu_baska_dosya_okutmaz(self):
@@ -376,15 +376,15 @@ class ZamanliIslerTesti(Taban):
         self._hepsi_calisiyor()
         self.servis.zamanli_isler()
         self.assertEqual(self.sahte.gonderilenler(), [])
-        self._gunluk_yaz("s3-spot", 40)
+        self._gunluk_yaz("s3-vadeli", 40)
         self.servis.zamanli_isler()
         self.servis.zamanli_isler()
         mesajlar = self.sahte.gonderilenler()
         self.assertEqual(len(mesajlar), 1)
-        self.assertIn("Ses vermeyen bot var: s3-spot.", mesajlar[0])
-        self._gunluk_yaz("s3-spot", 1)
+        self.assertIn("Ses vermeyen bot var: s3-vadeli.", mesajlar[0])
+        self._gunluk_yaz("s3-vadeli", 1)
         self.servis.zamanli_isler()
-        self.assertIn("Yeniden çalışıyor: s3-spot.", self.sahte.gonderilenler()[-1])
+        self.assertIn("Yeniden çalışıyor: s3-vadeli.", self.sahte.gonderilenler()[-1])
 
     def test_yeni_eklenen_bot_acilana_kadar_susmus_sayilmaz(self):
         """Güncellemeyle eklenen bot sırası gelene kadar hiç kayıt yazmaz; yanlış alarm olmasın."""
@@ -410,10 +410,10 @@ class ZamanliIslerTesti(Taban):
 
     def test_yazip_susan_bot_acilistan_hemen_sonra_da_bildirilir(self):
         self._hepsi_calisiyor()
-        self._gunluk_yaz("s2-spot", 40)
+        self._gunluk_yaz("s2-vadeli", 40)
         self.servis.zamanli_isler()
         (mesaj,) = self.sahte.gonderilenler()
-        self.assertIn("Ses vermeyen bot var: s2-spot.", mesaj)
+        self.assertIn("Ses vermeyen bot var: s2-vadeli.", mesaj)
 
     def test_gunluk_ozet_gunde_bir_kez_ve_ilk_acilista_degil(self):
         self._hepsi_calisiyor()
@@ -444,7 +444,7 @@ class ZamanliIslerTesti(Taban):
         yol = stop_sonrasi.dosya_yolu(self.klasor)
         veri = stop_sonrasi.dosya_oku(yol)
         veri["dersler"] += [
-            {"zaman": zaman, "bot": "s2-spot", "kod": "S2", "ad": "Tepe kırılımını al",
+            {"zaman": zaman, "bot": "s2-vadeli", "kod": "S2", "ad": "Tepe kırılımını al",
              "karar": karar, "carpan": None, "stop_sayisi": 40, "metin": metin}
             for zaman, karar, metin in dersler
         ]
