@@ -101,7 +101,8 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | `karabasan/puan.py` | Karabasan puanı, durum makinesi, vetolar |
 | `karabasan/filtre.py` | Filtre (Elek): dört katman, elenme nedenleri |
 | `karabasan/karne.py` | İşlem ölçümleri ve 30. günün yedi karar ölçütü |
-| `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim (limitli girişte emrin dolduğu mumda hedef sayılmaz) |
+| `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim (limitli girişte emrin dolduğu mumda hedef sayılmaz; iz süren stop bir mumun tepesiyle ancak sonraki mumdan itibaren taşınır). `hazir_tablo` ile sinyaller bir kez hesaplanıp farklı çıkışlarla denenir |
+| `karabasan/tarama.py`, `araclar/tarama.py`, `araclar/tarama.sh` | Çıkış varyasyonu taraması: her botun girişleriyle 20 çıkış ayarı (`VARYASYONLAR`; V01 canlı ayar), son 365 gün, ilk 9 ay seçim / son 3 ay doğrulama. Veriyi 12 aylık test indirir; `kur.sh`'ta ondan hemen sonra, `TARAMA_SURUMU`. Çıktı `user_data/logs/tarama.txt` (Telegram `/tarama`). Hiçbir ayarı değiştirmez |
 | `karabasan/botlar.py` | Sanal botların listesi (12 Ekim 2026'dan beri `sm-vadeli` 8081, `smk-vadeli` 8082, `smd-vadeli` 8083, `smdk-vadeli` 8084, `sniper5-vadeli` 8085; 1 kat vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder; aynı döngüde stop sonrası izleme turunu çalıştırır |
 | `karabasan/stop_sonrasi.py` | Stop sonrası izleme: stop olan işlemi kendi süresi dolana kadar izler, stop 1,5 / 2 / 3 kat geniş olsaydı ne olurdu hesaplar, bot başına karar çıkarır (yetersiz, dar, yerinde, kararsız), karar değişince ders yazar. Mumlar Binance'in herkese açık, anahtarsız fiyat verisinden gelir. Çıktı: `user_data/kayit/stop_sonrasi.json`. **Hiçbir ayarı değiştirmez** |
@@ -181,7 +182,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 462 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 483 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -587,11 +588,48 @@ saymamak motorla uyumlu görünüyor.
   955 / %56,2 / −54,12. Toplam −167,12 USDT. İşlem başına net −%0,06 ile −%0,14,
   yani komisyon öncesi yine sıfıra yakın: kenar yok. Gerçek paraya geçme önerilmedi.
 
+**İz süren stop, %3 stop, süre sınırı yok + 20 varyasyonluk tarama (12 Ekim 2026,
+Ahmet'in isteği).** Ahmet: "Sniper'daki limitli girişi izleyelim. Belki kâr hedefini
+2 yapsak yakalıyorduk, belki çok erken çıkıyoruz; trailing stop ekle, 1,2'de tetiklensin
+0,9'a düşünce kapatsın, stop %3, saat limiti koyma; botları böyle güncelle. Ayrıca 20
+farklı varyasyonla bir senelik test yapıp en kazançlıyı bul." Yapılan:
+- Çıkış alanları: `kar_hedefi_yuzde` ve `sure_asimi_dakika` artık isteğe bağlı; yeni
+  `iz_suren_stop` (`tetik_yuzde` 0,1–20, `mesafe_yuzde` 0,05–10, mesafe < tetik).
+  Stoptan başka en az bir çıkış yolu zorunlu. `cikis_metni` düz Türkçe anlatır.
+  `basabas_orani` sabit hedef yoksa None.
+- Beş canlı kuralın çıkışı: `{"zarar_durdur_yuzde": 3.0, "iz_suren_stop": {"tetik_yuzde":
+  1.2, "mesafe_yuzde": 0.3}}`. Tetik komisyon sonrası kârdır (motorun
+  `trailing_stop_positive_offset`'i gibi); seviye en iyi fiyatın %0,3 gerisi
+  (`trailing_stop_positive`). İlk anda çıkış ≈ fiyat %1,3 → ×0,997 ≈ %1,0 brüt, %0,9 net.
+  Motor: `trailing_stop = True`, `trailing_only_offset_is_reached = True`,
+  `minimal_roi = {"0": 100}` (hedef fiilen kapalı), `custom_exit` süre yoksa None.
+- Benzetim: etkin stop = sabit stop ile iz seviyesinin yakını; önceki mumların en iyi
+  fiyatından; mum stopun ötesinde açılırsa açılıştan kapanır (neden `iz_suren_stop`).
+  Limitli girişte dolduğu mumun tepesi en iyi fiyata katılmaz. Motorun geçmiş testi
+  mum içinde daha iyimser olabilir; 16. uyum denemesinde eşleştirmede görülür
+  (`trailing_stop_loss` → `iz_suren_stop`, `exit_signal` → `cikis_sinyali`).
+- Stop sonrası izleme ve 12 aylık testin "stop = hedef" sütunu sabit hedef / süre
+  olmayan kuralları atlar (yani şu an bütün botları); Dersler ekranı boş kalır.
+- Tarama: `karabasan/tarama.py` (Yapı tablosunda). Varyasyonlar: iz süren stop tetik
+  {0,8; 1,2; 2} × mesafe {0,3; 0,6} × stop {1,5; 3} süresiz (12), V01 ile aynı iz /
+  stop + 4 s ve 24 s süre (2), sabit hedef: 0,8/3/4 s (eski SM), 1,2/1,5/3 s (eski
+  Sniper), 2/3/süresiz (Ahmet'in "hedef 2"si), 2/2/24 s, 1/1/4 s, 3/1,5/24 s (6).
+  5 bot × 20 = 100 deneme; yapay veride ~110 sn. Rapor: her bot için 20 satır (yıl,
+  ilk 9 ay, son 3 ay, en büyük düşüş), seçim dönemine göre en iyisi ve doğrulaması,
+  yıl boyu en iyisi ("ezbere açık"), kaç denemenin artıda olduğu. Rastgele veride 100
+  denemenin hiçbiri artıda değil (beklenen).
+- `UYUM_SURUMU=16`, `YILLIK_SURUMU=5`, `TARAMA_SURUMU=1`. Süresiz işlemler yüzünden
+  botlar daha az ve daha uzun işlem açar; 20 pozisyon sınırı dolabilir.
+- **Gerçek motorda ilk kez:** iz süren stopun bu motorda canlı ve geçmiş testinde nasıl
+  uygulandığı, `minimal_roi = {"0": 100}`, süresiz `custom_exit`.
+
 Sıradaki işler, öncelik sırasıyla:
 
-0. On beşinci uyum denemesinde limitli girişte "yalnız motor / yalnız benzetim"
-   çiftleri kaybolmalı (açılış zamanı düzeltmesi). Ahmet'in Sniper'daki limitli giriş
-   için kararını bekle (geri al ya da izlemeye devam).
+0. On altıncı uyum denemesi: limitli girişte açılış zamanı düzeltmesi ve iz süren
+   stopun motorla benzetimde tutması (çıkış fiyatları, "iz_suren_stop" sayıları). Sonra
+   tarama raporunu (`/tarama`) Ahmet'e rakamla ve ezber uyarısıyla özetle; ayar
+   değişikliği yalnız Ahmet isterse. Ahmet Sniper'daki limitli girişi izlemek istedi
+   (geri alınmadı).
 
 1. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).

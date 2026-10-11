@@ -2,7 +2,7 @@
   "kod": "SMD",
   "ad": "Smartmoney + uyumsuzluk + emir defteri: alım",
   "yon": "alim",
-  "aciklama": "Smartmoney'nin dört katmanı (günlük trend yukarı, 1 saatlik yapı yukarı, 15 dakikalıkta geri çekilme, 5 dakikalıkta hacimli yapı kırılımı; RSI sınırları 80/20, 15 dakikalık RSI 65'in altında, 5 dakikalık RSI yukarı dönmüş) aynen aranır. Ek olarak: son 12 mumda (1 saat) en az bir göstergede boğa uyumsuzluğu olmalı; geri çekilmenin dibinde satış baskısının zayıfladığını gösterir. Girişten hemen önce emir defterine bakılır: yakın kademelerde alıcılar satıcılardan belirgin kalabalık değilse işlem açılmaz. Giriş, sinyalden sonra fiyatın biraz altına konan limit emirle (oynaklığın yarısı kadar, %0,1–0,6; 15 dakikada dolmazsa iptal).",
+  "aciklama": "Smartmoney'nin dört katmanı (günlük trend yukarı, 1 saatlik yapı yukarı, 15 dakikalıkta geri çekilme, 5 dakikalıkta hacimli yapı kırılımı; RSI sınırları 80/20, 15 dakikalık RSI 65'in altında, 5 dakikalık RSI yukarı dönmüş) aynen aranır. Ek olarak: son 12 mumda (1 saat) en az bir göstergede boğa uyumsuzluğu olmalı; geri çekilmenin dibinde satış baskısının zayıfladığını gösterir. Girişten hemen önce emir defterine bakılır: yakın kademelerde alıcılar satıcılardan belirgin kalabalık değilse işlem açılmaz. Giriş, sinyalden sonra fiyatın biraz altına konan limit emirle (oynaklığın yarısı kadar, %0,1–0,6; 15 dakikada dolmazsa iptal). Çıkış (12 Ekim 2026'dan beri): kâr %1,2'ye ulaşınca iz süren stop devreye girer (en iyi fiyatın %0,3 gerisi, yani ilk anda yaklaşık %0,9 kâr); %3 stop; sabit kâr hedefi ve süre sınırı yok.",
   "zaman_dilimi": "5m",
   "borsa_dilimleri": [
     "1d"
@@ -145,9 +145,11 @@
     "en_az_dengesizlik": 0.1
   },
   "cikis": {
-    "kar_hedefi_yuzde": 0.8,
     "zarar_durdur_yuzde": 3.0,
-    "sure_asimi_dakika": 240
+    "iz_suren_stop": {
+      "tetik_yuzde": 1.2,
+      "mesafe_yuzde": 0.3
+    }
   },
   "izinli_durumlar": [
     "YESIL",

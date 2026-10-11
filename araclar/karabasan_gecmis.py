@@ -32,7 +32,7 @@ from karabasan import karne as kr  # noqa: E402
 from karabasan import stop_sonrasi as ss  # noqa: E402
 from karabasan.benzetim import benzet  # noqa: E402
 from karabasan.botlar import ayarlari_yukle  # noqa: E402
-from karabasan.kural import basabas_orani, ek_veri_topla, kural_yukle  # noqa: E402
+from karabasan.kural import basabas_orani, cikis_metni, ek_veri_topla, kural_yukle  # noqa: E402
 from karabasan.puan import DURUM_ADI  # noqa: E402
 
 COINLER = ["BTC", "ETH", "SOL", "XRP", "DOGE"]
@@ -211,9 +211,9 @@ def rapor_uret(yukle=dosyadan_yukle, gun: int = 30, ayar: dict | None = None) ->
         izinli_adi = " ve ".join(DURUM_ADI[d] for d in izinli_durumlar)
         c = kural["cikis"]
         yaz(f"{ad}: {kural['ad']} (coinler: {', '.join(coinler)})")
-        yaz(f"  hedef %{c['kar_hedefi_yuzde']:g}, stop %{c['zarar_durdur_yuzde']:g}, "
-            f"süre {c['sure_asimi_dakika']} dk; zarar etmemek için gereken kazanma oranı "
-            f"%{_sayi(basabas_orani(kural, 2 * komisyon), 1)}")
+        basabas = basabas_orani(kural, 2 * komisyon)
+        yaz(f"  {cikis_metni(c)}"
+            + (f"; zarar etmemek için gereken kazanma oranı %{_sayi(basabas, 1)}" if basabas is not None else ""))
         yaz(baslik)
         for durum in DURUMLAR:
             isaret = " *" if durum in izinli_durumlar else ""
@@ -245,8 +245,7 @@ def rapor_uret(yukle=dosyadan_yukle, gun: int = 30, ayar: dict | None = None) ->
     yaz("  öneridir; geniş stoplu hal ayrı bir sanal botla denenmeden ayar değişmez.")
     yaz("")
     for ad, kural, stop_satirlari in stop_tablosu:
-        yaz(f"{ad}: {kural['ad']} (hedef %{kural['cikis']['kar_hedefi_yuzde']:g}, "
-            f"süre {kural['cikis']['sure_asimi_dakika']} dk)")
+        yaz(f"{ad}: {kural['ad']} ({cikis_metni(kural['cikis'])})")
         yaz(f"  {'Stop':<16} {'İşlem':>6} {'Kazanma %':>9} {'Net USDT':>10} {'İlk yarı':>10} {'Son yarı':>10} {'Stop olan':>10}")
         for s in stop_satirlari:
             etiket = f"%{s['stop_yuzde']:g}".replace(".", ",") + (" (şimdiki)" if s["carpan"] == 1.0 else "")

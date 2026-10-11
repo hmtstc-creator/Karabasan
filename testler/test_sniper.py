@@ -83,8 +83,7 @@ class SniperKurali(unittest.TestCase):
         k.kural_dogrula(self.kural)
         self.assertEqual((self.kural["zaman_dilimi"], self.kural["yon"]), ("5m", "alim"))
         c = self.kural["cikis"]
-        self.assertEqual((c["kar_hedefi_yuzde"], c["zarar_durdur_yuzde"], c["sure_asimi_dakika"]),
-                         (1.2, 1.5, 180))
+        self.assertEqual(c, {"zarar_durdur_yuzde": 3.0, "iz_suren_stop": {"tetik_yuzde": 1.2, "mesafe_yuzde": 0.3}})
         self.assertNotIn("sinyal", c)
         self.assertEqual(k.borsa_dilimleri(self.kural), [])
         self.assertLessEqual(k.gereken_mum(self.kural), k.EN_FAZLA_BASLANGIC_MUMU)
@@ -117,10 +116,10 @@ class SniperKurali(unittest.TestCase):
         for tohum in range(1, 4):
             df = yapay_mumlar(30 * 288, tohum=tohum, oynaklik=0.003)
             islemler += b.benzet(df, self.kural, komisyon_yuzde=0.05)
-        self.assertGreater(len(islemler), 50)
+        self.assertGreater(len(islemler), 30)
         ortalama = np.mean([i["net_yuzde"] for i in islemler])
         self.assertLess(abs(ortalama + 0.1), 0.35, ortalama)
-        self.assertEqual({i["neden"] for i in islemler} - {"kar_hedefi", "zarar_durdur", "sure_asimi"}, set())
+        self.assertEqual({i["neden"] for i in islemler} - {"iz_suren_stop", "zarar_durdur"}, set())
 
     def test_hatali_esik_reddedilir(self):
         kural = copy.deepcopy(self.kural)
@@ -147,7 +146,7 @@ class SniperBotu(unittest.TestCase):
         self.assertEqual(sinif.timeframe, "5m")
         self.assertFalse(sinif.can_short)
         self.assertEqual(sinif.startup_candle_count, k.gereken_mum(k.kural_yukle("SNIPER")))
-        self.assertAlmostEqual(sinif.stoploss, -0.015)
+        self.assertAlmostEqual(sinif.stoploss, -0.03)
         self.assertEqual(sinif().informative_pairs(), [])
 
     def test_motor_sinyali_cekirdekle_ayni(self):

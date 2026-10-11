@@ -269,6 +269,15 @@ class ServisTesti(Taban):
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/yillik"))
         self.assertIn("ÖZET".encode("utf-8"), self.sahte.belgeler()[-1])
 
+    def test_tarama_komutu(self):
+        self._sahip_ol()
+        self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/tarama"))
+        self.assertIn("henüz çalışmadı", self.sahte.gonderilenler()[0])
+        (self.klasor / "logs").mkdir(exist_ok=True)
+        (self.klasor / "logs" / "tarama.txt").write_text("Çıkış varyasyonu taraması: x\nÖZET\n")
+        self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/tarama"))
+        self.assertIn("ÖZET".encode("utf-8"), self.sahte.belgeler()[-1])
+
     def test_defter_komutu(self):
         self._sahip_ol()
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/defter"))

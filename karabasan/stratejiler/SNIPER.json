@@ -2,7 +2,7 @@
   "kod": "SNIPER",
   "ad": "Sniper: dip sonrası CHoCH + FVG ile kısa vuruş",
   "yon": "alim",
-  "aciklama": "5 dakikalık grafikte dipten dönüşü yakalar, %1,2 alıp çıkar. Altı koşul birlikte aranır. Dip görülmüş: son 3 saatte 15 dakikalık RSI 35'in altına inmiş. Yapı dönmüş: son 1 saatte 5 dakikalıkta yukarı CHoCH (düşüş yapısının ilk yukarı kırılımı) olmuş ve yapı hâlâ yukarı. Hızlı alım izi: son 30 dakikada bir boğa FVG'si (fiyat boşluğu) oluşmuş ya da fiyat açık bir boğa FVG'sine geri çekilip üstünde kapanmış. Momentum: MACD histogramı sıfırın üstünde. 5 dakikalık RSI 50 ile 80 arasında ve 3 mum öncesinden yüksek (yukarı dönmüş); 15 dakikalık RSI ise hâlâ 50'nin altında (üst dilim henüz toparlanmamış, erken giriş). Hacim: son 15 dakikada bir mumun hacmi 20 mumluk ortalamanın 1,5 katından fazla. Giriş: sinyalden sonra fiyatın biraz altına limit emir (oynaklığın yarısı kadar, %0,1–0,6), 15 dakikada dolmazsa iptal. Çıkış: %1,2 kâr, %1,5 stop ya da en çok 3 saat.",
+  "aciklama": "5 dakikalık grafikte dipten dönüşü yakalar. Altı koşul birlikte aranır. Dip görülmüş: son 3 saatte 15 dakikalık RSI 35'in altına inmiş. Yapı dönmüş: son 1 saatte 5 dakikalıkta yukarı CHoCH (düşüş yapısının ilk yukarı kırılımı) olmuş ve yapı hâlâ yukarı. Hızlı alım izi: son 30 dakikada bir boğa FVG'si (fiyat boşluğu) oluşmuş ya da fiyat açık bir boğa FVG'sine geri çekilip üstünde kapanmış. Momentum: MACD histogramı sıfırın üstünde. 5 dakikalık RSI 50 ile 80 arasında ve 3 mum öncesinden yüksek (yukarı dönmüş); 15 dakikalık RSI ise hâlâ 50'nin altında (üst dilim henüz toparlanmamış, erken giriş). Hacim: son 15 dakikada bir mumun hacmi 20 mumluk ortalamanın 1,5 katından fazla. Giriş: sinyalden sonra fiyatın biraz altına limit emir (oynaklığın yarısı kadar, %0,1–0,6), 15 dakikada dolmazsa iptal. Çıkış: kâr %1,2'ye ulaşınca iz süren stop devreye girer (en iyi fiyatın %0,3 gerisi, yani ilk anda yaklaşık %0,9 kâr); %3 stop; süre sınırı yok.",
   "zaman_dilimi": "5m",
   "gostergeler": {
     "rsi14_15": {
@@ -120,9 +120,11 @@
     "sure_dakika": 15
   },
   "cikis": {
-    "kar_hedefi_yuzde": 1.2,
-    "zarar_durdur_yuzde": 1.5,
-    "sure_asimi_dakika": 180
+    "zarar_durdur_yuzde": 3.0,
+    "iz_suren_stop": {
+      "tetik_yuzde": 1.2,
+      "mesafe_yuzde": 0.3
+    }
   },
   "izinli_durumlar": [
     "YESIL",

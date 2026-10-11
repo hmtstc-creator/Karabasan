@@ -27,6 +27,7 @@ def benzet(
     komisyon_yuzde: float = 0.075,
     kayma_yuzde: float = 0.0,
     ek_veri: dict | None = None,
+    hazir_tablo: pd.DataFrame | None = None,
 ) -> list[dict]:
     """Tek bir parite için kuralı geçmiş veride çalıştırır, işlem listesi döndürür.
 
@@ -34,13 +35,24 @@ def benzet(
     kayma_yuzde:    piyasa emriyle giriş ve çıkışta fiyatın aleyhe kaydığı pay.
     ek_veri:        kuralın borsadan ayrıca istediği dilimlerin mumları, örnek {"1d": tablo}
                     (bkz. kural.gosterge_ekle).
+    hazir_tablo:    sinyal_uret'in bu mumlar için daha önce ürettiği tablo. Aynı girişleri
+                    farklı çıkış ayarlarıyla sınarken (varyasyon taraması) yeniden hesaplanmaz.
+                    Çıkış sinyali ve limit uzaklığı da o tablodan okunur.
+
+    Çıkışlar: sabit stop; varsa kâr hedefi, iz süren stop, çıkış sinyali ve süre sınırı.
+    Kâr hedefi ve süre sınırı isteğe bağlıdır.
     """
-    tablo = sinyal_uret(df, kural, ek_veri)
+    tablo = hazir_tablo if hazir_tablo is not None else sinyal_uret(df, kural, ek_veri)
     alim = kural["yon"] == "alim"
     cikis = kural["cikis"]
-    hedef = float(cikis["kar_hedefi_yuzde"]) / 100.0
+    hedef = float(cikis["kar_hedefi_yuzde"]) / 100.0 if cikis.get("kar_hedefi_yuzde") is not None else None
     stop = float(cikis["zarar_durdur_yuzde"]) / 100.0
-    sure = pd.Timedelta(minutes=int(cikis["sure_asimi_dakika"]))
+    sure = (pd.Timedelta(minutes=int(cikis["sure_asimi_dakika"]))
+            if cikis.get("sure_asimi_dakika") is not None else None)
+    iz = cikis.get("iz_suren_stop")
+    # İz süren stop: kâr (komisyon düşülmüş) tetiğe ulaşınca, en iyi fiyatın mesafe kadar gerisi.
+    iz_tetik = float(iz["tetik_yuzde"]) if iz else None
+    iz_mesafe = float(iz["mesafe_yuzde"]) / 100.0 if iz else None
     bekleme = pd.Timedelta(minutes=int(kural.get("bekleme_dakika", 0)))
     mum = pd.Timedelta(minutes=g.dilim_dakika(kural["zaman_dilimi"]))
     kayma = kayma_yuzde / 100.0
@@ -84,10 +96,11 @@ def benzet(
         # denemesinde motor açılışı limit emirde dolduğu mumdan 5-10 dk önce yazdı). Süre
         # aşımı da oradan sayılır; çıkışlara ise emrin dolduğu mumdan itibaren bakılır.
         giris_zamani = tarih[i + 1]
-        if alim:
-            hedef_fiyat, stop_fiyat = giris * (1 + hedef), giris * (1 - stop)
-        else:
-            hedef_fiyat, stop_fiyat = giris * (1 - hedef), giris * (1 + stop)
+        stop_fiyat = giris * (1 - stop) if alim else giris * (1 + stop)
+        hedef_fiyat = None
+        if hedef is not None:
+            hedef_fiyat = giris * (1 + hedef) if alim else giris * (1 - hedef)
+        en_iyi = giris          # işlem açıkken görülen en iyi fiyat (alımda en yüksek)
 
         neden = None
         cikis_fiyat = None
@@ -98,25 +111,44 @@ def benzet(
                 neden = "cikis_sinyali"
                 cikis_fiyat = acilis[j] * (1 - kayma if alim else 1 + kayma)
                 break
+            # Etkin stop: sabit stop ya da (devredeyse) iz süren stop, hangisi daha yakınsa.
+            # Önceki mumlardaki en iyi fiyattan hesaplanır; bu mumun tepesi stopu ancak
+            # bir sonraki mumdan itibaren taşır (mum içinde sıra bilinmez: kötümser).
+            etkin, iz_devrede = stop_fiyat, False
+            if iz:
+                kar = ((en_iyi / giris - 1.0) if alim else (1.0 - en_iyi / giris)) * 100.0 - 2.0 * komisyon_yuzde
+                if kar >= iz_tetik:
+                    seviye = en_iyi * (1 - iz_mesafe) if alim else en_iyi * (1 + iz_mesafe)
+                    if (seviye > etkin) if alim else (seviye < etkin):
+                        etkin, iz_devrede = seviye, True
             if alim:
-                stop_oldu = dusuk[j] <= stop_fiyat
-                hedef_oldu = yuksek[j] >= hedef_fiyat
+                stop_oldu = dusuk[j] <= etkin
+                hedef_oldu = hedef_fiyat is not None and yuksek[j] >= hedef_fiyat
             else:
-                stop_oldu = yuksek[j] >= stop_fiyat
-                hedef_oldu = dusuk[j] <= hedef_fiyat
+                stop_oldu = yuksek[j] >= etkin
+                hedef_oldu = hedef_fiyat is not None and dusuk[j] <= hedef_fiyat
             if stop_oldu:
-                neden = "zarar_durdur"
-                cikis_fiyat = stop_fiyat * (1 - kayma if alim else 1 + kayma)
+                if iz_devrede:
+                    # Mum stopun ötesinde açıldıysa açılıştan kapanır.
+                    neden = "iz_suren_stop"
+                    cikis_fiyat = min(acilis[j], etkin) if alim else max(acilis[j], etkin)
+                else:
+                    neden = "zarar_durdur"
+                    cikis_fiyat = etkin
+                cikis_fiyat *= (1 - kayma if alim else 1 + kayma)
                 break
             # Limit emrin dolduğu mumda tepe, fiyat limite inmeden önce görülmüş olabilir:
-            # kötümser olmak için o mumda hedef sayılmaz (stop sayılır).
-            if limit and j == giris_i:
+            # kötümser olmak için o mumda hedef sayılmaz, en iyi fiyat da güncellenmez.
+            ilk_limit_mumu = bool(limit) and j == giris_i
+            if ilk_limit_mumu:
                 hedef_oldu = False
             if hedef_oldu:
                 neden = "kar_hedefi"
                 cikis_fiyat = hedef_fiyat
                 break
-            if tarih[j] + mum - giris_zamani >= sure:
+            if not ilk_limit_mumu:
+                en_iyi = max(en_iyi, yuksek[j]) if alim else min(en_iyi, dusuk[j])
+            if sure is not None and tarih[j] + mum - giris_zamani >= sure:
                 neden = "sure_asimi"
                 cikis_fiyat = kapanis[j] * (1 - kayma if alim else 1 + kayma)
                 break

@@ -347,6 +347,7 @@ YARDIM = """Karabasan komutları
 /uyum  Uyum denemesi raporu
 /olcum  Karabasan geçmiş ölçümü (stratejilerin duruma göre sonucu)
 /yillik  12 aylık geçmiş testi (her bot son bir yılda ne yapardı)
+/tarama  Çıkış taraması: her bot için 20 çıkış ayarının bir yıllık sonucu
 /defter  Emir defteri denemesi: BTC tahminleri ve sanal işlemler (özet ve sayfa)
 /dersler  Stop sonrası izleme: stop daha geniş olsaydı ne olurdu
 /kurulum  Kurulum kaydı
@@ -449,6 +450,9 @@ class Servis:
         if ad == "/yillik":
             return self._dosya("yillik_test.txt", "12 aylık geçmiş testi", 2000,
                                "12 aylık geçmiş testi henüz çalışmadı.")
+        if ad == "/tarama":
+            return self._dosya("tarama.txt", "Çıkış varyasyonu taraması", 2000,
+                               "Çıkış taraması henüz çalışmadı.")
         if ad == "/dersler":
             return [("mesaj", dersler_metni(self.ozet()))]
         if ad == "/kurulum":

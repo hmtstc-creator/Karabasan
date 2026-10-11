@@ -28,7 +28,7 @@ import pandas as pd
 from . import karne as kr
 from .benzetim import benzet
 from .botlar import BOTLAR, ayarlari_yukle
-from .kural import basabas_orani, ek_veri_topla, kural_yukle
+from .kural import basabas_orani, cikis_metni, ek_veri_topla, kural_yukle
 
 COINLER = ["BTC", "ETH", "SOL", "XRP", "DOGE"]
 GUN = 365
@@ -100,10 +100,25 @@ def _sayi(deger, basamak=2, isaret=False) -> str:
 
 
 def _nedenler(islemler: list[dict]) -> dict[str, int]:
-    sayac = {"kar_hedefi": 0, "zarar_durdur": 0, "sure_asimi": 0, "cikis_sinyali": 0}
+    sayac = {"kar_hedefi": 0, "zarar_durdur": 0, "sure_asimi": 0, "cikis_sinyali": 0, "iz_suren_stop": 0}
     for i in islemler:
         sayac[i["neden"]] = sayac.get(i["neden"], 0) + 1
     return sayac
+
+
+def _nedenler_metni(nedenler: dict[str, int], cikis: dict) -> str:
+    """Kuralın kullandığı çıkış yollarını sayılarıyla yazar."""
+    parcalar = []
+    if cikis.get("kar_hedefi_yuzde") is not None:
+        parcalar.append(f"hedef {nedenler['kar_hedefi']}")
+    if cikis.get("iz_suren_stop"):
+        parcalar.append(f"iz süren stop {nedenler['iz_suren_stop']}")
+    parcalar.append(f"stop {nedenler['zarar_durdur']}")
+    if cikis.get("sure_asimi_dakika") is not None:
+        parcalar.append(f"süre aşımı {nedenler['sure_asimi']}")
+    if "sinyal" in cikis:
+        parcalar.append(f"kanal sinyali {nedenler['cikis_sinyali']}")
+    return ", ".join(parcalar)
 
 
 def veri_donemi(yukle: Yukleyici, gun: int) -> tuple[pd.Timestamp, pd.Timestamp, list[str]]:
@@ -167,15 +182,13 @@ def rapor_uret(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tu
         ceyrekler = ceyreklere_bol(islemler, baslangic, bitis, tutar)
         nedenler = _nedenler(islemler)
         c = kural["cikis"]
-        basabas = basabas_orani(kural, 2 * komisyon)
+        # Kazancın boyu sabit değilse (kanal sinyali, iz süren stop) başa baş oranı tanımsız.
+        basabas = None if "sinyal" in c else basabas_orani(kural, 2 * komisyon)
         yaz(f"{bot}: {kod} {kural['ad']}")
         sinyalle_cikar = "sinyal" in c
         if kural.get("defter_onayi"):
             yaz("  NOT: girişteki emir defteri onayı geçmişte uygulanamaz; işlem sayısı canlıdakinden fazladır.")
-        hedef_metni = ("hedef yok (çıkış kanal sinyaliyle)" if sinyalle_cikar
-                       else f"hedef %{_sayi(c['kar_hedefi_yuzde'], 1)}")
-        yaz(f"  {hedef_metni}, stop %{_sayi(c['zarar_durdur_yuzde'], 1)}, "
-            f"en uzun {int(c['sure_asimi_dakika']) // 60} saat {int(c['sure_asimi_dakika']) % 60} dk")
+        yaz(f"  {cikis_metni(c)}" + ("; çıkış kanal sinyaliyle" if sinyalle_cikar else ""))
         if eksikler:
             yaz(f"  UYARI: veri yok: {', '.join(eksikler)}")
         if k["islem_sayisi"] == 0:
@@ -185,13 +198,11 @@ def rapor_uret(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tu
                          "kazanma": None, "basabas": basabas})
             continue
         yaz(f"  İşlem {k['islem_sayisi']}, kazanma %{_sayi(k['kazanma_orani'], 1)} "
-            f"(başa baş %{'-' if sinyalle_cikar else _sayi(basabas, 1)}), işlem başına net %{_sayi(k['net_beklenti'], 3, True)}, "
+            f"(başa baş %{_sayi(basabas, 1)}), işlem başına net %{_sayi(k['net_beklenti'], 3, True)}, "
             f"kâr faktörü {_sayi(k['kar_faktoru'])}")
         yaz(f"  Net {_sayi(k['net_tutar'], 2, True)} USDT, en büyük düşüş %{_sayi(k['en_buyuk_dusus_yuzde'], 1)} "
             f"(1.000 USDT bakiyeye göre)")
-        yaz(f"  Çıkışlar: hedef {nedenler['kar_hedefi']}, stop {nedenler['zarar_durdur']}, "
-            f"süre aşımı {nedenler['sure_asimi']}"
-            + (f", kanal sinyali {nedenler['cikis_sinyali']}" if sinyalle_cikar else ""))
+        yaz("  Çıkışlar: " + _nedenler_metni(nedenler, c))
         yaz("  Çeyrekler (net USDT): " + " | ".join(
             f"{p['baslangic']:%m.%Y}: {_sayi(p['net'], 2, True)} ({p['islem']})" for p in ceyrekler))
         arti = sum(1 for p in ceyrekler if p["net"] > 0)
@@ -201,8 +212,8 @@ def rapor_uret(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tu
         ozet.append({"bot": bot, "kod": kod, "islem": k["islem_sayisi"], "net": k["net_tutar"],
                      "arti_ceyrek": arti, "kazanma": k["kazanma_orani"], "basabas": basabas})
 
-        if sinyalle_cikar:
-            continue   # hedefsiz trend takibinde (Sniper) "stop = hedef" anlamsızdır
+        if sinyalle_cikar or c.get("kar_hedefi_yuzde") is None:
+            continue   # sabit hedef yoksa (kanal sinyali, iz süren stop) "stop = hedef" anlamsızdır
         alt_kural = stop_hedefe_esit(kural)
         alt_islemler, _ = islemleri_topla(alt_kural, piyasa, yukle, komisyon, baslangic, bitis)
         karsilastirma.append((bot, k, kr.karne(alt_islemler, tutar, bakiye)))

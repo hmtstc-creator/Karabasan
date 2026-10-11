@@ -238,7 +238,7 @@ class SinyalleCikanYillikRapor(unittest.TestCase):
         with mock.patch.object(y, "BOTLAR", [("sniperg-vadeli", "SniperVadeli", "SNIPERG", "vadeli")]):
             metin, sonuc, eksik = y.rapor_uret(yukle, gun=100, ayar=ayar)
         self.assertEqual(eksik, 0)
-        self.assertIn("hedef yok (çıkış kanal sinyaliyle), stop %10,0", metin)
+        self.assertIn("hedef %200, stop %10, süre 129600 dk; çıkış kanal sinyaliyle", metin)
         self.assertIn("(başa baş %-)", metin)
         self.assertIn("kanal sinyali", metin)
         self.assertIn("1 botun toplamı", metin)

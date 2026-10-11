@@ -99,14 +99,35 @@ class StratejiSiniflari(unittest.TestCase):
                 self.assertEqual(s.piyasa, "vadeli")
 
     def test_kar_hedefi_fiyat_hareketine_karsilik_gelir(self):
-        # Vadeli, komisyon %0,05: fiyat %0,8 yükseldiğinde komisyon sonrası kâr
-        roi = self.modul.SMVadeli.minimal_roi["0"]
+        # Vadeli, komisyon %0,05: fiyat %0,8 yükseldiğinde komisyon sonrası kâr (emekli S1 / S1K: %0,8 hedef)
+        roi = self.emekli("S1").minimal_roi["0"]
         self.assertAlmostEqual(roi, 1.008 * (1 - 0.0005) / (1 + 0.0005) - 1)
         self.assertTrue(0.0069 < roi < 0.0071, roi)
         # Açığa satışta formül farklıdır; %0,05 komisyonla %0,8 hedef yine %0,7 civarı net verir.
-        kisa = self.modul.SMKVadeli.minimal_roi["0"]
+        kisa = self.emekli("S1K").minimal_roi["0"]
         self.assertAlmostEqual(kisa, 1 - 0.992 * (1 + 0.0005) / (1 - 0.0005))
         self.assertTrue(0.0069 < kisa < 0.0071, kisa)
+
+    def test_iz_suren_stop_motor_ayarlarina_gecer(self):
+        """%1,2 kârda (komisyon sonrası) devreye girer, en iyi fiyatın %0,3 gerisini izler."""
+        for _bot, sinif, _k, _p in botlar.BOTLAR:
+            s = getattr(self.modul, sinif)
+            self.assertTrue(s.trailing_stop, sinif)
+            self.assertAlmostEqual(s.trailing_stop_positive, 0.003)
+            self.assertAlmostEqual(s.trailing_stop_positive_offset, 0.012)
+            self.assertTrue(s.trailing_only_offset_is_reached)
+            self.assertAlmostEqual(s.stoploss, -0.03)
+            self.assertGreaterEqual(s.minimal_roi["0"], 100.0)     # sabit hedef fiilen kapalı
+        self.assertFalse(self.emekli("S1").trailing_stop)
+
+    def test_sure_siniri_yoksa_suresiz(self):
+        from types import SimpleNamespace
+        s = self.modul.SMVadeli()
+        islem = SimpleNamespace(open_date_utc=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        self.assertIsNone(s.custom_exit("ETH/USDT:USDT", islem, datetime(2026, 3, 1, tzinfo=timezone.utc), 1.0, 0.0))
+        e = self.emekli("S1")()
+        self.assertEqual(e.custom_exit("ETH/USDT:USDT", islem, datetime(2026, 1, 2, tzinfo=timezone.utc), 1.0, 0.0),
+                         "sure_asimi")
 
     def test_zararda_ekleme_kapali(self):
         for _bot, sinif, _k, _p in botlar.BOTLAR:

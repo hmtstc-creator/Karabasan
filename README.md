@@ -132,6 +132,7 @@ ekranda "henüz canlı ölçülmüyor" yazar.
 | `/uyum` | Uyum denemesi raporu |
 | `/olcum` | Karabasan geçmiş ölçümü: stratejilerin sonucu piyasa durumuna ve stop genişliğine göre |
 | `/yillik` | 12 aylık geçmiş testi: her bot son bir yılda ne yapardı, dört çeyrek ayrı |
+| `/tarama` | Çıkış taraması: her botun girişleriyle 20 çıkış ayarının bir yıllık sonucu (ilk 9 ay seçim, son 3 ay doğrulama) |
 | `/defter` | Emir defteri denemesi: BTC/USDT tahminleri ve sanal işlemlerin özeti, ayrıca tek sayfalık dosya |
 | `/dersler` | Stop sonrası izleme: stop daha geniş olsaydı ne olurdu, bot başına |
 | `/kurulum` | Kurulum kaydı |
@@ -187,7 +188,7 @@ gerekmez; sonuç sayfası ve Telegram yeterlidir.
 | smk-vadeli | SMK Smartmoney: tepki sonrası yapı kırılımıyla satış | SM'nin tersi | Vadeli, 1 kat | 8082 |
 | smd-vadeli | SMD Smartmoney + uyumsuzluk + emir defteri: alım | SM'nin bütün koşulları, son 1 saatte en az bir göstergede boğa uyumsuzluğu, girişte emir defterinde alıcılar belirgin kalabalık | Vadeli, 1 kat | 8083 |
 | smdk-vadeli | SMDK Smartmoney + uyumsuzluk + emir defteri: satış | SMD'nin tersi | Vadeli, 1 kat | 8084 |
-| sniper5-vadeli | SNIPER Sniper: dip sonrası CHoCH + FVG ile kısa vuruş | 5 dakikalıkta dip görülüp yapı yukarı dönünce, hızlı alım izi (FVG), momentum, RSI ve hacim onayıyla alır; %1,2 kâr, %1,5 stop, en çok 3 saat | Vadeli, 1 kat | 8085 |
+| sniper5-vadeli | SNIPER Sniper: dip sonrası CHoCH + FVG ile kısa vuruş | 5 dakikalıkta dip görülüp yapı yukarı dönünce, hızlı alım izi (FVG), momentum, RSI ve hacim onayıyla alır | Vadeli, 1 kat | 8085 |
 
 **12 Ekim 2026'dan beri yalnız Smartmoney çalışır (Ahmet'in isteğiyle).** Aynı
 gün 12 aylık geçmiş testi (11.10.2025–11.10.2026) on iki botun hepsini ekside
@@ -196,10 +197,18 @@ kural dosyaları kayıt için `karabasan/stratejiler/emekli/` altında durur (ne
 çıkarıldıkları oradaki BENIOKU.md'de). Smartmoney de o testte eksideydi
 (SM −30,17, SMK −26,69 USDT); en az kaybedenler onlardı.
 
-Smartmoney botlarında çıkış: kâr hedefi %0,8, stop %3, 1 kat vadeli. Komisyon gidiş-dönüş %0,1
-olduğu için kazanan işlem net yaklaşık +%0,7, stop olan işlem −%3,1 getirir;
-başa baş için işlemlerin yaklaşık %82'si kazanmalıdır. Vadelide 50 USDT'lik
-işlem tutarıyla BTC işlem görmez.
+**Çıkış (12 Ekim 2026'dan beri beş botta aynı, Ahmet'in isteği): iz süren stop.**
+Sabit kâr hedefi ve süre sınırı yok. Kâr (komisyon düşülmüş) %1,2'ye ulaşınca
+stop, o ana kadar görülen en iyi fiyatın %0,3 gerisine çekilir ve yalnız kâr
+yönünde ilerler. Yani fiyat %1,2 kârdan geri dönerse işlem yaklaşık %0,9 kârla
+kapanır; yükselmeye devam ederse kâr koşar. Kâr %1,2'ye hiç ulaşmazsa işlem
+%3 stopa ya da iz süren stopa kadar açık kalır (günlerce sürebilir). Bağımsız
+benzetim kötümserdir: bir mumun tepesi stopu ancak bir sonraki mumdan itibaren
+taşır. Vadelide 50 USDT'lik işlem tutarıyla BTC işlem görmez.
+
+Bu ayarın ve 19 başka çıkış ayarının bir yıllık sonucu `/tarama` raporundadır
+(`karabasan/tarama.py`): her botun girişleri sabit, yalnız çıkış değişir; en iyi
+ayar ilk 9 aya göre seçilir, son 3 ayda sınanır. Rapor hiçbir ayarı değiştirmez.
 
 Her botun 1.000 USDT sanal bakiyesi vardır, işlem başına 50 USDT kullanır,
 aynı anda en fazla 20 pozisyon açar. Çıkışlar ve stoplar piyasa emridir ve karşı
@@ -245,7 +254,7 @@ dönük izlenmek üzere. Üç parçayı birleştirir:
    Açığa satışta tersi. Geçmiş testinde geçmişin defteri olmadığı için bu adım
    orada atlanır.
 
-Çıkış Smartmoney ile aynı: hedef %0,8, stop %3, en uzun 4 saat. Kazandıracağı
+Çıkış Smartmoney ile aynı (iz süren stop, %3 stop, süre sınırı yok). Kazandıracağı
 bilinmiyor; amaç, defter ve uyumsuzluk onayının Smartmoney'nin sonucunu
 değiştirip değiştirmediğini canlıda yan yana görmek (SM ile SMD, SMK ile SMDK).
 
@@ -272,9 +281,8 @@ Altı koşul birlikte aranır (yalnız alım):
 6. **Hacim:** son 15 dakikada bir mumun hacmi 20 mumluk ortalamanın 1,5 katından fazla.
 
 Giriş: fiyatın biraz altına limit emir (oynaklığın yarısı, %0,1–0,6), 15 dakikada
-dolmazsa iptal. Çıkış: %1,2 kâr, %1,5 stop ya da en çok 3 saat; stoptan sonra aynı coine 30 dakika
-girilmez. Komisyon gidiş-dönüş %0,1 olduğu için kazanan işlem net ~%1,1, kaybeden
-~−%1,6 getirir; başa baş için işlemlerin yaklaşık %59'u kazanmalıdır.
+dolmazsa iptal. Çıkış öbür botlarla aynı (iz süren stop %1,2 kârda başlar, %0,3
+geriden izler; %3 stop; süre sınırı yok); stoptan sonra aynı coine 30 dakika girilmez.
 
 Kavramlar (CHoCH, BOS, FVG) yaygın "akıllı para" kavramlarının bu depo için
 yazılmış bağımsız uygulamasıdır (`karabasan/gostergeler.py`: `piyasa_yapisi`,
@@ -326,9 +334,8 @@ yazıldı. Dört katman birlikte aranır (alım hali; satış hali her birinin t
 | Tetik | 5 dakika | Bu mumda yapı yukarı kırılıyor; RSI 50 ile 80 arasında ve 3 mum öncesinden yüksek; hacim son 20 mumun ortalamasının 1,2 katından fazla |
 | Giriş | 5 dakika | Fiyatın biraz altına limit emir (oynaklığın yarısı, %0,1–0,6); 15 dakikada dolmazsa iptal |
 
-Çıkış: kâr hedefi %0,8, stop %3 (12 Ekim 2026'dan beri bütün botlarda aynı), en uzun süre 4 saat; stop sonrası aynı
-coine 2 saat bekleme. Vadeli komisyonuyla zarar etmemek için gereken kazanma
-oranı %45.
+Çıkış: iz süren stop (%1,2 kârda başlar, %0,3 geriden izler), %3 stop, süre sınırı
+yok (12 Ekim 2026'dan beri bütün botlarda aynı); stop sonrası aynı coine 2 saat bekleme.
 
 Kavramlar: bir mumun yükseği sonraki 5 mumun hepsinden yüksekse o mum bir
 salınım tepesidir (dip bunun tersi). Fiyat son tepenin üstünde kapanırsa yapı

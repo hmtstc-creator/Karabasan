@@ -81,10 +81,22 @@ class KarabasanTaban(IStrategy):
         cls.kural = kural
         cls.timeframe = kural["zaman_dilimi"]
         cls.can_short = kural["yon"] == "aciga_satis"
-        cls.minimal_roi = {
-            "0": net_hedef_orani(float(cikis["kar_hedefi_yuzde"]), komisyon, cls.can_short)
-        }
+        if cikis.get("kar_hedefi_yuzde") is not None:
+            cls.minimal_roi = {
+                "0": net_hedef_orani(float(cikis["kar_hedefi_yuzde"]), komisyon, cls.can_short)
+            }
+        else:
+            # Sabit kâr hedefi yok: motorun hedef çıkışı fiilen kapalı (%10.000).
+            cls.minimal_roi = {"0": 100.0}
         cls.stoploss = -float(cikis["zarar_durdur_yuzde"]) / 100.0
+        iz = cikis.get("iz_suren_stop")
+        # İz süren stop: kâr (komisyon sonrası) tetiğe ulaşınca devreye girer, stop en iyi
+        # fiyatın mesafe kadar gerisine çekilir. Motorun kendi ayarlarıyla birebir.
+        cls.trailing_stop = bool(iz)
+        if iz:
+            cls.trailing_stop_positive = float(iz["mesafe_yuzde"]) / 100.0
+            cls.trailing_stop_positive_offset = float(iz["tetik_yuzde"]) / 100.0
+            cls.trailing_only_offset_is_reached = True
         cls.startup_candle_count = gereken_mum(kural)
         if cls.can_short and cls.piyasa != "vadeli":
             raise ValueError(f"{cls.__name__}: açığa satış yalnız vadeli piyasada yapılabilir.")
@@ -235,8 +247,10 @@ class KarabasanTaban(IStrategy):
 
     def custom_exit(self, pair: str, trade: Trade, current_time: datetime, current_rate: float,
                     current_profit: float, **kwargs):
-        sure = timedelta(minutes=int(self.kural["cikis"]["sure_asimi_dakika"]))
-        if current_time - trade.open_date_utc >= sure:
+        dakika = self.kural["cikis"].get("sure_asimi_dakika")
+        if dakika is None:
+            return None     # süre sınırı yok
+        if current_time - trade.open_date_utc >= timedelta(minutes=int(dakika)):
             return "sure_asimi"
         return None
 

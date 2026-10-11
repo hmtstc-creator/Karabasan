@@ -64,16 +64,12 @@ class KuralDosyalari(unittest.TestCase):
             self.assertNotIn(kod, kurallar)
             self.assertEqual(k.kural_yukle(k.STRATEJI_KLASORU / "emekli" / f"{kod}.json")["kod"], kod)
 
-    def test_butun_stratejilerde_hedef_ve_stop_ayni(self):
-        """Ahmet'in isteği (12 Ekim 2026): 1 kat vadelide %0,8 hedef, %3 stop.
-
-        Sniper bilerek ayrıdır: 5 dakikalık kısa vuruş, %1,2 hedef, %1,5 stop (Ahmet'in isteği).
-        """
+    def test_butun_stratejilerde_cikis_ayni(self):
+        """Ahmet'in isteği (12 Ekim 2026): iz süren stop %1,2 kârda başlar, %0,3 geriden
+        izler (ilk anda ~%0,9 kâr); stop %3; sabit kâr hedefi ve süre sınırı yok."""
         for kod, kural in k.tum_kurallar().items():
-            if kod == "SNIPER":
-                continue
-            self.assertEqual(kural["cikis"]["kar_hedefi_yuzde"], 0.8, kod)
-            self.assertEqual(kural["cikis"]["zarar_durdur_yuzde"], 3.0, kod)
+            self.assertEqual(kural["cikis"], {"zarar_durdur_yuzde": 3.0,
+                                              "iz_suren_stop": {"tetik_yuzde": 1.2, "mesafe_yuzde": 0.3}}, kod)
 
     def test_ters_yonlu_ciftler_ayni_cikisi_kullanir(self):
         kurallar = k.tum_kurallar()
@@ -82,14 +78,11 @@ class KuralDosyalari(unittest.TestCase):
             self.assertEqual(kurallar[kod]["gostergeler"], kurallar[kod + "K"]["gostergeler"], kod)
 
     def test_basabas_oranlari_raporla_ayni(self):
-        kurallar = k.tum_kurallar()
-        # 12 Ekim 2026'dan beri bütün stratejilerde hedef %0,8, stop %3:
-        # (3 + 0,2) / (0,8 + 3) = %84,21.
-        beklenen = {"SM": 84.21, "SMK": 84.21, "SMD": 84.21, "SMDK": 84.21,
-                    # Sniper: (1,5 + 0,2) / (1,2 + 1,5) = %62,96
-                    "SNIPER": 62.96}
-        for kod, oran in beklenen.items():
-            self.assertAlmostEqual(k.basabas_orani(kurallar[kod], 0.20), oran, places=2)
+        # Sabit hedefli kuralda: (stop + maliyet) / (hedef + stop). S1: (3 + 0,2) / (0,8 + 3) = %84,21.
+        self.assertAlmostEqual(k.basabas_orani(k.kural_yukle("S1"), 0.20), 84.21, places=2)
+        # 12 Ekim 2026'dan beri canlı kurallarda sabit hedef yok (iz süren stop): tanımsız.
+        for kod, kural in k.tum_kurallar().items():
+            self.assertIsNone(k.basabas_orani(kural, 0.20), kod)
 
     def test_tum_stratejiler_yapay_veride_calisir(self):
         df5 = yapay_mumlar(6000, dilim_dk=5, tohum=3)

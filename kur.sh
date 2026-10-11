@@ -254,7 +254,7 @@ PY
     adim "9/10 Uyum denemesi"
     # Uyum denemesinin içeriği değişince bu sayı artırılır; sunucu denemeyi bir
     # sonraki güncellemede kendiliğinden yeniden çalıştırır.
-    local UYUM_SURUMU=15 SURUM
+    local UYUM_SURUMU=16 SURUM
     SURUM="$(git rev-parse HEAD 2> /dev/null || echo bilinmiyor)"
     if [ "$(cat user_data/logs/uyum_gecti 2> /dev/null)" != "surum-$UYUM_SURUMU" ]; then
         if [ "$ILK" -eq 1 ]; then
@@ -352,7 +352,7 @@ print(' '.join(b[0] for b in BOTLAR))")"
     # Bir yıllık veriyi indirir (ilk seferde 10-20 dakika), her botu son 365 günde
     # çalıştırır, sonucu çeyreklere böler. Sonuç sınavın 7. ölçütüne de gider
     # (user_data/gecmis_test.json). Başarısız olursa botlar ve kurulum etkilenmez.
-    local YILLIK_SURUMU=4
+    local YILLIK_SURUMU=5
     if [ "$(cat user_data/logs/yillik_surumu 2> /dev/null)" != "surum-$YILLIK_SURUMU" ]; then
         bildir "12 aylık geçmiş testi başladı: her bot son bir yılın gerçek fiyatlarında ne yapardı? Bir yıllık veri indiriliyor; 15-30 dakika sürer, bitince raporu yollarım. Botlar bu sırada çalışmaya devam eder."
         if bash araclar/yillik_test.sh; then
@@ -365,6 +365,26 @@ print(' '.join(b[0] for b in BOTLAR))")"
         chown -R 1000:1000 user_data
     else
         echo "12 aylık test bu sürümde zaten çalıştı, atlandı."
+    fi
+
+    # ------------------------------------------------------------ çıkış taraması
+    adim "Ek: çıkış varyasyonu taraması"
+    # Her botun girişleriyle 20 çıkış ayarını son bir yılda sınar (Ahmet'in isteği, 12 Ekim
+    # 2026). Veriyi az önceki 12 aylık test indirdi. Hiçbir ayarı değiştirmez; başarısız
+    # olursa botlar ve kurulum etkilenmez.
+    local TARAMA_SURUMU=1
+    if [ "$(cat user_data/logs/tarama_surumu 2> /dev/null)" != "surum-$TARAMA_SURUMU" ]; then
+        bildir "Çıkış taraması başladı: her bot için 20 farklı çıkış ayarı (iz süren stop, kâr hedefi, stop, süre) son bir yılda deneniyor. 10-30 dakika sürer, bitince raporu yollarım."
+        if bash araclar/tarama.sh; then
+            belge "$KLASOR/user_data/logs/tarama.txt" "Çıkış varyasyonu taraması. Bu dosyayı Claude'a ilet. Sonra da /tarama yazarak yeniden alabilirsin."
+        else
+            belge "$KLASOR/user_data/logs/tarama.txt" "Çıkış taraması tamamlanamadı. Bu dosyayı Claude'a ilet."
+        fi
+        arsivle user_data/logs/tarama.txt "tarama_surum${TARAMA_SURUMU}.txt"
+        echo "surum-$TARAMA_SURUMU" > user_data/logs/tarama_surumu
+        chown -R 1000:1000 user_data
+    else
+        echo "Çıkış taraması bu sürümde zaten çalıştı, atlandı."
     fi
 
     rm -f "$DURUM_KLASORU/son_deneme"

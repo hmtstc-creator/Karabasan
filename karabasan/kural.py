@@ -293,10 +293,20 @@ def kural_dogrula(kural: dict) -> None:
     cikis = kural["cikis"]
     if not isinstance(cikis, dict):
         raise KuralHatasi("'cikis' bir sözlük olmalı.")
+    if "zarar_durdur_yuzde" not in cikis:
+        raise KuralHatasi("'cikis' içinde zorunlu alan eksik: 'zarar_durdur_yuzde'")
+    # Kâr hedefi ve süre sınırı isteğe bağlıdır (12 Ekim 2026: iz süren stoplu, süresiz
+    # botlar). Ama stoptan başka en az bir çıkış yolu olmalı.
     for alan in ("kar_hedefi_yuzde", "zarar_durdur_yuzde", "sure_asimi_dakika"):
-        if alan not in cikis:
-            raise KuralHatasi(f"'cikis' içinde zorunlu alan eksik: '{alan}'")
-        _sinir_denetle(alan, cikis[alan])
+        if cikis.get(alan) is not None:
+            _sinir_denetle(alan, cikis[alan])
+    iz = cikis.get("iz_suren_stop")
+    if iz is not None:
+        _iz_suren_stop_dogrula(iz)
+    if not any(cikis.get(a) is not None for a in ("kar_hedefi_yuzde", "sure_asimi_dakika",
+                                                  "iz_suren_stop", "sinyal")):
+        raise KuralHatasi("'cikis' içinde stoptan başka en az bir çıkış olmalı: kâr hedefi, "
+                          "iz süren stop, süre sınırı ya da çıkış sinyali.")
     _sinir_denetle("bekleme_dakika", kural.get("bekleme_dakika", 0))
     if "sinyal" in cikis:
         _kosul_dogrula(cikis["sinyal"], bilinen, "cikis > sinyal")
@@ -674,23 +684,52 @@ def sinyal_uret(df: pd.DataFrame, kural: dict, ek_veri: dict | None = None) -> p
     return tablo
 
 
+def cikis_metni(cikis: dict) -> str:
+    """Çıkış ayarlarının kısa Türkçe anlatımı: 'iz süren stop %1,2'de, %0,3 geriden; stop %3; süre yok'."""
+    parcalar = []
+    if cikis.get("kar_hedefi_yuzde") is not None:
+        parcalar.append(f"hedef %{cikis['kar_hedefi_yuzde']:g}")
+    iz = cikis.get("iz_suren_stop")
+    if iz:
+        parcalar.append(f"iz süren stop %{iz['tetik_yuzde']:g} kârda başlar, tepeden %{iz['mesafe_yuzde']:g} geride")
+    parcalar.append(f"stop %{cikis['zarar_durdur_yuzde']:g}")
+    sure = cikis.get("sure_asimi_dakika")
+    parcalar.append(f"süre {sure} dk" if sure is not None else "süre sınırı yok")
+    return ", ".join(parcalar).replace(".", ",")
+
+
 def ozet(kural: dict) -> str:
     """Stratejinin tek satırlık Türkçe özeti (panel ve kayıtlar için)."""
-    c = kural["cikis"]
     yon = "alım" if kural["yon"] == "alim" else "açığa satış"
-    return (
-        f"{kural['kod']} {kural['ad']} ({yon}, {kural['zaman_dilimi']}): "
-        f"hedef %{c['kar_hedefi_yuzde']:g}, stop %{c['zarar_durdur_yuzde']:g}, "
-        f"süre {c['sure_asimi_dakika']} dk"
-    )
+    return f"{kural['kod']} {kural['ad']} ({yon}, {kural['zaman_dilimi']}): {cikis_metni(kural['cikis'])}"
 
 
-def basabas_orani(kural: dict, gidis_donus_maliyet_yuzde: float) -> float:
+def _iz_suren_stop_dogrula(iz) -> None:
+    """'iz_suren_stop': {"tetik_yuzde": 1.2, "mesafe_yuzde": 0.3}.
+
+    Kâr (komisyon düşülmüş) tetik yüzdesine ulaşınca stop, o ana kadarki en iyi fiyatın
+    mesafe kadar gerisine çekilir ve yalnız kâr yönünde ilerler.
+    """
+    if not isinstance(iz, dict):
+        raise KuralHatasi("'iz_suren_stop' bir sözlük olmalı.")
+    for alan, (alt, ust) in {"tetik_yuzde": (0.1, 20.0), "mesafe_yuzde": (0.05, 10.0)}.items():
+        deger = iz.get(alan)
+        if isinstance(deger, bool) or not isinstance(deger, (int, float)) or not alt <= deger <= ust:
+            raise KuralHatasi(f"'iz_suren_stop' içinde '{alan}' {alt} ile {ust} arasında sayı olmalı.")
+    if iz["mesafe_yuzde"] >= iz["tetik_yuzde"]:
+        raise KuralHatasi("'iz_suren_stop': 'mesafe_yuzde', 'tetik_yuzde'den küçük olmalı "
+                          "(yoksa stop devreye girdiği anda zarara düşer).")
+
+
+def basabas_orani(kural: dict, gidis_donus_maliyet_yuzde: float) -> float | None:
     """Zarar etmemek için gereken kazanma oranı, yüzde olarak.
 
-    Formül: (stop + maliyet) / (hedef + stop)
+    Formül: (stop + maliyet) / (hedef + stop). Sabit kâr hedefi yoksa (iz süren stop)
+    kazancın boyu belli değildir; None döner.
     """
     c = kural["cikis"]
+    if c.get("kar_hedefi_yuzde") is None:
+        return None
     hedef = float(c["kar_hedefi_yuzde"])
     stop = float(c["zarar_durdur_yuzde"])
     return float(np.round((stop + gidis_donus_maliyet_yuzde) / (hedef + stop) * 100.0, 2))

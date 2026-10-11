@@ -54,7 +54,9 @@ def main() -> int:
         kural = kural_yukle(kural_kodu)
         komisyon = float(ayar["komisyon_yuzde"][piyasa])
         mum = pd.Timedelta(minutes=g.dilim_dakika(kural["zaman_dilimi"]))
-        sure = pd.Timedelta(minutes=int(kural["cikis"]["sure_asimi_dakika"]))
+        # Süre sınırı yoksa uçta bir günlük pay bırakılır (açık kalan işlemler iki tarafta da düşer).
+        dakika = kural["cikis"].get("sure_asimi_dakika")
+        sure = pd.Timedelta(minutes=int(dakika)) if dakika is not None else pd.Timedelta(days=1)
         coinler = [c for c in COINLER if not (piyasa == "vadeli" and c == "BTC")]
         benz = []
         son = None

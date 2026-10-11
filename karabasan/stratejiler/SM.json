@@ -2,7 +2,7 @@
   "kod": "SM",
   "ad": "Smartmoney: geri çekilme sonrası yapı kırılımıyla alım",
   "yon": "alim",
-  "aciklama": "Dört katman birlikte aranır. Günlük: son kapanan gün 20 günlük ortalamanın üstünde. 1 saatlik: son yapı kırılımı yukarı ve RSI 80'in altında. 15 dakikalık: fiyat son bir saatte indirimli bölgeye (aralığın alt yarısına) inmiş ya da bir alım bloğuna dokunmuş; 15 dakikalık RSI 65'in altında (üst dilim henüz şişmemiş). 5 dakikalık: yapı yukarı kırılıyor, RSI 50 ile 80 arasında ve 3 mum öncesinden yüksek (yukarı dönmüş), hacim ortalamanın 1,2 katından fazla. Giriş piyasa emriyle değil: sinyalden sonra fiyatın biraz altına (oynaklığın yarısı kadar, %0,1–0,6) limit emir konur, 15 dakikada dolmazsa iptal edilir.",
+  "aciklama": "Dört katman birlikte aranır. Günlük: son kapanan gün 20 günlük ortalamanın üstünde. 1 saatlik: son yapı kırılımı yukarı ve RSI 80'in altında. 15 dakikalık: fiyat son bir saatte indirimli bölgeye (aralığın alt yarısına) inmiş ya da bir alım bloğuna dokunmuş; 15 dakikalık RSI 65'in altında (üst dilim henüz şişmemiş). 5 dakikalık: yapı yukarı kırılıyor, RSI 50 ile 80 arasında ve 3 mum öncesinden yüksek (yukarı dönmüş), hacim ortalamanın 1,2 katından fazla. Giriş piyasa emriyle değil: sinyalden sonra fiyatın biraz altına (oynaklığın yarısı kadar, %0,1–0,6) limit emir konur, 15 dakikada dolmazsa iptal edilir. Çıkış (12 Ekim 2026'dan beri): kâr %1,2'ye ulaşınca iz süren stop devreye girer (en iyi fiyatın %0,3 gerisi, yani ilk anda yaklaşık %0,9 kâr); %3 stop; sabit kâr hedefi ve süre sınırı yok.",
   "zaman_dilimi": "5m",
   "borsa_dilimleri": [
     "1d"
@@ -131,9 +131,11 @@
     "sure_dakika": 15
   },
   "cikis": {
-    "kar_hedefi_yuzde": 0.8,
     "zarar_durdur_yuzde": 3.0,
-    "sure_asimi_dakika": 240
+    "iz_suren_stop": {
+      "tetik_yuzde": 1.2,
+      "mesafe_yuzde": 0.3
+    }
   },
   "izinli_durumlar": [
     "YESIL",
