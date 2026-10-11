@@ -128,7 +128,8 @@ Sunucudaki durum dosyaları: `user_data/isinma_baslangici.txt` (botların ilk
 başladığı an), `user_data/sinav_baslangici.txt` (Ahmet Telegram'da
 `/sinav_baslat evet` yazınca oluşur; bir kez yazılır, değiştirilmez),
 `user_data/kurulum_tamam`, `user_data/logs/uyum_gecti`,
-`user_data/telegram_sohbet.txt` (botun dinlediği tek sohbet).
+`user_data/telegram_sohbet.txt` (botun dinlediği tek sohbet),
+`user_data/arsiv/` (uyum ve ölçüm raporlarının tarihli kopyaları).
 
 Telegram komutları yalnız okur ve bildirir. Emir gönderen, ayar değiştiren ya
 da sunucuda serbest komut çalıştıran bir Telegram komutu ekleme. Tek istisna
@@ -156,6 +157,13 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 - En değerli işin teşhistir: `docker compose ps`, `docker compose logs`,
   `user_data/logs/` altındaki kayıtlar, `user_data/db/*.sqlite` (yalnız
   okuyarak), `araclar/uyum_denemesi.sh`. Bulut oturumu bunları göremez.
+- **Raporlar burada, Ahmet'in iletmesine gerek yok.** Telegram'a giden her
+  dosya bu sunucudaki bir dosyanın kopyasıdır: `user_data/logs/uyum_denemesi.txt`
+  (uyum denemesi), `user_data/logs/karabasan_gecmis.txt` (Karabasan geçmiş
+  ölçümü ve stop genişliği), `user_data/logs/kurulum.txt`, `user_data/logs/claude.txt`.
+  Her raporun tarihli eski halleri `user_data/arsiv/` altındadır (11 Ekim 2026'dan
+  beri; en yeni 80 dosya). Ahmet "raporu oku" derse dosyayı kendin aç, sonucu
+  düz Türkçe ve rakamla özetle, kanıtlanmamış şeyi kanıtlanmış gibi anlatma.
 - Gizli dosyaları okuma, içeriklerini yazma: `.env`, `telegram.env`,
   `/root/karabasan.env`, `/root/.claude/.credentials.json`.
 - Değişmez kurallar burada da geçerlidir: gerçek para kodu ya da anahtarı yok,

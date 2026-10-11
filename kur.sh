@@ -21,6 +21,18 @@ ADIM="başlangıç"
 
 bildir() { python3 -m karabasan.haberci gonder "$1" > /dev/null 2>&1 || true; }
 belge() { python3 -m karabasan.haberci belge "$1" "$2" > /dev/null 2>&1 || true; }
+arsivle() {  # arsivle DOSYA AD : raporun tarihli bir kopyasını user_data/arsiv altına koyar
+    # Raporlar her çalıştırmada üstüne yazılır; eski hali karşılaştırmak için saklanır.
+    # Sunucudaki Claude oturumu bunları doğrudan okur; Telegram'dan iletmek gerekmez.
+    [ -s "$1" ] || return 0
+    mkdir -p user_data/arsiv
+    cp -f "$1" "user_data/arsiv/$(date -u '+%Y-%m-%d_%H%M')_$2" 2> /dev/null || return 0
+    # En yeni 80 dosya kalır.
+    ls -1t user_data/arsiv 2> /dev/null | tail -n +81 | while IFS= read -r ESKI; do
+        rm -f "user_data/arsiv/$ESKI"
+    done
+    return 0
+}
 adim() { ADIM="$1"; echo; echo "=== $1 === $(date -u '+%H:%M:%S UTC')"; }
 
 dur() {
@@ -249,6 +261,7 @@ PY
         trap - ERR
         local UYUM=0
         bash araclar/uyum_denemesi.sh || UYUM=$?
+        arsivle user_data/logs/uyum_denemesi.txt "uyum_denemesi_surum${UYUM_SURUMU}.txt"
         trap 'dur "beklenmeyen hata (adım: $ADIM, satır $LINENO)"' ERR
         chown -R 1000:1000 user_data
         if [ "$UYUM" -eq 0 ]; then
@@ -311,12 +324,18 @@ print(' '.join(b[0] for b in BOTLAR))")"
     # güncellemede yeniden çalıştırıp raporu yollar. Başarısız olursa botlar ve
     # kurulum etkilenmez.
     local ANALIZ_SURUMU=3
+    # Arşiv ilk kez kuruluyorsa eldeki son raporlar da içine konur.
+    if [ ! -d user_data/arsiv ]; then
+        arsivle user_data/logs/uyum_denemesi.txt "uyum_denemesi_mevcut.txt"
+        arsivle user_data/logs/karabasan_gecmis.txt "karabasan_gecmis_mevcut.txt"
+    fi
     if [ "$(cat user_data/logs/analiz_surumu 2> /dev/null)" != "surum-$ANALIZ_SURUMU" ]; then
         if bash araclar/analiz.sh; then
             belge "$KLASOR/user_data/logs/karabasan_gecmis.txt" "Karabasan geçmiş ölçümü: stratejiler yalnız izinli durumda çalışsaydı ve stop daha geniş olsaydı ne olurdu? Bu dosyayı Claude'a ilet."
         else
             belge "$KLASOR/user_data/logs/karabasan_gecmis.txt" "Karabasan geçmiş ölçümü üretilemedi. Bu dosyayı Claude'a ilet."
         fi
+        arsivle user_data/logs/karabasan_gecmis.txt "karabasan_gecmis_surum${ANALIZ_SURUMU}.txt"
         # Sonuç ne olursa olsun bu sürüm bir kez denenir; düzeltme yeni sürümle gelir.
         echo "surum-$ANALIZ_SURUMU" > user_data/logs/analiz_surumu
         chown -R 1000:1000 user_data

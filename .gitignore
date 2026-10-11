@@ -11,6 +11,7 @@ user_data/db/
 user_data/logs/
 user_data/data/
 user_data/kayit/
+user_data/arsiv/
 user_data/backtest_results/
 user_data/sinav_baslangici.txt
 user_data/isinma_baslangici.txt
