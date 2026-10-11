@@ -181,7 +181,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 430 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 431 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -483,12 +483,32 @@ Barbon, "Catching Crypto Trends", 2025). Yapılan:
   Kayıtta "exit_signal" çıkışları görülmeli (`sonuc.py` "çıkış sinyali" der).
 - Bellek: beş bot (~2,2 GB) + defter servisi.
 
+**On birinci uyum denemesi (11 Ekim 2026 14:20 UTC, Ahmet iletti).** Beş sınıf
+da motorda yüklendi. Dört Smartmoney botu motorla işlem işlem tutuyor (motor /
+benzetim, BTC hariç): SM 85 / 86, SMK 40 / 40, SMD 67 / 67, SMDK 32 / 32; "yalnız
+motor" hepsinde 0. Yani benzetimdeki yeniden giriş düzeltmesi doğrulandı (eski
+0. iş). Son 30 günde, komisyon dahil (benzetim, BTC dahil): SM 112 işlem %52 /
+−3,03 USDT; SMK 46 / %41 / −3,03; SMD 88 / %49 / −4,80; SMDK 35 / %34 / −2,46.
+SMD'nin sayıları defter onayı olmadan (geçmiş testi onu uygulayamaz).
+- **Sniper'ın geçmiş testi kaldı:** "No data left after adjusting for startup
+  candles". Neden: hazır motorun `download-data`'sı eldeki dosyaya yalnız sona
+  ekler; günlük dosyalar önceki 200 / 600 günlük indirmelerden kaldığı için
+  `--days 800` başa veri eklemedi (BTC 1d 2026-03-25'ten, diğerleri
+  2025-02-18'den başlıyor; 735 günlük ısınma + 30 gün sığmıyor). Düzeltme: uyum
+  denemesi ve analiz büyük dilimleri önce `--prepend` (olmazsa `--erase`), sonra
+  düz indirmeyle sona ekleyerek indirir. `UYUM_SURUMU=12`. 12 aylık test zaten
+  `--prepend` kullanıyordu.
+- Benzetimin Sniper sonucu (eksik veriyle, BTC'de veri yetmediği için işlem yok):
+  8 işlem, %0 kazanma, −20,39 USDT. **Bu ölçü Sniper için yanıltıcıdır:** 30 günlük
+  pencerede yalnız kapanmış işlemler sayılır; trend takibinde kaybedenler hızlı
+  kapanır, kazananlar açık kalır. Sniper'ı 12 aylık test ve canlı sonuç ölçer.
+
 Sıradaki işler, öncelik sırasıyla:
 
-0. Sekizinci uyum denemesinde eşleştirmeye bak: S2'nin "yalnız motor" sayısı
-   0'a yakın inmeli, açığa satış botları da birebir tutmalı. Ayrıca altıncı uyum denemesi ve dördüncü geçmiş ölçüm raporlarında SM / SMK'ya
-   bak: motor günlük veriyi aldı mı, işlem sayıları benzetimle tutuyor mu,
-   ilk gerçek sonuç ne? Sonucu Ahmet'e rakamla ve "tek dönem" uyarısıyla söyle.
+0. On ikinci uyum denemesinde Sniper'ın geçmiş testi geçmeli (günlük veri
+   2024-08'den başlamalı) ve motor ile benzetim işlem sayıları yakın olmalı.
+   12 aylık testin (`YILLIK_SURUMU=2`) SMD / SMDK / Sniper sonucunu Ahmet'e
+   rakamla ve "tek dönem" uyarısıyla söyle.
 
 1. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).

@@ -49,13 +49,20 @@ print(' '.join(ek_dilimler('$1')))" 2> /dev/null
 indir_ek() {  # indir_ek spot|futures "DILIMLER" PARITELER...
     local MOD="$1" DILIMLER="$2"; shift 2
     [ -n "$DILIMLER" ] || return 0
+    # Önce başa ekle (olmazsa silip baştan indir), sonra sona ekle: hazır motor eldeki
+    # dosyaya kendiliğinden yalnız sona ekler, kısa bir eski dosyanın başı eksik kalır.
+    { indir_ek_bir "$MOD" "$DILIMLER" --prepend "$@" || indir_ek_bir "$MOD" "$DILIMLER" --erase "$@"; } \
+        && indir_ek_bir "$MOD" "$DILIMLER" "" "$@"
+}
+indir_ek_bir() {  # indir_ek_bir spot|futures "DILIMLER" BAYRAK|"" PARITELER...
+    local MOD="$1" DILIMLER="$2" BAYRAK="$3"; shift 3
     # shellcheck disable=SC2086
     docker compose run --rm -T arac download-data --exchange binance --trading-mode "$MOD" \
-        --pairs "$@" --timeframes $DILIMLER --days "$EK_GUN" > "$GECICI" 2>&1
+        --pairs "$@" --timeframes $DILIMLER --days "$EK_GUN" $BAYRAK > "$GECICI" 2>&1
     local KOD=$?
     cat "$GECICI" >> "$KAYIT"
-    echo "  ($MOD veri indirme, $DILIMLER, çıkış kodu: $KOD)" >> "$KAYIT"
-    [ "$KOD" -eq 0 ] && ! grep -Eq "$HATA_DESENI" "$GECICI"
+    echo "  ($MOD veri indirme, $DILIMLER, ${BAYRAK:-sona ekle}, çıkış kodu: $KOD)" >> "$KAYIT"
+    [ "$KOD" -eq 0 ] && ! grep -Eq "$HATA_DESENI|unrecognized arguments" "$GECICI"
 }
 
 echo "Analiz - $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$KAYIT"

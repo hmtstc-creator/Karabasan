@@ -41,6 +41,20 @@ calistir() {
     if grep -Eq "$HATA_DESENI" "$GECICI"; then return 2; fi
     return 0
 }
+# Büyük dilimler (günlük) için uzun geçmiş: hazır motor eldeki dosyaya yalnız sona ekler;
+# dosya kısa bir indirmeden kalmışsa (örnek: 200 gün) başı eksik kalır ve Sniper'ın 735
+# günlük ısınması karşılanmaz (11 Ekim 2026 raporu). Önce başa ekle (olmazsa silip baştan
+# indir), sonra sona ekle.
+ek_indir() {  # ek_indir spot|futures "DILIMLER" PARITELER...
+    local MOD="$1" DILIMLER="$2"; shift 2
+    # shellcheck disable=SC2086
+    { calistir download-data --exchange binance --trading-mode "$MOD" --pairs "$@" \
+          --timeframes $DILIMLER --days "$EK_GUN" --prepend \
+      || calistir download-data --exchange binance --trading-mode "$MOD" --pairs "$@" \
+          --timeframes $DILIMLER --days "$EK_GUN" --erase; } \
+    && calistir download-data --exchange binance --trading-mode "$MOD" --pairs "$@" \
+          --timeframes $DILIMLER --days "$EK_GUN"
+}
 hata_satiri() { grep -E "$HATA_DESENI|ERROR" "$GECICI" | head -1 | cut -c1-200; }
 
 # Bot listesi tek yerden gelir: karabasan/botlar.py ("bot:sınıf:piyasa").
@@ -105,10 +119,7 @@ else
     kaldi "Spot verisi indirilemedi: $(hata_satiri)"
 fi
 if [ -n "$EK_SPOT" ]; then
-    # shellcheck disable=SC2086
-    if calistir download-data --exchange binance --trading-mode spot \
-            --pairs BTC/USDT ETH/USDT SOL/USDT XRP/USDT DOGE/USDT \
-            --timeframes $EK_SPOT --days "$EK_GUN"; then
+    if ek_indir spot "$EK_SPOT" BTC/USDT ETH/USDT SOL/USDT XRP/USDT DOGE/USDT; then
         gecti "Spot verisi indirildi ($EK_SPOT, $EK_GUN gün)"
     else
         kaldi "Spot verisi indirilemedi ($EK_SPOT): $(hata_satiri)"
@@ -126,10 +137,7 @@ else
     kaldi "Vadeli verisi indirilemedi: $(hata_satiri)"
 fi
 if [ -n "$EK_VADELI" ]; then
-    # shellcheck disable=SC2086
-    if calistir download-data --exchange binance --trading-mode futures \
-            --pairs BTC/USDT:USDT ETH/USDT:USDT SOL/USDT:USDT XRP/USDT:USDT DOGE/USDT:USDT \
-            --timeframes $EK_VADELI --days "$EK_GUN"; then
+    if ek_indir futures "$EK_VADELI" BTC/USDT:USDT ETH/USDT:USDT SOL/USDT:USDT XRP/USDT:USDT DOGE/USDT:USDT; then
         gecti "Vadeli verisi indirildi ($EK_VADELI, $EK_GUN gün)"
     else
         kaldi "Vadeli verisi indirilemedi ($EK_VADELI): $(hata_satiri)"

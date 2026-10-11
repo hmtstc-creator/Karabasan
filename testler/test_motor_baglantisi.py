@@ -588,6 +588,7 @@ case "$*" in
   *"--version"*) echo "freqtrade 2026.9";;
   *download-data*) echo "docker $*" >> "$SAHTE_KAYIT"
                    [ "$SAHTE_MOD" = "gunluk_inmez" ] && case "$*" in *"--timeframes 1d"*) echo "freqtrade - ERROR - veri yok"; exit 1;; esac
+                   [ "$SAHTE_MOD" = "basa_eklenmez" ] && case "$*" in *"--prepend"*) echo "freqtrade - ERROR - prepend yok"; exit 2;; esac
                    echo "Downloaded data";;
   *karsilastir.py*) echo "Bot  İşlem"; echo "s1-vadeli 73";;
   *backtesting*)
@@ -652,14 +653,25 @@ exit 0
         kod, rapor, cagrilar = self._calistir("iyi", cagrilar=True)
         self.assertEqual(kod, 0, rapor)
         indirmeler = cagrilar.splitlines()
-        self.assertEqual(len(indirmeler), 3)
+        self.assertEqual(len(indirmeler), 4)
         gunluk = [c for c in indirmeler if "--timeframes 1d" in c]
-        self.assertEqual(len(gunluk), 1)
-        self.assertIn("--trading-mode futures", gunluk[0])
-        self.assertIn("ETH/USDT:USDT", gunluk[0])
-        self.assertIn("--days 800", gunluk[0])
+        # Önce eldeki dosyanın başına eklenir (Sniper 735 gün ister), sonra sonuna.
+        self.assertEqual(len(gunluk), 2)
+        for c in gunluk:
+            self.assertIn("--trading-mode futures", c)
+            self.assertIn("ETH/USDT:USDT", c)
+            self.assertIn("--days 800", c)
+        self.assertTrue(gunluk[0].endswith("--prepend"), gunluk[0])
+        self.assertTrue(gunluk[1].endswith("--days 800"), gunluk[1])
         self.assertIn("[GEÇTİ] Vadeli verisi indirildi (1d, 800 gün)", rapor)
         self.assertEqual(sum(1 for c in indirmeler if "--timeframes 5m 15m --days 45" in c), 2)
+
+    def test_basa_eklenemezse_bastan_indirilir(self):
+        kod, rapor, cagrilar = self._calistir("basa_eklenmez", cagrilar=True)
+        self.assertEqual(kod, 0, rapor)
+        gunluk = [c for c in cagrilar.splitlines() if "--timeframes 1d" in c]
+        self.assertEqual([c.split("--days 800")[1].strip() for c in gunluk], ["--prepend", "--erase", ""])
+        self.assertIn("[GEÇTİ] Vadeli verisi indirildi (1d, 800 gün)", rapor)
 
     def test_gunluk_veri_inmezse_kalir(self):
         kod, rapor = self._calistir("gunluk_inmez")
@@ -762,21 +774,25 @@ exit 0
         self.assertEqual(kod, 0)
         self.assertTrue(rapor.startswith("Karabasan geçmiş ölçümü:"))
         self.assertNotIn("UYARI", rapor)
-        self.assertEqual(cagrilar.count("--prepend"), 2)   # spot ve vadeli
+        self.assertEqual(cagrilar.count("--prepend"), 3)   # spot ve vadeli 5m / 15m, vadeli 1d
         self.assertNotIn("--erase", cagrilar)
         self.assertIn("--days 80", cagrilar)
-        # Günlük mumlar: yalnız onu isteyen (vadeli) botlar için, ölçümden önce.
+        # Günlük mumlar: yalnız onu isteyen (vadeli) botlar için, ölçümden önce;
+        # önce başa (Sniper 735 gün ister), sonra sona eklenir.
         gunluk = [c for c in cagrilar.splitlines() if "--timeframes 1d" in c]
-        self.assertEqual(len(gunluk), 1)
-        self.assertIn("--trading-mode futures", gunluk[0])
-        self.assertIn("--days 800", gunluk[0])
+        self.assertEqual(len(gunluk), 2)
+        for c in gunluk:
+            self.assertIn("--trading-mode futures", c)
+            self.assertIn("--days 800", c)
+        self.assertIn("--prepend", gunluk[0])
+        self.assertNotIn("--prepend", gunluk[1])
         sira = cagrilar.splitlines()
         self.assertLess(sira.index(gunluk[0]), next(i for i, c in enumerate(sira) if "karabasan_gecmis.py" in c))
 
     def test_prepend_desteklenmezse_silip_bastan_indirir(self):
         kod, rapor, cagrilar = self._calistir("prepend_yok")
         self.assertEqual(kod, 0)
-        self.assertEqual(cagrilar.count("--erase"), 2)
+        self.assertEqual(cagrilar.count("--erase"), 3)   # spot ve vadeli 5m / 15m, vadeli 1d
         self.assertNotIn("UYARI", rapor)
 
     def test_olcum_uretilemezse_kaydin_sonu_rapora_eklenir(self):
