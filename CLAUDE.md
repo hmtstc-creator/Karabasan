@@ -528,11 +528,22 @@ bul, RSI, hacim ve momentumla vurgunu yap" dedi. Yapılan:
   testte kısa vadeli girişler yazı turadan iyi değildi, sık işlemde komisyon asıl
   düşmandır (günde 1000 işlem × %0,1 = sermayenin büyük kısmı).
 
+**On üçüncü uyum denemesi geçti (11 Ekim 2026 18:46 UTC, Ahmet iletti).** Beş
+botun beşi de geçti. Yeni Sniper motorla tutuyor (BTC hariç): motor 90, benzetim
+89, eşleşen 88; çıkışlar motor hedef 21 / süre aşımı 50 / stop 19, benzetim
+21 / 50 / 18. İki "yalnız motor" işlem dönem başı (SOL 09-11 03:45) ve 10 dk
+kayma (XRP 10-09). Son 30 gün: motor 90 işlem, %55,6 kazanma, −2,53 USDT;
+benzetim (BTC dahil) 102 işlem, %55,9, işlem başına net −%0,037, −1,87 USDT.
+Başa baş ~%59. Komisyon öncesi işlem başına ~+%0,06: sıfırdan ayırt edilemez,
+tek dönem. Çıkışların yarısı süre aşımı (3 saatte ne %1,2 ne %1,5). SM / SMK /
+SMD / SMDK önceki denemeyle aynı. "Found orphan containers (kb-sniper-vadeli)"
+uyarısı beklenen: uyum 9. adımda, eski kapsayıcıyı 10. adımdaki
+`up --remove-orphans` kaldırır.
+
 Sıradaki işler, öncelik sırasıyla:
 
-0. On üçüncü uyum denemesinde yeni Sniper (`SniperVadeli`, 5m) motorla benzetim
-   arasında işlem işlem tutmalı. 12 aylık testin (`YILLIK_SURUMU=3`) SMD / SMDK /
-   Sniper sonucunu Ahmet'e rakamla ve "tek dönem" uyarısıyla söyle.
+0. 12 aylık testin (`YILLIK_SURUMU=3`) SMD / SMDK / Sniper sonucunu Ahmet'e
+   rakamla ve "tek dönem" uyarısıyla söyle.
 
 1. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).
