@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""On sanal botun yapılandırma dosyalarını ve docker-compose.yml'i üretir.
+"""Sanal botların yapılandırma dosyalarını ve docker-compose.yml'i üretir.
 
 Kullanım (depo kökünde):
 

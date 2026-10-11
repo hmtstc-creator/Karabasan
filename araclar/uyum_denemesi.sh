@@ -13,6 +13,9 @@ cd "$(dirname "$0")/.."
 RAPOR="user_data/logs/uyum_denemesi.txt"
 GUN=30
 INDIRILECEK_GUN=45
+# Borsadan ayrıca istenen büyük dilimler (günlük mumlar) için: sınanan 30 günün
+# öncesinde ortalamaların oturacağı kadar geçmiş gerekir.
+EK_GUN=200
 mkdir -p user_data/logs
 : > "$RAPOR"
 
@@ -52,6 +55,18 @@ if [ -z "$BOTLAR" ]; then
 fi
 BOT_SAYISI=$(echo "$BOTLAR" | wc -w)
 
+# Bazı kurallar günlük gibi büyük bir dilimi borsadan ayrıca ister (kural dosyasında
+# "borsa_dilimleri"). O dilimin verisi de indirilmelidir; yoksa motor o botta sinyal
+# üretemez ve bot "hiç işlem açmadı" diye geçer.
+ek_dilimler() {
+    python3 -c "
+import sys; sys.path.insert(0, '.')
+from karabasan.botlar import ek_dilimler
+print(' '.join(ek_dilimler('$1')))" 2> /dev/null
+}
+EK_SPOT="$(ek_dilimler spot)"
+EK_VADELI="$(ek_dilimler vadeli)"
+
 HATA=0
 gecti() { yaz "  [GEÇTİ] $1"; }
 kaldi() { yaz "  [KALDI] $1"; HATA=$((HATA + 1)); }
@@ -89,6 +104,16 @@ if calistir download-data --exchange binance --trading-mode spot \
 else
     kaldi "Spot verisi indirilemedi: $(hata_satiri)"
 fi
+if [ -n "$EK_SPOT" ]; then
+    # shellcheck disable=SC2086
+    if calistir download-data --exchange binance --trading-mode spot \
+            --pairs BTC/USDT ETH/USDT SOL/USDT XRP/USDT DOGE/USDT \
+            --timeframes $EK_SPOT --days "$EK_GUN"; then
+        gecti "Spot verisi indirildi ($EK_SPOT, $EK_GUN gün)"
+    else
+        kaldi "Spot verisi indirilemedi ($EK_SPOT): $(hata_satiri)"
+    fi
+fi
 
 # ---------------------------------------------------------------- 3
 yaz ""
@@ -99,6 +124,16 @@ if calistir download-data --exchange binance --trading-mode futures \
     gecti "Vadeli verisi indirildi"
 else
     kaldi "Vadeli verisi indirilemedi: $(hata_satiri)"
+fi
+if [ -n "$EK_VADELI" ]; then
+    # shellcheck disable=SC2086
+    if calistir download-data --exchange binance --trading-mode futures \
+            --pairs BTC/USDT:USDT ETH/USDT:USDT SOL/USDT:USDT XRP/USDT:USDT DOGE/USDT:USDT \
+            --timeframes $EK_VADELI --days "$EK_GUN"; then
+        gecti "Vadeli verisi indirildi ($EK_VADELI, $EK_GUN gün)"
+    else
+        kaldi "Vadeli verisi indirilemedi ($EK_VADELI): $(hata_satiri)"
+    fi
 fi
 
 # ---------------------------------------------------------------- 4

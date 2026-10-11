@@ -23,13 +23,16 @@ def benzet(
     kural: dict,
     komisyon_yuzde: float = 0.075,
     kayma_yuzde: float = 0.0,
+    ek_veri: dict | None = None,
 ) -> list[dict]:
     """Tek bir parite için kuralı geçmiş veride çalıştırır, işlem listesi döndürür.
 
     komisyon_yuzde: taraf başına komisyon (alışta bir kez, satışta bir kez).
     kayma_yuzde:    piyasa emriyle giriş ve çıkışta fiyatın aleyhe kaydığı pay.
+    ek_veri:        kuralın borsadan ayrıca istediği dilimlerin mumları, örnek {"1d": tablo}
+                    (bkz. kural.gosterge_ekle).
     """
-    tablo = sinyal_uret(df, kural)
+    tablo = sinyal_uret(df, kural, ek_veri)
     alim = kural["yon"] == "alim"
     cikis = kural["cikis"]
     hedef = float(cikis["kar_hedefi_yuzde"]) / 100.0

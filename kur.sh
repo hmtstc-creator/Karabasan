@@ -250,7 +250,7 @@ PY
     adim "9/10 Uyum denemesi"
     # Uyum denemesinin içeriği değişince bu sayı artırılır; sunucu denemeyi bir
     # sonraki güncellemede kendiliğinden yeniden çalıştırır.
-    local UYUM_SURUMU=5 SURUM
+    local UYUM_SURUMU=6 SURUM
     SURUM="$(git rev-parse HEAD 2> /dev/null || echo bilinmiyor)"
     if [ "$(cat user_data/logs/uyum_gecti 2> /dev/null)" != "surum-$UYUM_SURUMU" ]; then
         if [ "$ILK" -eq 1 ]; then
@@ -323,7 +323,7 @@ print(' '.join(b[0] for b in BOTLAR))")"
     # Tek seferlik ölçümler. İçeriği değişince sayı artırılır; sunucu bir sonraki
     # güncellemede yeniden çalıştırıp raporu yollar. Başarısız olursa botlar ve
     # kurulum etkilenmez.
-    local ANALIZ_SURUMU=3
+    local ANALIZ_SURUMU=4
     # Arşiv ilk kez kuruluyorsa eldeki son raporlar da içine konur.
     if [ ! -d user_data/arsiv ]; then
         arsivle user_data/logs/uyum_denemesi.txt "uyum_denemesi_mevcut.txt"
@@ -346,7 +346,7 @@ print(' '.join(b[0] for b in BOTLAR))")"
     rm -f "$DURUM_KLASORU/son_deneme"
     if [ "$ILK" -eq 1 ]; then
         date -u '+%Y-%m-%dT%H:%M:%SZ' > user_data/kurulum_tamam
-        bildir "Kurulum tamam. On sanal bot çalışıyor; hiçbir emir borsaya gitmiyor.
+        bildir "Kurulum tamam. Sanal botlar çalışıyor; hiçbir emir borsaya gitmiyor.
 
 Şimdi ısınma haftasındayız: botlar sanal işlem yapıyor ama 30 günlük sınavın saati henüz başlamadı.
 
@@ -357,6 +357,10 @@ Sonuçları üç yerden görürsün:
 
 Tüm komutlar için /yardim yaz."
     fi
+    # Bot sayısı arttıkça belleğin yetip yetmediği kurulum kaydından görülebilsin.
+    echo
+    echo "Bellek (MB):"
+    free -m 2> /dev/null || true
     echo
     echo "KURULUM TAMAM $(date -u '+%Y-%m-%d %H:%M UTC')"
 }

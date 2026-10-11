@@ -16,6 +16,8 @@ GUN=30
 # Karabasan puanı için ölçülen dönemden önce yaklaşık 35 günlük geçmiş gerekir
 # (200 tane 4 saatlik mum); pay bırakılır.
 INDIRILECEK_GUN=80
+# Borsadan ayrıca istenen büyük dilimler (günlük mumlar) için indirilecek gün.
+EK_GUN=200
 mkdir -p user_data/logs
 : > "$KAYIT"
 
@@ -36,11 +38,33 @@ indir() {
     # Önce eldeki verinin başına ekle; olmazsa silip baştan indir.
     indir_bir --prepend "$@" || indir_bir --erase "$@"
 }
+# Bazı kurallar günlük gibi büyük bir dilimi borsadan ayrıca ister (kural dosyasında
+# "borsa_dilimleri"); o dilimin verisi yoksa ölçüm onu 5 dakikalık mumlardan toplar.
+ek_dilimler() {
+    python3 -c "
+import sys; sys.path.insert(0, '.')
+from karabasan.botlar import ek_dilimler
+print(' '.join(ek_dilimler('$1')))" 2> /dev/null
+}
+indir_ek() {  # indir_ek spot|futures "DILIMLER" PARITELER...
+    local MOD="$1" DILIMLER="$2"; shift 2
+    [ -n "$DILIMLER" ] || return 0
+    # shellcheck disable=SC2086
+    docker compose run --rm -T arac download-data --exchange binance --trading-mode "$MOD" \
+        --pairs "$@" --timeframes $DILIMLER --days "$EK_GUN" > "$GECICI" 2>&1
+    local KOD=$?
+    cat "$GECICI" >> "$KAYIT"
+    echo "  ($MOD veri indirme, $DILIMLER, çıkış kodu: $KOD)" >> "$KAYIT"
+    [ "$KOD" -eq 0 ] && ! grep -Eq "$HATA_DESENI" "$GECICI"
+}
 
 echo "Analiz - $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$KAYIT"
 VERI_TAMAM=1
 indir spot BTC/USDT ETH/USDT SOL/USDT XRP/USDT DOGE/USDT || VERI_TAMAM=0
 indir futures BTC/USDT:USDT ETH/USDT:USDT SOL/USDT:USDT XRP/USDT:USDT DOGE/USDT:USDT || VERI_TAMAM=0
+indir_ek spot "$(ek_dilimler spot)" BTC/USDT ETH/USDT SOL/USDT XRP/USDT DOGE/USDT || VERI_TAMAM=0
+indir_ek futures "$(ek_dilimler vadeli)" \
+    BTC/USDT:USDT ETH/USDT:USDT SOL/USDT:USDT XRP/USDT:USDT DOGE/USDT:USDT || VERI_TAMAM=0
 
 docker compose run --rm -T --entrypoint python3 arac /freqtrade/araclar/karabasan_gecmis.py "$GUN" \
     > "$RAPOR" 2>> "$KAYIT"

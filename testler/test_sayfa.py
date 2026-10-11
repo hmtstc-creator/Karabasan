@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from karabasan import panel, sayfa, sonuc
+from karabasan.botlar import BOTLAR
 from testler.veri import sahte_sinav_klasoru
 
 SIMDI = datetime(2026, 11, 2, 9, 30, tzinfo=timezone.utc)
@@ -155,7 +156,7 @@ class SayfaTesti(unittest.TestCase):
     def test_halkada_her_bot_bir_dilimdir(self):
         ozet = sonuc.genel_ozet(self.klasor, SIMDI)
         html = sayfa.html_uret(ozet)
-        self.assertEqual(html.count('class="r-bot '), 10)
+        self.assertEqual(html.count('class="r-bot '), len(BOTLAR))
         self.assertEqual(html.count('class="r-gun'), 30)
         self.assertEqual(html.count('class="r-gun gecti"'), 11)
         self.assertEqual(html.count('class="r-gun bugun"'), 1)
@@ -255,7 +256,7 @@ class SunucuTesti(unittest.TestCase):
         _kod, _baslik, govde = self._al("/veri.json")
         veri = json.loads(govde)
         self.assertEqual(veri["donem"], "sinav")
-        self.assertEqual(len(veri["botlar"]), 10)
+        self.assertEqual(len(veri["botlar"]), len(BOTLAR))
 
     def test_guvenlik_basligi_yalniz_sayfadaki_betige_izin_verir(self):
         _kod, baslik, govde = self._al("/")

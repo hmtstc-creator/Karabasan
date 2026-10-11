@@ -32,7 +32,7 @@ from karabasan import karne as kr  # noqa: E402
 from karabasan import stop_sonrasi as ss  # noqa: E402
 from karabasan.benzetim import benzet  # noqa: E402
 from karabasan.botlar import ayarlari_yukle  # noqa: E402
-from karabasan.kural import basabas_orani, kural_yukle  # noqa: E402
+from karabasan.kural import basabas_orani, ek_veri_topla, kural_yukle  # noqa: E402
 from karabasan.puan import DURUM_ADI  # noqa: E402
 
 COINLER = ["BTC", "ETH", "SOL", "XRP", "DOGE"]
@@ -179,12 +179,18 @@ def rapor_uret(yukle=dosyadan_yukle, gun: int = 30, ayar: dict | None = None) ->
             if df is None:
                 eksik += 1
                 continue
-            islemler = [i for i in benzet(df, kural, komisyon_yuzde=komisyon)
+            # Günlük gibi borsadan ayrıca istenen dilimler. Dosya yoksa benzetim o dilimi
+            # eldeki mumlardan toplar; dosya yine de eksik sayılır.
+            ek_veri, bulunamayan = ek_veri_topla(kural, lambda dilim: yukle(coin, dilim, piyasa))
+            eksik += len(bulunamayan)
+            islemler = [i for i in benzet(df, kural, komisyon_yuzde=komisyon, ek_veri=ek_veri)
                         if i["giris_zamani"] >= baslangic]
             tum += go.islemleri_etiketle(islemler, gecmis)
             for carpan in genis:
-                genis[carpan] += [i for i in benzet(df, genis_stoplu(kural, carpan), komisyon_yuzde=komisyon)
-                                  if i["giris_zamani"] >= baslangic]
+                genis[carpan] += [
+                    i for i in benzet(df, genis_stoplu(kural, carpan), komisyon_yuzde=komisyon, ek_veri=ek_veri)
+                    if i["giris_zamani"] >= baslangic
+                ]
         stop_satirlari = []
         for carpan, liste in [(1.0, tum)] + list(genis.items()):
             k = kr.karne(liste, tutar, bakiye)

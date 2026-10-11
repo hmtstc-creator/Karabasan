@@ -3,11 +3,16 @@
 Burada işlem mantığı YOKTUR. Mantık karabasan/ paketindedir ve orada
 test edilir; bu dosya yalnız o mantığı motorun beklediği biçime çevirir.
 
-Her sanal bot için bir sınıf vardır (S1Spot, S1Vadeli, S1KVadeli ...).
+Her sanal bot için bir sınıf vardır (S1Spot, S1KVadeli, SMVadeli ...).
 Sınıfın kâr hedefi, stopu, zaman dilimi ve yönü kural dosyasından gelir:
 karabasan/stratejiler/<kod>.json
+
+Bir kural günlük gibi büyük bir dilimi borsadan ayrıca istiyorsa
+('borsa_dilimleri'), o mumları motor getirir; burada yalnız kural motoruna
+aktarılır.
 """
 
+import logging
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -24,7 +29,16 @@ if str(_KOK) not in sys.path:
 
 from karabasan import gostergeler as g  # noqa: E402
 from karabasan.botlar import ayarlari_yukle, net_hedef_orani  # noqa: E402
-from karabasan.kural import gereken_mum, giris_sinyali, gosterge_ekle, kural_yukle  # noqa: E402
+from karabasan.kural import (  # noqa: E402
+    borsa_dilimleri,
+    gereken_mum,
+    giris_sinyali,
+    gosterge_ekle,
+    kural_yukle,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 class KarabasanTaban(IStrategy):
@@ -89,8 +103,56 @@ class KarabasanTaban(IStrategy):
             }
         ]
 
+    def informative_pairs(self):
+        """Kuralın borsadan ayrıca istediği dilimler (örnek: günlük mumlar).
+
+        Motor burada sayılan (parite, dilim) çiftlerini kendisi indirir ve güncel tutar.
+        """
+        dilimler = borsa_dilimleri(self.kural)
+        saglayici = getattr(self, "dp", None)
+        if not dilimler or saglayici is None:
+            return []
+        try:
+            pariteler = list(saglayici.current_whitelist())
+        except Exception as hata:  # noqa: BLE001 - liste henüz hazır değilse bot durmasın
+            logger.warning("%s: parite listesi okunamadı, %s mumları istenemedi: %s",
+                           self.kural.get("kod"), ", ".join(dilimler), hata)
+            return []
+        return [(parite, dilim) for parite in pariteler for dilim in dilimler]
+
+    def _ek_veri(self, parite: str) -> dict:
+        """Borsadan gelen üst dilim mumları: {dilim: tablo}.
+
+        Bir dilimin verisi alınamazsa yerine boş tablo konur: kural motoru o dilimi
+        taban mumlardan toplamaya kalkmaz, göstergeleri boş kalır ve sinyal çıkmaz.
+        Yani veri eksikliği işlem açtırmaz; yalnız o paritede o an işlem açılmaz.
+        """
+        ek = {}
+        saglayici = getattr(self, "dp", None)
+        for dilim in borsa_dilimleri(self.kural):
+            tablo = None
+            if saglayici is not None:
+                try:
+                    tablo = saglayici.get_pair_dataframe(pair=parite, timeframe=dilim)
+                except Exception:  # noqa: BLE001 - veri yoksa sinyal de yok; bot durmasın
+                    tablo = None
+            if tablo is not None and len(tablo) > 0:
+                ek[dilim] = tablo
+            else:
+                ek[dilim] = DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
+                self._eksik_veri_bildir(parite, dilim)
+        return ek
+
+    def _eksik_veri_bildir(self, parite: str, dilim: str) -> None:
+        """Alınamayan üst dilim verisini kayda bir kez yazar (uyum raporunda ve /gunluk'te görünür)."""
+        bildirilen = self.__dict__.setdefault("_eksik_bildirilen", set())
+        if (parite, dilim) not in bildirilen:
+            bildirilen.add((parite, dilim))
+            logger.warning("%s %s: %s mumları alınamadı; veri gelene kadar bu paritede sinyal üretilmez.",
+                           self.kural.get("kod"), parite, dilim)
+
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        return gosterge_ekle(dataframe, self.kural)
+        return gosterge_ekle(dataframe, self.kural, self._ek_veri(metadata["pair"]))
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe["enter_long"] = 0
@@ -161,3 +223,11 @@ class S6Vadeli(KarabasanTaban):
 
 class S6KVadeli(KarabasanTaban):
     kural_kodu, piyasa = "S6K", "vadeli"
+
+
+class SMVadeli(KarabasanTaban):
+    kural_kodu, piyasa = "SM", "vadeli"
+
+
+class SMKVadeli(KarabasanTaban):
+    kural_kodu, piyasa = "SMK", "vadeli"

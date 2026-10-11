@@ -23,7 +23,7 @@ sys.path.insert(0, str(KOK))
 from karabasan.benzetim import benzet  # noqa: E402
 from karabasan.botlar import BOTLAR, ayarlari_yukle  # noqa: E402
 from karabasan.karne import karne  # noqa: E402
-from karabasan.kural import kural_yukle  # noqa: E402
+from karabasan.kural import ek_veri_topla, kural_yukle  # noqa: E402
 
 COINLER = ["BTC", "ETH", "SOL", "XRP", "DOGE"]
 VERI = KOK / "user_data" / "data" / "binance"
@@ -35,6 +35,14 @@ def veri_dosyasi(coin: str, dilim: str, piyasa: str) -> Path | None:
     else:
         adaylar = [VERI / f"{coin}_USDT-{dilim}.feather"]
     return next((a for a in adaylar if a.exists()), None)
+
+
+SUTUNLAR = ["date", "open", "high", "low", "close", "volume"]
+
+
+def mumlari_oku(coin: str, dilim: str, piyasa: str) -> pd.DataFrame | None:
+    dosya = veri_dosyasi(coin, dilim, piyasa)
+    return None if dosya is None else pd.read_feather(dosya)[SUTUNLAR]
 
 
 def main() -> int:
@@ -49,13 +57,15 @@ def main() -> int:
         tum = []
         coin_basina = []
         for coin in COINLER:
-            dosya = veri_dosyasi(coin, kural["zaman_dilimi"], piyasa)
-            if dosya is None:
+            df = mumlari_oku(coin, kural["zaman_dilimi"], piyasa)
+            if df is None:
                 eksik += 1
                 continue
-            df = pd.read_feather(dosya)[["date", "open", "high", "low", "close", "volume"]]
+            # Günlük gibi borsadan ayrıca istenen dilimler: motorun kullandığı dosyanın aynısı.
+            ek_veri, bulunamayan = ek_veri_topla(kural, lambda dilim: mumlari_oku(coin, dilim, piyasa))
+            eksik += len(bulunamayan)
             baslangic = df["date"].max() - pd.Timedelta(days=gun)
-            islemler = [i for i in benzet(df, kural, komisyon_yuzde=komisyon)
+            islemler = [i for i in benzet(df, kural, komisyon_yuzde=komisyon, ek_veri=ek_veri)
                         if i["giris_zamani"] >= baslangic]
             tum += islemler
             coin_basina.append(f"{coin} {len(islemler)}")

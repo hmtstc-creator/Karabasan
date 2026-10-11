@@ -208,11 +208,14 @@ class ServisTesti(Taban):
         self.assertIn("En kötü: Sert düşüşten dönüşü al (s4-spot) −9,26 USDT", metin)
         self.assertIn("hepsi sanal", metin)
 
-    def test_botlar_komutu_on_satir(self):
+    def test_botlar_komutu_her_bota_bir_satir(self):
+        from karabasan.botlar import BOTLAR
+
         self._sahip_ol()
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/botlar@KarabasanBot"))
         (metin,) = self.sahte.gonderilenler()
-        self.assertEqual(sum(1 for s in metin.splitlines() if ":" in s), 10)
+        self.assertEqual(sum(1 for s in metin.splitlines() if ":" in s), len(BOTLAR))
+        self.assertIn("Smartmoney: geri çekilme sonrası yapı kırılımıyla alım [sm-vadeli", metin)
         self.assertIn("Momentum vuruşu (MACD + RSI) [s5-vadeli, ses yok]: henüz kapanan işlem yok", metin)
         self.assertIn("Yükselişte düşüşü al [s1-spot, ses yok]: 130 işlem", metin)
 
@@ -382,6 +385,35 @@ class ZamanliIslerTesti(Taban):
         self._gunluk_yaz("s3-spot", 1)
         self.servis.zamanli_isler()
         self.assertIn("Yeniden çalışıyor: s3-spot.", self.sahte.gonderilenler()[-1])
+
+    def test_yeni_eklenen_bot_acilana_kadar_susmus_sayilmaz(self):
+        """Güncellemeyle eklenen bot sırası gelene kadar hiç kayıt yazmaz; yanlış alarm olmasın."""
+        from karabasan.botlar import BOTLAR
+
+        def digerleri_calisiyor():
+            for bot, *_ in BOTLAR:
+                if bot != "sm-vadeli":
+                    self._gunluk_yaz(bot, 1)
+
+        digerleri_calisiyor()
+        self.servis.zamanli_isler()
+        self.simdi = SIMDI + timedelta(minutes=29)
+        digerleri_calisiyor()
+        self.servis.zamanli_isler()
+        self.assertEqual(self.sahte.gonderilenler(), [])
+        # Yarım saat geçti, bot hâlâ hiç yazmadı: artık gerçek bir sorundur.
+        self.simdi = SIMDI + timedelta(minutes=31)
+        digerleri_calisiyor()
+        self.servis.zamanli_isler()
+        (mesaj,) = self.sahte.gonderilenler()
+        self.assertIn("Ses vermeyen bot var: sm-vadeli.", mesaj)
+
+    def test_yazip_susan_bot_acilistan_hemen_sonra_da_bildirilir(self):
+        self._hepsi_calisiyor()
+        self._gunluk_yaz("s2-spot", 40)
+        self.servis.zamanli_isler()
+        (mesaj,) = self.sahte.gonderilenler()
+        self.assertIn("Ses vermeyen bot var: s2-spot.", mesaj)
 
     def test_gunluk_ozet_gunde_bir_kez_ve_ilk_acilista_degil(self):
         self._hepsi_calisiyor()

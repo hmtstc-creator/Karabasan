@@ -180,9 +180,9 @@ class RaporTesti(unittest.TestCase):
             if coin == "DOGE" and piyasa == "vadeli":
                 return None  # eksik dosya durumunu da sına
             df = bes[coin]
-            if dilim == "15m":
+            if dilim != "5m":
                 from karabasan import gostergeler as g
-                return g.ust_dilime_cevir(df, "5m", "15m")
+                return g.ust_dilime_cevir(df, "5m", dilim)
             return df
 
         cls.metin, cls.eksik = cls.modul.rapor_uret(yukle=yukle, gun=30)
@@ -208,6 +208,17 @@ class RaporTesti(unittest.TestCase):
         s1k = self.metin.split("S1K vadeli:")[1].split("S2K vadeli:")[0]
         self.assertIn("Kırmızı *", s1k)
         self.assertIn("coinler: ETH, SOL, XRP, DOGE", s1k)   # vadelide BTC yok
+
+    def test_smartmoney_gunluk_veriyle_olculur(self):
+        """Smartmoney botları günlük mumu ayrıca ister; ölçüm onu da yükleyip işlem bulmalı."""
+        import re
+
+        toplam = 0
+        for ad, sonraki in (("SM vadeli:", "SMK vadeli:"), ("SMK vadeli:", "ÖZET:")):
+            bolum = self.metin.split(ad)[1].split(sonraki)[0]
+            self.assertIn("Smartmoney: ", bolum)
+            toplam += int(re.search(r"Hepsi \(süzgeçsiz\)\s+(\d+)", bolum).group(1))
+        self.assertGreater(toplam, 0)
 
     def test_eksik_dosya_sayilir_ve_bildirilir(self):
         from karabasan.botlar import BOTLAR

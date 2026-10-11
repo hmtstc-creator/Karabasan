@@ -1,4 +1,4 @@
-"""Sınavdaki on sanal botun tanımı ve komisyon ayarları.
+"""Sınavdaki sanal botların tanımı ve komisyon ayarları.
 
 Tek doğruluk kaynağı burasıdır: hazır motorun strateji sınıfları, bot
 yapılandırmaları ve Docker Compose dosyası bu listeden üretilir.
@@ -28,9 +28,35 @@ BOTLAR = [
     ("s5k-vadeli", "S5KVadeli", "S5K", "vadeli"),
     ("s6-vadeli", "S6Vadeli", "S6", "vadeli"),
     ("s6k-vadeli", "S6KVadeli", "S6K", "vadeli"),
+    # 11 Ekim 2026'da eklendi (Smartmoney): yeni fikir, yeni sanal bot. Sona eklenir ki
+    # öncekilerin kapıları ve açılış sırası değişmesin.
+    ("sm-vadeli", "SMVadeli", "SM", "vadeli"),
+    ("smk-vadeli", "SMKVadeli", "SMK", "vadeli"),
 ]
 
 ILK_PORT = 8081
+
+
+def ek_dilimler(piyasa: str) -> list[str]:
+    """Bu piyasadaki botların borsadan ayrıca istediği dilimler (örnek: ["1d"]).
+
+    Sunucu betikleri hangi geçmiş veriyi indireceğini buradan öğrenir. Kural
+    dosyalarını düz JSON olarak okur; sunucunun kendi Python'unda numpy ve pandas
+    olmadığı için kural motorunu içe aktarmaz.
+    """
+    klasor = Path(__file__).resolve().parent / "stratejiler"
+    dilimler: list[str] = []
+    for _bot, _sinif, kural_kodu, bot_piyasasi in BOTLAR:
+        if bot_piyasasi != piyasa:
+            continue
+        try:
+            kural = json.loads((klasor / f"{kural_kodu}.json").read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for dilim in kural.get("borsa_dilimleri", []):
+            if dilim not in dilimler:
+                dilimler.append(str(dilim))
+    return dilimler
 
 # Başlangıç değerleri. Komisyon oranları hesabına göre burada güncellenir.
 # Sunucudaki user_data/ayarlar.json dosyasında yazan bir değer buradakini ezer;

@@ -121,8 +121,11 @@ class GenelOzetTesti(unittest.TestCase):
     def test_donem_ve_gun(self):
         self.assertEqual((self.ozet["donem"], self.ozet["gun"]), ("sinav", 12))
 
-    def test_on_bot_listelenir(self):
-        self.assertEqual(len(self.ozet["botlar"]), 10)
+    def test_her_bot_listelenir(self):
+        from karabasan.botlar import BOTLAR
+
+        self.assertEqual(len(self.ozet["botlar"]), len(BOTLAR))
+        self.assertEqual([b["bot"] for b in self.ozet["botlar"]], [b[0] for b in BOTLAR])
 
     def test_isinma_islemleri_sinava_sayilmaz(self):
         # Sahte veride her bota ısınma döneminden iki kârlı işlem konur.

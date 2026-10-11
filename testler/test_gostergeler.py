@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from karabasan import gostergeler as g
-from testler.veri import yapay_mumlar
+from testler.veri import duz_mumlar, yapay_mumlar
 
 
 class GostergeTestleri(unittest.TestCase):
@@ -99,6 +99,147 @@ class GostergeTestleri(unittest.TestCase):
         self.assertAlmostEqual(hizali.iloc[22], ust.loc[0, "close"])
         # 01:55 mumunda 01:00 saatlik mumunun değeri gelir
         self.assertAlmostEqual(hizali.iloc[23], ust.loc[1, "close"])
+
+
+class PiyasaYapisi(unittest.TestCase):
+    """Salınım, yapı kırılımı (BOS / CHoCH), denge ve emir blokları."""
+
+    # (açılış, yüksek, düşük, kapanış). Uzunluk 2 ile:
+    # 3. mum tepe (110), 5. mum dip (104), 8. mum tepeyi kırar, 12. mum dibi kırar.
+    MUMLAR = [
+        (100, 101, 99, 100),
+        (100, 103, 100, 102),
+        (102, 106, 102, 105),
+        (105, 110, 105, 109),
+        (109, 109, 106, 107),
+        (107, 108, 104, 105),
+        (105, 107, 104.5, 106),
+        (106, 109, 105.5, 108.5),
+        (108.5, 112, 108, 111.5),
+        (111.5, 113, 110, 110.5),
+        (110.5, 111, 107, 107.5),
+        (107.5, 108, 105, 105.5),
+        (105.5, 106, 103, 103.5),
+    ]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.df = duz_mumlar(cls.MUMLAR)
+        cls.y = g.piyasa_yapisi(cls.df, 2)
+
+    def test_sutunlar(self):
+        self.assertEqual(tuple(self.y.columns), g.YAPI_SUTUNLARI)
+        self.assertEqual(len(self.y), len(self.df))
+
+    def test_salinim_ancak_onaylaninca_bilinir(self):
+        # Tepe 3. mumda oluştu ama iki mum sonra (5. mumda) onaylandı.
+        self.assertTrue(np.isnan(self.y["tepe"].iloc[4]))
+        self.assertEqual(self.y["tepe"].iloc[5], 110.0)
+        # 5. mumdaki dip 7. mumda onaylandı; ondan önce bilinen dip 0. mumunkiydi.
+        self.assertEqual(self.y["dip"].iloc[6], 99.0)
+        self.assertEqual(self.y["dip"].iloc[7], 104.0)
+
+    def test_yukari_kirilim_ve_alim_blogu(self):
+        y = self.y
+        self.assertEqual(y["kirilim"].tolist()[:9], [0, 0, 0, 0, 0, 0, 0, 0, 1])
+        self.assertEqual(y["yon"].iloc[7], 0)       # henüz kırılım yok
+        self.assertEqual(y["yon"].iloc[8], 1)
+        self.assertEqual(y["donus"].iloc[8], 0)     # öncesinde ters yön yoktu: dönüş sayılmaz
+        # Blok: kırılan tepe ile kırılım arasındaki en düşük mum (5. mum: 104-108).
+        self.assertTrue(np.isnan(y["blok_ust"].iloc[7]))
+        self.assertEqual((y["blok_ust"].iloc[8], y["blok_alt"].iloc[8]), (108.0, 104.0))
+        # 10. mum bloğa dokundu (düşük 107) ama delmedi: blok geçerli kalır.
+        self.assertLessEqual(self.df["low"].iloc[10], y["blok_ust"].iloc[10])
+        self.assertEqual(y["blok_alt"].iloc[11], 104.0)
+
+    def test_asagi_kirilim_donustur_ve_blok_delinir(self):
+        y = self.y
+        self.assertEqual(y["kirilim"].iloc[12], -1)
+        self.assertEqual(y["donus"].iloc[12], -1)   # yön yukarıyken aşağı kırıldı: CHoCH
+        self.assertEqual(y["yon"].iloc[12], -1)
+        # Fiyat alım bloğunun altına sarktı (103 < 104): blok düşer.
+        self.assertTrue(np.isnan(y["blok_ust"].iloc[12]))
+        # Satış bloğu: kırılan dip ile kırılım arasındaki en yüksek mum (9. mum: 110-113).
+        self.assertEqual((y["sblok_ust"].iloc[12], y["sblok_alt"].iloc[12]), (113.0, 110.0))
+
+    def test_denge_araligin_ortasidir(self):
+        # Son tepeden beri en yüksek 113, son dipten beri en düşük 103.
+        self.assertEqual(self.y["denge"].iloc[12], 108.0)
+        # 8. mumda: en yüksek 112 (bu mum), son dip 104.
+        self.assertEqual(self.y["denge"].iloc[8], 108.0)
+        self.assertEqual(self.y["denge"].iloc[7], (110 + 104) / 2)
+
+    def test_her_tepe_bir_kez_kirilir(self):
+        ek = [(103.5, 114, 103, 113.5), (113.5, 116, 113, 115.5), (115.5, 118, 115, 117.5)]
+        y = g.piyasa_yapisi(duz_mumlar(self.MUMLAR + ek), 2)
+        # 13. mum 113'lük tepeyi kırar (aşağı yönden: dönüş); sonraki mumlar yeniden kırılım saymaz.
+        self.assertEqual(y["kirilim"].tolist()[13:], [1, 0, 0])
+        self.assertEqual(y["donus"].iloc[13], 1)
+
+    def test_blok_omru_dolunca_duser(self):
+        duz = [(111.5, 112, 110, 111.5)] * 6
+        mumlar = self.MUMLAR[:9] + duz
+        uzun = g.piyasa_yapisi(duz_mumlar(mumlar), 2, blok_omru=40)
+        kisa = g.piyasa_yapisi(duz_mumlar(mumlar), 2, blok_omru=3)
+        self.assertEqual(uzun["blok_ust"].iloc[-1], 108.0)
+        self.assertEqual(kisa["blok_ust"].iloc[11], 108.0)   # oluştuğu mumdan 3 mum sonra hâlâ geçerli
+        self.assertTrue(np.isnan(kisa["blok_ust"].iloc[12]))
+
+    def test_asiri_genis_mum_blok_secilmez(self):
+        mumlar = [list(m) for m in self.MUMLAR]
+        onceki = g.piyasa_yapisi(duz_mumlar(mumlar), 2, blok_omru=4)
+        self.assertEqual(onceki["blok_alt"].iloc[8], 104.0)
+        # 5. mumun aralığı çok geniş olsun (90-108): son 4 mumun ortalamasının 2 katından fazla.
+        mumlar[5] = [107, 108, 90, 105]
+        y = g.piyasa_yapisi(duz_mumlar(mumlar), 2, blok_omru=4)
+        self.assertEqual(y["kirilim"].iloc[8], 1)
+        # En düşük mum 5. mumdu ama geniş olduğu için seçilmez; sıradaki en düşük 6. mum (104,5-107).
+        self.assertEqual((y["blok_ust"].iloc[8], y["blok_alt"].iloc[8]), (107.0, 104.5))
+
+    def test_gelecege_bakmaz(self):
+        df = yapay_mumlar(1500, tohum=41, oynaklik=0.004)
+        tam = g.piyasa_yapisi(df, 5)
+        for kesim in (300, 777, 1234):
+            kismi = g.piyasa_yapisi(df.iloc[:kesim], 5)
+            pd.testing.assert_frame_equal(tam.iloc[:kesim], kismi)
+
+    def test_rastgele_veride_tutarlilik(self):
+        df = yapay_mumlar(4000, tohum=42, oynaklik=0.004)
+        y = g.piyasa_yapisi(df, 5)
+        self.assertTrue(set(y["yon"].unique()) <= {-1.0, 0.0, 1.0})
+        yukari, asagi = y["kirilim"] > 0, y["kirilim"] < 0
+        self.assertGreater(int(yukari.sum()), 20)
+        self.assertGreater(int(asagi.sum()), 20)
+        # Kırılım mumu, bir önceki mumda bilinen seviyenin ötesinde kapanmıştır.
+        self.assertTrue((df["close"][yukari] > y["tepe"].shift(1)[yukari]).all())
+        self.assertTrue((df["close"][asagi] < y["dip"].shift(1)[asagi]).all())
+        # Kırılımdan sonra yön o taraftadır; dönüş yalnız kırılım mumunda ve aynı işaretle olur.
+        self.assertTrue((y["yon"][yukari] == 1).all())
+        self.assertTrue((y["yon"][asagi] == -1).all())
+        self.assertTrue((y["donus"][y["donus"] != 0] == y["kirilim"][y["donus"] != 0]).all())
+        self.assertTrue((y["yon"].shift(1)[y["donus"] > 0] == -1).all())
+        # Yön yalnız kırılım mumunda değişir.
+        degisti = y["yon"] != y["yon"].shift(1).fillna(0.0)
+        self.assertTrue((y["kirilim"][degisti] != 0).all())
+        # Geçerli bloklar: üst sınır alttan büyük; fiyat alım bloğunu delmemiş, satış bloğunu aşmamış.
+        alim, satis = y["blok_ust"].notna(), y["sblok_ust"].notna()
+        self.assertGreater(int(alim.sum()), 100)
+        self.assertGreater(int(satis.sum()), 100)
+        self.assertTrue((y["blok_ust"][alim] >= y["blok_alt"][alim]).all())
+        self.assertTrue((df["low"][alim] >= y["blok_alt"][alim]).all())
+        self.assertTrue((df["high"][satis] <= y["sblok_ust"][satis]).all())
+        # Denge, son tepe ile son dibin oluşturduğu aralığın içindedir.
+        denge = y["denge"].dropna()
+        self.assertTrue((denge > 0).all())
+
+    def test_veri_baslangicindan_bagimsiz_oturur(self):
+        """Aynı mumlar, veri daha geç başlasa da bir süre sonra aynı yapıyı vermeli."""
+        df = yapay_mumlar(3000, tohum=43, oynaklik=0.004)
+        tam = g.piyasa_yapisi(df, 5)
+        isinma = 150   # kural motorunun bu gösterge için istediği başlangıç mumu (30 x uzunluk)
+        for bas in (500, 1203, 2011):
+            kismi = g.piyasa_yapisi(df.iloc[bas:], 5)
+            pd.testing.assert_frame_equal(tam.iloc[bas + isinma:], kismi.iloc[isinma:])
 
 
 if __name__ == "__main__":

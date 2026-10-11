@@ -34,7 +34,7 @@ yeniden çalıştırır (`araclar/oto_guncelle.sh`). Yani `main`'e işlediğin h
 
 - Testler geçmeden `main`'e işleme. Yarım iş işleme.
 - `karabasan/stratejiler/`, `kural.py`, `gostergeler.py`, `botlar.py` ya da
-  `user_data/strategies/` değişirse on bot yeniden başlar. Sınav sürerken
+  `user_data/strategies/` değişirse bütün botlar yeniden başlar. Sınav sürerken
   bunlara yalnız hata düzeltmek için dokun (3. kural).
 - `kur.sh` her güncellemede baştan sona çalışır; her adımı yeniden
   çalıştırılabilir (yapılmışı atlayan) biçimde yaz.
@@ -95,21 +95,21 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 
 | Yol | İçerik |
 | --- | --- |
-| `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama) |
-| `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme |
-| `karabasan/stratejiler/*.json` | On strateji: S1–S6 (alım) ve S1K, S2K, S5K, S6K (açığa satış). Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür |
+| `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama) ve `piyasa_yapisi` (salınımlar, yapı kırılımı BOS / CHoCH, denge, emir blokları) |
+| `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme. Bir gösterge `dilim` ile istediği üst dilimde hesaplanır (`"ust"`, `"15m"`, `"1h"`, `"1d"`). `borsa_dilimleri` içindeki dilimlerin mumları taban mumlardan toplanmaz, `ek_veri` ile dışarıdan verilir (motor, araçlar); boş tablo "veri yok, sinyal de yok" demektir |
+| `karabasan/stratejiler/*.json` | On iki strateji: S1–S6 ve SM (alım), S1K, S2K, S5K, S6K ve SMK (açığa satış). Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
 | `karabasan/puan.py` | Karabasan puanı, durum makinesi, vetolar |
 | `karabasan/filtre.py` | Filtre (Elek): dört katman, elenme nedenleri |
 | `karabasan/karne.py` | İşlem ölçümleri ve 30. günün yedi karar ölçütü |
 | `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim |
-| `karabasan/botlar.py` | On sanal botun listesi (4 spot alım, 6 vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini buradan okur |
+| `karabasan/botlar.py` | On iki sanal botun listesi (4 spot alım, 8 vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder; aynı döngüde stop sonrası izleme turunu çalıştırır |
 | `karabasan/stop_sonrasi.py` | Stop sonrası izleme: stop olan işlemi kendi süresi dolana kadar izler, stop 1,5 / 2 / 3 kat geniş olsaydı ne olurdu hesaplar, bot başına karar çıkarır (yetersiz, dar, yerinde, kararsız), karar değişince ders yazar. Mumlar Binance'in herkese açık, anahtarsız fiyat verisinden gelir. Çıktı: `user_data/kayit/stop_sonrasi.json`. **Hiçbir ayarı değiştirmez** |
 | `karabasan/gecmis_olcum.py` | Karabasan puanını geçmiş mumlardan geriye dönük hesaplar (yaklaşık: dominans ve TOTAL2 yerine altcoin vekili); işlemleri açıldıkları andaki durumla etiketler |
 | `karabasan/sonuc.py` | Botların SQLite kayıtlarını salt okunur okuyup özet çıkarır; dönem (ısınma, sınav, bitti) |
 | `karabasan/sayfa.py`, `karabasan/panel.py` | Türkçe sonuç sayfası ve sunucusu (8080; `/`, `/veri.json`, `/saglik`). Beş ekran: ana ekran (gösterge halkası), botlar, işlemler, dersler (stop sonrası izleme), sınav; ekran listesi `sayfa.EKRANLAR`'dadır, biçim ve betik oradan üretilir. Sunucudan açılan hali tek bir satır içi betik taşır (ekran geçişi, dakikada bir yerinde tazeleme); `panel.py` izin başlığını (CSP) o betiğin özetinden üretir. Telegram'ın `/sayfa` ile yolladığı dosya betiksizdir, ekranlar alt alta görünür |
 | `karabasan/haberci.py` | Telegram: kurulum bildirimleri, günlük özet, susan bot uyarısı, yeni ders bildirimi, komutlar (`/dersler` dahil) |
-| `user_data/strategies/karabasan_stratejileri.py` | Freqtrade bağlantı katmanı |
+| `user_data/strategies/karabasan_stratejileri.py` | Freqtrade bağlantı katmanı. Kural `borsa_dilimleri` istiyorsa o mumları motordan ister (`informative_pairs`, `dp.get_pair_dataframe`) ve kural motoruna aktarır; veri gelmezse boş tablo verir ve kayda bir kez yazar |
 | `araclar/yapilandirma_uret.py` | Bot yapılandırmalarını ve `docker-compose.yml`'i üretir |
 | `araclar/uyum_denemesi.sh`, `araclar/karsilastir.py` | Sunucudaki uyum denemesi |
 | `karabasan/eslestirme.py`, `araclar/islem_eslestir.py` | Uyum denemesinin son bölümü: motorun işlem listesini (`--export trades`, `user_data/backtest_results/`) benzetimle işlem işlem eşleştirir; yalnız bilgi verir, denemenin geçip kalmasını etkilemez |
@@ -178,7 +178,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 309 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 354 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -278,7 +278,55 @@ tek bir dönem ve az işlemdir; ayar değil, ileride "yalnız Kırmızı'da çal
 S3 / S4" diye ayrı bir sanal bot fikri olarak duruyor. Ahmet'e önermeden önce
 12 aylık veride (3. iş) aynı şey görülmeli.
 
+**Smartmoney (11 Ekim 2026, Ahmet'in isteğiyle).** Ahmet LuxAlgo'nun "Smart
+Money Concepts" göstergesinin kodunu gönderdi; "bunu çalıştırdığımız botta
+izlemek istiyorum, adı smartmoney olsun, yalnız 5 dk / 15 dk / 1 saat
+yetmeyebilir, günlük trend, RSI ve hacim de önemli" dedi. Yapılan: iki yeni
+kural (SM alım, SMK açığa satış) ve iki yeni sanal bot (`sm-vadeli` 8091,
+`smk-vadeli` 8092); mevcut on bota dokunulmadı, toplam on iki bot. Dört katman:
+günlük trend (kapanış, 20 günlük üstel ortalamanın hangi yanında), 1 saatlik
+yapının yönü ve RSI'ı, 15 dakikalıkta geri çekilme (denge çizgisinin öte yanı
+ya da emir bloğuna dokunuş, son 12 mumda), 5 dakikalıkta yapı kırılımı + RSI
+aralığı + hacim. Çıkış %1,2 / %0,8 / 240 dk. Ayrıntı README'de.
+
+- Göstergenin kodu kopyalanmadı: lisansı CC BY-NC-SA (ticari kullanım yok) ve
+  depo herkese açık. Kavramlar `g.piyasa_yapisi` ile baştan yazıldı. FVG ve
+  eşit tepe / dip kullanılmadı. Ahmet'e söylendi.
+- Günlük mum için kural motoruna iki şey eklendi: göstergede açık dilim
+  (`"dilim": "1d"`) ve `borsa_dilimleri`. Günlük mumlar 5 dakikalıklardan
+  toplanamaz (60 günlük geçmiş, alınabilen 2000 mumu aşar); motor onları
+  borsadan ayrıca getirir. **Bu yol gerçek motorda henüz çalışmadı**; yalnız
+  sahte veri sağlayıcıyla sınandı. `UYUM_SURUMU=6` ile sunucuda ilk kez
+  çalışacak: uyum denemesi vadeli için 200 günlük `1d` verisini de indirir,
+  bağımsız benzetim aynı dosyayı okur. Raporda SM / SMK'nın motor ve benzetim
+  işlem sayıları yakın olmalı. Motor "hiç işlem açmadı" derken benzetim işlem
+  buluyorsa günlük veri motora ulaşmamıştır; raporda "1d mumları alınamadı"
+  uyarısını ara.
+- Yapı göstergesi durum taşır (son tepe, son dip, yön, bloklar). Verinin
+  nereden başladığına bağlı kalmasın diye blokların ömrü vardır (20 × uzunluk
+  mum) ve `gereken_mum` yapı için 30 × uzunluk mum ister (SM'de 1 saatlik yapı
+  yüzünden 1810). Yapay veride, ısınmadan sonra sütunların birebir aynı çıktığı
+  sınanıyor (`test_sinyal_veri_baslangicindan_bagimsizdir`); gerçek veride
+  motor ile benzetim arasında yine de birkaç işlemlik fark çıkabilir.
+- Yalnız yapay veride denendi: rastgele yürüyüşte komisyon kadar kaybediyor,
+  coin başına günde yarım işlem kadar açıyor (alım ve satış birlikte). Gerçek
+  verideki sonucu bilinmiyor; Ahmet'e "henüz tahmin" dendi. Aynı uyarı
+  geçerli: çok fikir denedikçe birinin şans eseri iyi görünme olasılığı artar.
+- On iki botun belleği ölçülmedi (sunucu 8 GB). `kur.sh` her çalışmanın
+  sonunda `free -m` çıktısını kurulum kaydına yazar; sunucudaki Claude
+  `docker stats --no-stream` ile bakabilir. Bellek yetmezse botlar yeniden
+  başlayıp durur ve "susan bot" uyarısı gelir; o zaman bot sayısını azalt.
+- `ozel_ag.sh` artık adres değişmese de çalışmayan köprüleri açar; yoksa
+  sonradan eklenen botların kapıları (8091, 8092) özel ağa taşınmazdı.
+- Haberci, açılışından sonraki yarım saat boyunca hiç kayıt yazmamış botu
+  "susmuş" saymaz. Yoksa listeye bot eklenen her güncellemede, yeni bot
+  sırası gelip açılana kadar (8-10 dakika) Ahmet'e yanlış alarm giderdi.
+
 Sıradaki işler, öncelik sırasıyla:
+
+0. Altıncı uyum denemesi ve dördüncü geçmiş ölçüm raporlarında SM / SMK'ya
+   bak: motor günlük veriyi aldı mı, işlem sayıları benzetimle tutuyor mu,
+   ilk gerçek sonuç ne? Sonucu Ahmet'e rakamla ve "tek dönem" uyarısıyla söyle.
 
 1. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).
@@ -320,6 +368,16 @@ Bir ders: hazır motorun çıkış koduna tek başına güvenme. Ayar hatasında
 beklenen sonucu ara.
 
 Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
+
+- Smartmoney botlarının günlük mumları motordan alması: `informative_pairs()`'in
+  `(parite, "1d")` döndürmesiyle motorun bu mumları canlıda indirip güncel
+  tutması; `self.dp.get_pair_dataframe(pair=..., timeframe="1d")`'nin geçmiş
+  testinde dosyadaki tüm günlük mumları, canlıda yalnız kapanmış günleri
+  vermesi; vadelide varsayılan mum türünün doğru dosyayı bulması.
+- `download-data --timeframes 1d --days 200` ile vadeli günlük verinin
+  `user_data/data/binance/futures/<COIN>_USDT_USDT-1d-futures.feather` adıyla
+  inmesi (araçlar bu adı arar; ad 5 dakikalık dosyalardan türetildi).
+- On iki botun 8 GB bellekte rahat çalışması.
 
 - `download-data --prepend` ile eldeki verinin başına 80 güne kadar eski veri
   eklenebilmesi (`analiz.sh`; olmazsa `--erase` ile baştan indirir).

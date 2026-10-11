@@ -1,0 +1,119 @@
+{
+  "kod": "SM",
+  "ad": "Smartmoney: geri çekilme sonrası yapı kırılımıyla alım",
+  "yon": "alim",
+  "aciklama": "Dört katman birlikte aranır. Günlük: son kapanan gün 20 günlük ortalamanın üstünde. 1 saatlik: son yapı kırılımı yukarı ve RSI 70'in altında. 15 dakikalık: fiyat son bir saatte indirimli bölgeye (aralığın alt yarısına) inmiş ya da bir alım bloğuna dokunmuş. 5 dakikalık: yapı yukarı kırılıyor, RSI 50 ile 70 arasında, hacim ortalamanın 1,2 katından fazla.",
+  "zaman_dilimi": "5m",
+  "borsa_dilimleri": [
+    "1d"
+  ],
+  "gostergeler": {
+    "kapanis_1g": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "1d"
+    },
+    "ema20_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 20,
+      "dilim": "1d"
+    },
+    "yapi1s": {
+      "tur": "yapi",
+      "periyot": 5,
+      "dilim": "1h"
+    },
+    "rsi14_1s": {
+      "tur": "rsi",
+      "periyot": 14,
+      "dilim": "1h"
+    },
+    "yapi15": {
+      "tur": "yapi",
+      "periyot": 5,
+      "dilim": "15m"
+    },
+    "yapi5": {
+      "tur": "yapi",
+      "periyot": 5
+    },
+    "rsi14": {
+      "tur": "rsi",
+      "periyot": 14
+    },
+    "hacim20": {
+      "tur": "hacim_ort",
+      "periyot": 20
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "kapanis_1g",
+        "islem": ">",
+        "sag": "ema20_1g"
+      },
+      {
+        "sol": "yapi1s_yon",
+        "islem": ">",
+        "sag": 0
+      },
+      {
+        "sol": "rsi14_1s",
+        "islem": "<",
+        "sag": 70
+      },
+      {
+        "herhangi": [
+          {
+            "sol": "dusuk",
+            "islem": "<",
+            "sag": "yapi15_denge",
+            "son_n_mumda": 12
+          },
+          {
+            "sol": "dusuk",
+            "islem": "<=",
+            "sag": "yapi15_blok_ust",
+            "son_n_mumda": 12
+          }
+        ]
+      },
+      {
+        "sol": "yapi5_kirilim",
+        "islem": ">",
+        "sag": 0
+      },
+      {
+        "sol": "rsi14",
+        "islem": ">",
+        "sag": 50
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": 70
+      },
+      {
+        "sol": "hacim",
+        "islem": ">",
+        "sag": {
+          "ad": "hacim20",
+          "carpan": 1.2
+        }
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 1.2,
+    "zarar_durdur_yuzde": 0.8,
+    "sure_asimi_dakika": 240
+  },
+  "izinli_durumlar": [
+    "YESIL",
+    "SARI"
+  ],
+  "bekleme_dakika": 120
+}

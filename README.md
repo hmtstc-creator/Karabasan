@@ -16,15 +16,15 @@ bildirir, yeni kodu kendisi alır. Bilgisayar ve terminal gerekmez.
 | --- | --- | --- |
 | Gösterge blokları | `karabasan/gostergeler.py` | Yazıldı, test edildi |
 | Kural dosyası motoru | `karabasan/kural.py` | Yazıldı, test edildi |
-| On strateji (S1-S6 ve dört ters yönlü hali) | `karabasan/stratejiler/*.json` | Yazıldı, test edildi; S5 ve S6 gerçek veride henüz sınanmadı |
+| On iki strateji (S1-S6, Smartmoney ve beş ters yönlü hal) | `karabasan/stratejiler/*.json` | Yazıldı, test edildi; Smartmoney gerçek veride henüz sınanmadı |
 | Karabasan puanı, durumlar, vetolar | `karabasan/puan.py` | Yazıldı, test edildi |
 | Filtre (Elek) | `karabasan/filtre.py` | Yazıldı, test edildi |
 | Karne ve sınav karar ölçütleri | `karabasan/karne.py` | Yazıldı, test edildi |
 | Bağımsız benzetim | `karabasan/benzetim.py` | Yazıldı, test edildi |
 | Dominans ve TOTAL2 kaydedicisi | `karabasan/kayitci.py` | Yazıldı; ağ bağlantısı sunucuda sınanacak |
 | Stop sonrası izleme ve dersler | `karabasan/stop_sonrasi.py` | Yazıldı, sahte fiyat sunucusuyla test edildi; gerçek Binance verisiyle sunucuda ilk kez çalışacak |
-| Hazır motor bağlantısı | `user_data/strategies/karabasan_stratejileri.py` | Yazıldı; gerçek motorla sunucuda sınanacak |
-| On sanal botun yapılandırması | `araclar/yapilandirma_uret.py` | Yazıldı, test edildi |
+| Hazır motor bağlantısı | `user_data/strategies/karabasan_stratejileri.py` | Yazıldı; ilk on bot için sunucuda doğrulandı. Günlük mumların motordan alınması (Smartmoney) sunucuda ilk kez çalışacak |
+| Sanal botların yapılandırması | `araclar/yapilandirma_uret.py` | Yazıldı, test edildi |
 | Sonuç özeti ve Türkçe sonuç sayfası | `karabasan/sonuc.py`, `sayfa.py`, `panel.py` | Yazıldı, sahte kayıtlarla test edildi; gerçek kayıtlarla sunucuda sınanacak |
 | Telegram habercisi ve komutlar | `karabasan/haberci.py` | Yazıldı, taklit Telegram ile test edildi |
 | Kurulum ve uyum denemesi | `kurulum/sunucu_blogu.sh`, `kur.sh`, `araclar/uyum_denemesi.sh` | Yazıldı, taklit komutlarla prova edildi; sunucuda ilk kez çalışacak |
@@ -38,8 +38,8 @@ yürütücü, risk yöneticisi) bu aşamada yoktur.
 
 ## Dürüst not: nerede sınandı, nerede sınanmadı
 
-Kod 304 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
-ve altı stratejinin geleceğe bakmadığı, kâr hedefi ve stop hesabı,
+Kod 354 otomatik testten geçiyor. Testler arasında şunlar var: göstergelerin
+ve stratejilerin geleceğe bakmadığı, kâr hedefi ve stop hesabı,
 Karabasan'ın "açılması yavaş, kapanması hızlı" davranışı, veto süreleri,
 filtrenin elenme nedenleri, sınavın yedi karar ölçütü, sonuç sayfasının sahte
 kayıt dosyalarından doğru sayıları çıkarması, Telegram habercisinin yalnız
@@ -78,7 +78,7 @@ telefona Tailscale uygulamasını kurup giriş yap.
 3. Sunucu her adımı Telegram'a yazar. Bir Tailscale bağlantısı yollar; ona
    dokunup onayla.
 4. Uyum denemesi raporu dosya olarak gelir (10-20 dakika sürer).
-5. "Kurulum tamam" mesajı gelince on sanal bot çalışıyordur.
+5. "Kurulum tamam" mesajı gelince sanal botlar çalışıyordur.
 
 Kurulum on adımdır ve 30-40 dakika sürer. Bir adımda durursa bot kurulum
 kaydını dosya olarak yollar; düzeltme ana dala işlenince sunucu 5 dakika
@@ -101,7 +101,7 @@ veride doğru çalıştığını görmek içindir. Sınavın saatini Telegram'da
 Sonuç sayfasında beş ekran var; telefonda altta, bilgisayarda üstte duran
 şeritten geçilir:
 
-- **Ana ekran:** ortada bir gösterge halkası. Dış halkadaki on dilim on bottur
+- **Ana ekran:** ortada bir gösterge halkası. Dış halkadaki her dilim bir bottur
   (yeşil artıda, kırmızı ekside, sarı kesikli "ses yok"); iç halka sınavın 30
   günüdür; ortadaki sayı toplam sanal sonuçtur. Altında görevdeki bot sayısı,
   son 24 saat, toplam sonucun seyri ve botların sıralaması durur.
@@ -128,7 +128,7 @@ ekranda "henüz canlı ölçülmüyor" yazar.
 | `/durum` | Genel durum |
 | `/botlar` | Her botun sonucu |
 | `/sayfa` | Sonuç sayfasını dosya olarak yollar |
-| `/gunluk` | On botun son kayıt satırları; `/gunluk s1-spot` tek bot |
+| `/gunluk` | Botların son kayıt satırları; `/gunluk s1-spot` tek bot |
 | `/uyum` | Uyum denemesi raporu |
 | `/olcum` | Karabasan geçmiş ölçümü: stratejilerin sonucu piyasa durumuna ve stop genişliğine göre |
 | `/dersler` | Stop sonrası izleme: stop daha geniş olsaydı ne olurdu, bot başına |
@@ -173,11 +173,11 @@ emirler piyasa emri olduğu için alıcı (taker) oranı kullanılır. Hesabınd
 oranlar farklıysa Claude'a yaz; değeri depoda o günceller, sunucu kendisi alır.
 
 Bot ekranları (hazır motorun kendi İngilizce ekranı), Tailscale açıkken
-`http://karabasan:8081` ile `http://karabasan:8090` arasındadır. Kullanıcı adı
+`http://karabasan:8081` ile `http://karabasan:8092` arasındadır. Kullanıcı adı
 `karabasan`, parola sunucudaki `.env` dosyasındadır. Günlük kullanımda
 gerekmez; sonuç sayfası ve Telegram yeterlidir.
 
-## On sanal bot
+## Sanal botlar
 
 | Bot | Strateji | Ne yapar | Piyasa | Ekran |
 | --- | --- | --- | --- | --- |
@@ -191,6 +191,8 @@ gerekmez; sonuç sayfası ve Telegram yeterlidir.
 | s5k-vadeli | S5K Momentum vuruşu, satış | S5'in tersi | Vadeli, 1 kat | 8088 |
 | s6-vadeli | S6 Likidite avı sonrası alım (akıllı para + RSI) | Fiyat son 2 saatin dibinin altına sarkıp yeniden üstünde kapanınca alır | Vadeli, 1 kat | 8089 |
 | s6k-vadeli | S6K Likidite avı sonrası satış | S6'nın tersi | Vadeli, 1 kat | 8090 |
+| sm-vadeli | SM Smartmoney: geri çekilme sonrası yapı kırılımıyla alım | Günlük trend ve 1 saatlik yapı yukarıyken, 15 dakikalıkta geri çekilmeden sonra 5 dakikalık yapı yukarı kırılınca alır | Vadeli, 1 kat | 8091 |
+| smk-vadeli | SMK Smartmoney: tepki sonrası yapı kırılımıyla satış | SM'nin tersi | Vadeli, 1 kat | 8092 |
 
 Her botun 1.000 USDT sanal bakiyesi vardır, işlem başına 50 USDT kullanır,
 aynı anda en fazla 20 pozisyon açar. Tüm emirler piyasa emridir ve karşı
@@ -205,6 +207,41 @@ yalnız orada mümkündür. Vadelide 50 USDT'lik işlem tutarıyla BTC işlem g�
 S6 "akıllı para" fikirlerinin yalın bir halidir: yalnız likidite avını
 (stopların süpürülmesi) ve seviyenin geri alınmasını arar. Emir bloğu ve
 fiyat boşluğu (FVG) gibi parçalar yoktur.
+
+### Smartmoney (SM ve SMK)
+
+11 Ekim 2026'da, Ahmet'in gönderdiği "Smart Money Concepts" göstergesindeki
+kavramlardan yola çıkılarak eklendi; mevcut on bota dokunulmadı, iki yeni bot
+oldu. Göstergenin kodu kopyalanmadı (lisansı ticari kullanıma izin vermiyor);
+aynı kavramlar `karabasan/gostergeler.py` içindeki `piyasa_yapisi` ile baştan
+yazıldı. Dört katman birlikte aranır (alım hali; satış hali her birinin tersidir):
+
+| Katman | Dilim | Koşul |
+| --- | --- | --- |
+| Günlük trend | 1 gün | Son kapanan günün kapanışı, 20 günlük üstel ortalamanın üstünde |
+| Yapı | 1 saat | Son yapı kırılımı yukarı (BOS ya da CHoCH); RSI 70'in altında |
+| Geri çekilme | 15 dakika | Son bir saatte fiyat aralığın alt yarısına ("indirimli bölge") inmiş ya da bir alım bloğuna dokunmuş |
+| Tetik | 5 dakika | Bu mumda yapı yukarı kırılıyor; RSI 50 ile 70 arasında; hacim son 20 mumun ortalamasının 1,2 katından fazla |
+
+Çıkış: kâr hedefi %1,2, stop %0,8, en uzun süre 4 saat; stop sonrası aynı
+coine 2 saat bekleme. Vadeli komisyonuyla zarar etmemek için gereken kazanma
+oranı %45.
+
+Kavramlar: bir mumun yükseği sonraki 5 mumun hepsinden yüksekse o mum bir
+salınım tepesidir (dip bunun tersi). Fiyat son tepenin üstünde kapanırsa yapı
+yukarı kırılmıştır. Alım bloğu, kırılan tepe ile kırılım arasındaki en düşük
+mumun aralığıdır; fiyat altına sarkarsa ya da 100 mumdan eskiyse geçersiz olur.
+Göstergedeki fiyat boşlukları (FVG) ve eşit tepe / dip işaretleri kullanılmadı.
+
+Günlük mumlar 5 dakikalık mumlardan toplanamaz (20 günlük ortalama için
+canlıda alınabilenden çok fazla mum gerekir); bu yüzden kural dosyasında
+`"borsa_dilimleri": ["1d"]` yazar ve motor günlük mumları borsadan ayrıca
+ister. Günlük veri gelmezse o paritede sinyal üretilmez.
+
+Dürüst not: bu strateji yalnız yapay (rastgele üretilmiş) veride denendi;
+orada, beklendiği gibi, komisyon kadar kaybediyor. Gerçek verideki ilk sonucu
+uyum denemesi ve Karabasan geçmiş ölçümü raporlarıyla gelecek. Çok koşul bir
+arada arandığı için öbür botlardan daha az işlem açması beklenir.
 
 ## Strateji dosyası
 
@@ -235,7 +272,15 @@ dosyasıdır. Örnek (`S1.json`, kısaltılmış):
 - `yon`: `alim` ya da `aciga_satis` (açığa satış yalnız vadelide).
 - Gösterge türleri: `ema`, `sma`, `rsi`, `bollinger`, `atr_yuzde`, `vwap`,
   `en_yuksek`, `en_dusuk`, `hacim_ort`, `degisim_yuzde`, `macd`
-  (`macd_cizgi`, `macd_sinyal`, `macd_fark` sütunlarını üretir).
+  (`macd_cizgi`, `macd_sinyal`, `macd_fark` sütunlarını üretir), `yapi`
+  (piyasa yapısı; `periyot` salınım uzunluğudur ve `<ad>_yon`, `_kirilim`,
+  `_donus`, `_tepe`, `_dip`, `_denge`, `_blok_ust`, `_blok_alt`, `_sblok_ust`,
+  `_sblok_alt` sütunlarını üretir).
+- Bir göstergenin `dilim` alanı `"ust"` (kuralın `ust_zaman_dilimi`) ya da
+  doğrudan bir dilim (`"15m"`, `"1h"`, `"1d"`) olabilir; böylece tek kural
+  birden çok dilim kullanır. Üst dilimin değeri ancak o mum kapanınca kullanılır.
+- `borsa_dilimleri`: mumları 5 dakikalıklardan toplanmayıp borsadan ayrıca
+  istenen dilimler (örnek: `["1d"]`). Günlük göstergeler için zorunludur.
 - İşlemler: `>`, `<`, `>=`, `<=`, `yukari_keser`, `asagi_keser`.
 - Bağlaçlar: `hepsi` (ve), `herhangi` (veya); iç içe yazılabilir.
 - Kâr hedefi ve stop fiyat hareketidir: 1.2, fiyat %1,2 lehe gidince kapat demektir.

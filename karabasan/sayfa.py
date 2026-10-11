@@ -223,7 +223,7 @@ def _bot_halka_sinifi(bot: dict) -> tuple[str, str]:
 
 
 def _halka(ozet: dict) -> str:
-    """Ana ekranın ortasındaki gösterge: dışta on bot, içte sınavın 30 günü."""
+    """Ana ekranın ortasındaki gösterge: dışta botlar, içte sınavın 30 günü."""
     botlar = ozet["botlar"]
     toplam = ozet["toplam"]
     kurulu = ozet["donem"] != "kurulmadi"
@@ -308,7 +308,7 @@ def _halka(ozet: dict) -> str:
     return (
         f'<div class="reaktor"><svg viewBox="0 0 400 400" role="img" aria-label="{escape(etiket)}">'
         f'{"".join(parcalar)}</svg>'
-        '<p class="reaktor-not">Dış halka on botu gösterir: yeşil artıda, kırmızı ekside. '
+        '<p class="reaktor-not">Dış halkadaki her dilim bir bottur: yeşil artıda, kırmızı ekside. '
         "İç halka sınavın 30 günüdür.</p></div>"
     )
 

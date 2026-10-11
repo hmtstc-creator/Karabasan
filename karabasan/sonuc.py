@@ -1,4 +1,4 @@
-"""Sonuç özeti: on sanal botun işlem kayıtlarını okuyup tek bir özet çıkarır.
+"""Sonuç özeti: sanal botların işlem kayıtlarını okuyup tek bir özet çıkarır.
 
 Hazır motor her botun işlemlerini ayrı bir SQLite dosyasına yazar
 (user_data/db/<bot>.sqlite). Bu modül o dosyaları SALT OKUNUR açar, botun

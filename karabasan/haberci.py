@@ -381,6 +381,7 @@ class Servis:
         self.klasor = klasor
         self._simdi = simdi or (lambda: datetime.now(timezone.utc))
         self._ozet_al = ozet_al
+        self._acilis = self._simdi()
         self.durum = {"sira": None, "son_ozet_gunu": None, "sessiz": []}
         self._durum_oku()
 
@@ -475,7 +476,7 @@ class Servis:
             icerik = son_satirlar(self.klasor / "logs" / f"{bot}.log", 40)
             bolumler.append(f"===== {bot} =====\n{icerik or '(kayıt yok)'}")
         return [("belge", "bot-kayitlari.txt", "\n\n".join(bolumler).encode("utf-8"),
-                 "On botun son kayıtları. Bu dosyayı Claude'a iletebilirsin.")]
+                 "Botların son kayıtları. Bu dosyayı Claude'a iletebilirsin.")]
 
     def _sinav_baslat(self, ek: list[str]) -> str:
         from .sonuc import zaman_dosyasi_oku
@@ -624,7 +625,14 @@ class Servis:
         baslangic = ozet["baslangic"]
         if ozet["donem"] == "isinma" and baslangic and simdi - baslangic < timedelta(minutes=30):
             return  # botlar sırayla açılıyor
-        sessiz = sorted(b["bot"] for b in ozet["botlar"] if not b["calisiyor"])
+        # Listeye yeni eklenen bot sırası gelince açılır ve o ana kadar hiç kayıt yazmamıştır.
+        # Bu servis her güncellemede yeniden başladığı için açılışından sonraki yarım saat
+        # boyunca "hiç yazmamış" botlar susmuş sayılmaz; yazıp susanlar yine sayılır.
+        yeni_acilis = simdi - self._acilis < timedelta(minutes=30)
+        sessiz = sorted(
+            b["bot"] for b in ozet["botlar"]
+            if not b["calisiyor"] and not (yeni_acilis and b.get("gunluk_yasi_dakika") is None)
+        )
         onceki = sorted(self.durum.get("sessiz") or [])
         if sessiz == onceki:
             return

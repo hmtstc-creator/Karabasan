@@ -27,8 +27,8 @@ from karabasan.botlar import BOTLAR, ayarlari_yukle  # noqa: E402
 from karabasan.eslestirme import (  # noqa: E402
     benzetim_islemleri, motor_islemleri, motor_sonuclari_oku, rapor_satirlari,
 )
-from karabasan.kural import kural_yukle  # noqa: E402
-from karsilastir import COINLER, veri_dosyasi  # noqa: E402
+from karabasan.kural import ek_veri_topla, kural_yukle  # noqa: E402
+from karsilastir import COINLER, mumlari_oku  # noqa: E402
 
 SONUCLAR = KOK / "user_data" / "backtest_results"
 
@@ -59,14 +59,18 @@ def main() -> int:
         benz = []
         son = None
         for coin in coinler:
-            dosya = veri_dosyasi(coin, kural["zaman_dilimi"], piyasa)
-            if dosya is None:
+            df = mumlari_oku(coin, kural["zaman_dilimi"], piyasa)
+            if df is None:
                 continue
-            df = pd.read_feather(dosya)[["date", "open", "high", "low", "close", "volume"]]
+            ek_veri, bulunamayan = ek_veri_topla(kural, lambda dilim: mumlari_oku(coin, dilim, piyasa))
+            if bulunamayan:
+                print(f"{bot}: {coin} için {', '.join(bulunamayan)} verisi bulunamadı; "
+                      "benzetim o dilimi 5 dakikalık mumlardan topladı, fark bundan olabilir.")
             bitis = pd.Timestamp(df["date"].max())
             bitis = bitis.tz_localize("UTC") if bitis.tzinfo is None else bitis
             son = bitis if son is None else min(son, bitis)
-            benz += benzetim_islemleri(benzet(df, kural, komisyon_yuzde=komisyon), coin, mum)
+            benz += benzetim_islemleri(
+                benzet(df, kural, komisyon_yuzde=komisyon, ek_veri=ek_veri), coin, mum)
         if son is None:
             print(f"{bot}: veri dosyası bulunamadı.")
             eksik += 1

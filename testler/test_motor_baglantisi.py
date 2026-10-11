@@ -16,6 +16,7 @@ KOK = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(KOK / "testler" / "sahte"))
 
 from karabasan import botlar  # noqa: E402
+from karabasan import gostergeler as g  # noqa: E402
 from karabasan.kural import kural_yukle, sinyal_uret  # noqa: E402
 from testler.veri import yapay_mumlar  # noqa: E402
 
@@ -26,6 +27,25 @@ def strateji_modulu():
     modul = importlib.util.module_from_spec(tanim)
     tanim.loader.exec_module(modul)
     return modul
+
+
+class SahteSaglayici:
+    """Hazır motorun veri sağlayıcısının (DataProvider) burada kullanılan iki işi."""
+
+    def __init__(self, pariteler, tablolar, hata=False):
+        self.pariteler, self.tablolar, self.hata = pariteler, tablolar, hata
+        self.istekler = []
+
+    def current_whitelist(self):
+        return list(self.pariteler)
+
+    def get_pair_dataframe(self, pair, timeframe=None, candle_type=""):
+        self.istekler.append((pair, timeframe))
+        if self.hata:
+            raise RuntimeError("veri yok")
+        import pandas as pd
+
+        return self.tablolar.get((pair, timeframe), pd.DataFrame())
 
 
 class StratejiSiniflari(unittest.TestCase):
@@ -83,6 +103,8 @@ class StratejiSiniflari(unittest.TestCase):
         df5 = yapay_mumlar(5000, dilim_dk=5, tohum=21)
         df15 = yapay_mumlar(2500, dilim_dk=15, tohum=21)
         for _bot, sinif, kural_kodu, _piyasa in botlar.BOTLAR:
+            if kural_yukle(kural_kodu).get("borsa_dilimleri"):
+                continue   # günlük mum isteyenler aşağıda, veri sağlayıcıyla birlikte sınanır
             with self.subTest(sinif=sinif):
                 s = getattr(self.modul, sinif)()
                 df = df15 if s.timeframe == "15m" else df5
@@ -99,6 +121,65 @@ class StratejiSiniflari(unittest.TestCase):
                 self.assertEqual(int(tablo["exit_long"].sum()), 0)
                 if beklenen.any():
                     self.assertTrue((tablo.loc[beklenen, "enter_tag"] == kural_kodu).all())
+
+    def test_gunluk_mumlar_motordan_istenir(self):
+        """Smartmoney günlük trendi borsadan ayrıca ister; diğer botlar bir şey istemez."""
+        pariteler = ["ETH/USDT:USDT", "SOL/USDT:USDT"]
+        s = self.modul.SMVadeli()
+        self.assertEqual(s.informative_pairs(), [])           # veri sağlayıcı henüz yokken
+        s.dp = SahteSaglayici(pariteler, {})
+        self.assertEqual(s.informative_pairs(), [(p, "1d") for p in pariteler])
+        self.assertEqual(self.modul.SMVadeli.startup_candle_count, 1810)
+        self.assertTrue(self.modul.SMKVadeli.can_short)
+        for sinif in ("S1Spot", "S3Spot", "S5Vadeli", "S6KVadeli"):
+            eski = getattr(self.modul, sinif)()
+            eski.dp = SahteSaglayici(pariteler, {})
+            self.assertEqual(eski.informative_pairs(), [], sinif)
+
+    def test_smartmoney_sinyalleri_cekirdekle_ayni(self):
+        df = yapay_mumlar(60 * 288, dilim_dk=5, tohum=11, oynaklik=0.003)
+        gunluk = g.ust_dilime_cevir(df, "5m", "1d")
+        parite = "ETH/USDT:USDT"
+        for sinif, kural_kodu, sutun in (("SMVadeli", "SM", "enter_long"), ("SMKVadeli", "SMK", "enter_short")):
+            with self.subTest(sinif=sinif):
+                s = getattr(self.modul, sinif)()
+                s.dp = SahteSaglayici([parite], {(parite, "1d"): gunluk})
+                tablo = s.populate_indicators(df.copy(), {"pair": parite})
+                tablo = s.populate_entry_trend(tablo, {"pair": parite})
+                beklenen = sinyal_uret(df, kural_yukle(kural_kodu), {"1d": gunluk})["sinyal"]
+                self.assertEqual((tablo[sutun] == 1).tolist(), beklenen.tolist())
+                self.assertGreater(int(beklenen.sum()), 5)
+                self.assertEqual(s.dp.istekler, [(parite, "1d")])
+
+    def test_gunluk_veri_gelmezse_bot_durmaz_islem_de_acmaz(self):
+        """Motor günlük mumu veremezse (hata, boş tablo, sağlayıcı yok) sinyal çıkmaz."""
+        # 60 günlük veri: günlük mumlar 5 dakikalıklardan toplanabilirdi ve sinyal çıkardı.
+        # Motor tarafında bu yapılmaz; günlük veri borsadan gelmediyse işlem açılmaz.
+        df = yapay_mumlar(60 * 288, dilim_dk=5, tohum=11, oynaklik=0.003)
+        parite = "ETH/USDT:USDT"
+        self.assertGreater(int(sinyal_uret(df, kural_yukle("SM"))["sinyal"].sum()), 5)
+        for saglayici in (None, SahteSaglayici([parite], {}), SahteSaglayici([parite], {}, hata=True)):
+            s = self.modul.SMVadeli()
+            s.dp = saglayici
+            with self.assertLogs("karabasan_stratejileri", level="WARNING") as kayit:
+                tablo = s.populate_indicators(df.copy(), {"pair": parite})
+                s.populate_indicators(df.copy(), {"pair": parite})
+            tablo = s.populate_entry_trend(tablo, {"pair": parite})
+            self.assertEqual(int(tablo["enter_long"].sum()), 0)
+            self.assertTrue(tablo["ema20_1g"].isna().all())
+            # Eksik veri kayda yazılır, ama her mumda yeniden değil: parite başına bir kez.
+            self.assertEqual(len(kayit.output), 1)
+            self.assertIn("SM ETH/USDT:USDT: 1d mumları alınamadı", kayit.output[0])
+
+    def test_parite_listesi_hazir_degilse_bot_durmaz(self):
+        class Hazirlanmamis(SahteSaglayici):
+            def current_whitelist(self):
+                raise RuntimeError("parite listesi yok")
+
+        s = self.modul.SMVadeli()
+        s.dp = Hazirlanmamis([], {})
+        with self.assertLogs("karabasan_stratejileri", level="WARNING"):
+            self.assertEqual(s.informative_pairs(), [])
 
     def test_sure_asimi(self):
         s = self.modul.S1Spot()
@@ -245,6 +326,9 @@ class Yapilandirma(unittest.TestCase):
             "for bot, _s, kural, piyasa in BOTLAR:\n"
             "    assert u.bot_yapilandirmasi(bot, kural, piyasa, a)['dry_run'] is True\n"
             "assert 'kb-panel' in u.compose_metni()\n"
+            # Betiklerin hangi günlük veriyi indireceğini öğrendiği iş de pandas istemez.
+            "from karabasan.botlar import ek_dilimler\n"
+            "assert ek_dilimler('vadeli') == ['1d'] and ek_dilimler('spot') == []\n"
         )
         kok = Path(__file__).resolve().parent.parent
         sonuc = subprocess.run([sys.executable, "-c", kod], capture_output=True, text=True, cwd=kok)
@@ -271,16 +355,20 @@ class BagimsizKarsilastirma(unittest.TestCase):
         sys.path.insert(0, str(KOK / "araclar"))
         import karsilastir
 
+        bes = yapay_mumlar(60 * 288, dilim_dk=5, tohum=11, oynaklik=0.003)
         veri = {
-            "5m": yapay_mumlar(12000, dilim_dk=5, tohum=31, oynaklik=0.0035),
+            "5m": bes,
             "15m": yapay_mumlar(4000, dilim_dk=15, tohum=31, oynaklik=0.006),
+            "1d": g.ust_dilime_cevir(bes, "5m", "1d"),
         }
+        okunan = []
 
         def sahte_dosya(coin, dilim, piyasa):
             return Path(f"/sahte/{coin}-{dilim}-{piyasa}.feather")
 
         def sahte_oku(yol):
-            return veri["15m" if "-15m-" in str(yol) else "5m"]
+            okunan.append(Path(yol).name)
+            return veri[Path(yol).name.split("-")[1]]
 
         cikti = io.StringIO()
         with mock.patch.object(karsilastir, "veri_dosyasi", sahte_dosya), \
@@ -292,6 +380,31 @@ class BagimsizKarsilastirma(unittest.TestCase):
         metin = cikti.getvalue()
         for bot, _s, _k, _p in botlar.BOTLAR:
             self.assertIn(bot, metin)
+        # Günlük mum yalnız onu isteyen botlar (Smartmoney, vadeli) için okunur.
+        self.assertEqual(sum(1 for ad in okunan if "-1d-" in ad), 2 * len(karsilastir.COINLER))
+        self.assertTrue(all(ad.endswith("-vadeli.feather") for ad in okunan if "-1d-" in ad))
+        # Smartmoney botları bu veride işlem açtı (günlük veri gerçekten kullanıldı).
+        for bot in ("sm-vadeli", "smk-vadeli"):
+            satir = next(s for s in metin.splitlines() if s.startswith(bot))
+            self.assertGreater(int(satir.split()[1]), 0, satir)
+
+    def test_gunluk_dosya_yoksa_eksik_sayilir(self):
+        import contextlib
+        import io
+        from unittest import mock
+
+        sys.path.insert(0, str(KOK / "araclar"))
+        import karsilastir
+
+        bes = yapay_mumlar(3000, dilim_dk=5, tohum=11)
+        cikti = io.StringIO()
+        with mock.patch.object(karsilastir, "veri_dosyasi",
+                               lambda coin, dilim, piyasa: None if dilim == "1d" else Path(f"/sahte/{dilim}")), \
+                mock.patch.object(karsilastir.pd, "read_feather", lambda yol: bes), \
+                mock.patch.object(sys, "argv", ["karsilastir.py", "30"]), \
+                contextlib.redirect_stdout(cikti):
+            self.assertEqual(karsilastir.main(), 1)
+        self.assertIn(f"UYARI: {2 * len(karsilastir.COINLER)} veri dosyası bulunamadı", cikti.getvalue())
 
     def test_veri_yoksa_uyarir(self):
         import contextlib
@@ -362,9 +475,11 @@ class UyumDenemesiTesti(unittest.TestCase):
 
     SAHTE_DOCKER = r'''#!/bin/bash
 case "$*" in
-  *list-strategies*) echo "KarabasanTaban S1Spot S2Spot S3Spot S4Spot S1KVadeli S2KVadeli S5Vadeli S5KVadeli S6Vadeli $SAHTE_SON_SINIF";;
+  *list-strategies*) echo "KarabasanTaban S1Spot S2Spot S3Spot S4Spot S1KVadeli S2KVadeli S5Vadeli S5KVadeli S6Vadeli SMVadeli SMKVadeli $SAHTE_SON_SINIF";;
   *"--version"*) echo "freqtrade 2026.9";;
-  *download-data*) echo "Downloaded data";;
+  *download-data*) echo "docker $*" >> "$SAHTE_KAYIT"
+                   [ "$SAHTE_MOD" = "gunluk_inmez" ] && case "$*" in *"--timeframes 1d"*) echo "freqtrade - ERROR - veri yok"; exit 1;; esac
+                   echo "Downloaded data";;
   *karsilastir.py*) echo "Bot  İşlem"; echo "s1-spot 73";;
   *backtesting*)
     case "$SAHTE_MOD" in
@@ -379,7 +494,9 @@ esac
 exit 0
 '''
 
-    def _calistir(self, mod):
+    BOT_SAYISI = len(botlar.BOTLAR)
+
+    def _calistir(self, mod, cagrilar=False):
         import os
         import shutil
         import subprocess
@@ -390,31 +507,56 @@ exit 0
             (kok / "bin").mkdir()
             (kok / "karabasan").mkdir()
             shutil.copy(KOK / "araclar" / "uyum_denemesi.sh", kok / "araclar" / "uyum_denemesi.sh")
-            # Betik bot listesini karabasan/botlar.py'den okur.
+            # Betik bot listesini ve borsadan istenen dilimleri karabasan/botlar.py'den okur;
+            # o da kural dosyalarına bakar.
             for dosya in ("__init__.py", "botlar.py"):
                 shutil.copy(KOK / "karabasan" / dosya, kok / "karabasan" / dosya)
+            shutil.copytree(KOK / "karabasan" / "stratejiler", kok / "karabasan" / "stratejiler")
             docker = kok / "bin" / "docker"
             docker.write_text(self.SAHTE_DOCKER, encoding="utf-8")
             docker.chmod(0o755)
             ortam = {**os.environ, "PATH": f"{kok / 'bin'}:{os.environ['PATH']}", "SAHTE_MOD": mod,
+                     "SAHTE_KAYIT": str(kok / "cagrilar.txt"),
                      "SAHTE_SON_SINIF": "" if mod == "sinif_eksik" else "S6KVadeli"}
             sonuc = subprocess.run(["bash", str(kok / "araclar" / "uyum_denemesi.sh")],
                                    capture_output=True, text=True, env=ortam)
             rapor = (kok / "user_data" / "logs" / "uyum_denemesi.txt").read_text(encoding="utf-8")
+            if cagrilar:
+                return sonuc.returncode, rapor, (kok / "cagrilar.txt").read_text(encoding="utf-8")
             return sonuc.returncode, rapor
 
     def test_her_sey_yolundaysa_gecer(self):
         kod, rapor = self._calistir("iyi")
         self.assertEqual(kod, 0, rapor)
         self.assertIn("SONUÇ: Tüm adımlar geçti.", rapor)
-        self.assertEqual(rapor.count("geçmiş testi tamamlandı"), 10)
+        self.assertEqual(rapor.count("geçmiş testi tamamlandı"), self.BOT_SAYISI)
         self.assertIn("> │ TOTAL │ 73", rapor)
 
     def test_bot_listesi_tek_yerden_gelir(self):
         kod, rapor = self._calistir("iyi")
         for bot, sinif, _k, _p in botlar.BOTLAR:
             self.assertIn(f"--- {bot} ({sinif}) ---", rapor)
-        self.assertIn("10 strateji sınıfı bulundu ve yüklendi", rapor)
+        self.assertIn(f"{self.BOT_SAYISI} strateji sınıfı bulundu ve yüklendi", rapor)
+
+    def test_gunluk_mumlar_yalniz_isteyen_piyasa_icin_indirilir(self):
+        """Smartmoney botları vadelidedir ve günlük mum ister; spot botları istemez."""
+        kod, rapor, cagrilar = self._calistir("iyi", cagrilar=True)
+        self.assertEqual(kod, 0, rapor)
+        indirmeler = cagrilar.splitlines()
+        self.assertEqual(len(indirmeler), 3)
+        gunluk = [c for c in indirmeler if "--timeframes 1d" in c]
+        self.assertEqual(len(gunluk), 1)
+        self.assertIn("--trading-mode futures", gunluk[0])
+        self.assertIn("ETH/USDT:USDT", gunluk[0])
+        self.assertIn("--days 200", gunluk[0])
+        self.assertIn("[GEÇTİ] Vadeli verisi indirildi (1d, 200 gün)", rapor)
+        self.assertEqual(sum(1 for c in indirmeler if "--timeframes 5m 15m --days 45" in c), 2)
+
+    def test_gunluk_veri_inmezse_kalir(self):
+        kod, rapor = self._calistir("gunluk_inmez")
+        self.assertEqual(kod, 1)
+        self.assertIn("[KALDI] Vadeli verisi indirilemedi (1d): freqtrade - ERROR - veri yok", rapor)
+        self.assertIn("SONUÇ: 1 adım kaldı.", rapor)
 
     def test_eksik_sinif_yakalanir(self):
         # "S6Vadeli" çıktıda var ama "S6KVadeli" yok: biri diğerinin yerine sayılmamalı.
@@ -425,8 +567,8 @@ exit 0
     def test_ayar_hatasi_cikis_kodu_temiz_olsa_da_kalir(self):
         kod, rapor = self._calistir("ayar_hatasi")
         self.assertEqual(kod, 1)
-        self.assertEqual(rapor.count("[KALDI]"), 10)
-        self.assertIn("SONUÇ: 10 adım kaldı.", rapor)
+        self.assertEqual(rapor.count("[KALDI]"), self.BOT_SAYISI)
+        self.assertIn(f"SONUÇ: {self.BOT_SAYISI} adım kaldı.", rapor)
         self.assertNotIn("geçmiş testi tamamlandı", rapor)
         # Betik botların durumu hakkında konuşmaz; onu çağıran bilir.
         self.assertNotIn("BAŞLATILMADI", rapor)
@@ -434,7 +576,7 @@ exit 0
     def test_hatali_cikis_kodu_kalir(self):
         kod, rapor = self._calistir("cikis_kodu")
         self.assertEqual(kod, 1)
-        self.assertEqual(rapor.count("[KALDI]"), 10)
+        self.assertEqual(rapor.count("[KALDI]"), self.BOT_SAYISI)
 
     def test_sonuc_tablosu_yoksa_gecti_sayilmaz(self):
         kod, rapor = self._calistir("tablo_yok")
@@ -444,7 +586,7 @@ exit 0
     def test_hic_islem_acmayan_strateji_hata_degildir(self):
         kod, rapor = self._calistir("islem_yok")
         self.assertEqual(kod, 0, rapor)
-        self.assertEqual(rapor.count("ama hiç işlem açmadı"), 10)
+        self.assertEqual(rapor.count("ama hiç işlem açmadı"), self.BOT_SAYISI)
 
     def test_arac_servisi_env_okumaz_gecmis_testi_yer_tutucusu_gecerlidir(self):
         """İki ders bir arada.
@@ -489,7 +631,12 @@ exit 0
             kok = Path(gecici)
             (kok / "araclar").mkdir()
             (kok / "bin").mkdir()
+            (kok / "karabasan").mkdir()
             shutil.copy(KOK / "araclar" / "analiz.sh", kok / "araclar" / "analiz.sh")
+            # Borsadan istenen dilimler karabasan/botlar.py üzerinden kural dosyalarından okunur.
+            for dosya in ("__init__.py", "botlar.py"):
+                shutil.copy(KOK / "karabasan" / dosya, kok / "karabasan" / dosya)
+            shutil.copytree(KOK / "karabasan" / "stratejiler", kok / "karabasan" / "stratejiler")
             docker = kok / "bin" / "docker"
             docker.write_text(self.SAHTE_DOCKER, encoding="utf-8")
             docker.chmod(0o755)
@@ -509,6 +656,13 @@ exit 0
         self.assertEqual(cagrilar.count("--prepend"), 2)   # spot ve vadeli
         self.assertNotIn("--erase", cagrilar)
         self.assertIn("--days 80", cagrilar)
+        # Günlük mumlar: yalnız onu isteyen (vadeli) botlar için, ölçümden önce.
+        gunluk = [c for c in cagrilar.splitlines() if "--timeframes 1d" in c]
+        self.assertEqual(len(gunluk), 1)
+        self.assertIn("--trading-mode futures", gunluk[0])
+        self.assertIn("--days 200", gunluk[0])
+        sira = cagrilar.splitlines()
+        self.assertLess(sira.index(gunluk[0]), next(i for i, c in enumerate(sira) if "karabasan_gecmis.py" in c))
 
     def test_prepend_desteklenmezse_silip_bastan_indirir(self):
         kod, rapor, cagrilar = self._calistir("prepend_yok")

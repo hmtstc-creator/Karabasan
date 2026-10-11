@@ -63,16 +63,22 @@ RestartSec=10
 
 [Install]
 WantedBy=multi-user.target'
+    local DEGISTI=0
     if [ "$(cat /etc/karabasan-ozel-ag.env 2> /dev/null)" != "OZEL_AG_IP=$IP" ] \
             || [ "$(cat "$BIRIM" 2> /dev/null)" != "$YENI_BIRIM" ]; then
         echo "OZEL_AG_IP=$IP" > /etc/karabasan-ozel-ag.env
         printf '%s\n' "$YENI_BIRIM" > "$BIRIM"
         systemctl daemon-reload
-        for PORT in $PORTLAR; do
+        DEGISTI=1
+    fi
+    for PORT in $PORTLAR; do
+        # Adres ya da köprü tanımı değiştiyse hepsi yeniden başlar; değişmediyse yalnız
+        # çalışmayan köprüler açılır (örneğin sonradan eklenen bir botun kapısı).
+        if [ "$DEGISTI" -eq 1 ] || ! systemctl is-active --quiet karabasan-kopru@"$PORT".service; then
             systemctl enable karabasan-kopru@"$PORT".service > /dev/null 2>&1 || true
             systemctl restart karabasan-kopru@"$PORT".service || true
-        done
-    fi
+        fi
+    done
     # Denetim: sonuç sayfası özel ağ adresinden yanıt veriyor mu?
     for _ in 1 2 3 4 5 6 7 8 9 10; do
         if curl -fsS --max-time 5 "http://$IP:8080/saglik" > /dev/null 2>&1; then return 0; fi

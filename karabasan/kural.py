@@ -34,8 +34,11 @@ GOSTERGE_TURLERI = (
     "hacim_ort",
     "degisim_yuzde",
     "macd",
+    "yapi",
 )
 MACD_VARSAYILAN = {"hizli": 12, "yavas": 26, "sinyal": 9}
+# Piyasa yapısı (g.piyasa_yapisi): salınım uzunluğunun sınırları.
+YAPI_UZUNLUK_SINIRI = (2, 50)
 
 # Panelden ya da dosyadan aşılamayan sınırlar. Bir yazım hatası (örneğin
 # %1 yerine %100 stop) gerçek paraya ulaşmadan burada durur.
@@ -91,7 +94,55 @@ def _gosterge_sutunlari(ad: str, tanim: dict) -> list[str]:
         return [f"{ad}_ust", f"{ad}_orta", f"{ad}_alt"]
     if tanim["tur"] == "macd":
         return [f"{ad}_cizgi", f"{ad}_sinyal", f"{ad}_fark"]
+    if tanim["tur"] == "yapi":
+        return [f"{ad}_{sutun}" for sutun in g.YAPI_SUTUNLARI]
     return [ad]
+
+
+def gosterge_dilimi(kural: dict, tanim: dict) -> str | None:
+    """Göstergenin hesaplandığı üst zaman dilimi; taban dilimdeyse None.
+
+    'dilim' alanı üç biçimde yazılabilir: yok ya da "taban" (taban dilim),
+    "ust" (kuralın 'ust_zaman_dilimi'), ya da doğrudan bir dilim ("15m", "1h", "1d").
+    Sonuncusu sayesinde bir kural birden çok üst dilim kullanabilir.
+    """
+    dilim = tanim.get("dilim")
+    if dilim in (None, "taban"):
+        return None
+    if dilim == "ust":
+        return kural.get("ust_zaman_dilimi")
+    return dilim
+
+
+def borsa_dilimleri(kural: dict) -> list[str]:
+    """Mumları taban mumlardan toplanmayıp borsadan ayrıca istenen dilimler.
+
+    Günlük gibi büyük dilimler içindir: 5 dakikalık mumlardan 20 günlük bir
+    ortalama kurmak için canlıda alınabilenden çok daha fazla mum gerekir.
+    """
+    return list(kural.get("borsa_dilimleri", []))
+
+
+def ek_veri_topla(kural: dict, yukle) -> tuple[dict, list[str]]:
+    """Kuralın borsadan ayrıca istediği dilimlerin mumlarını toplar.
+
+    yukle(dilim) bir mum tablosu ya da None döndürür. Dönen ikili:
+    ({dilim: tablo}, bulunamayan dilimler). Bulunamayan dilim sözlükte yer almaz,
+    yani taban mumlardan toplanır (bkz. gosterge_ekle); sonuç o zaman motorunkiyle
+    birebir tutmaz, çünkü motor verisi olmayan dilimde hiç sinyal üretmez.
+    """
+    ek, eksik = {}, []
+    for dilim in borsa_dilimleri(kural):
+        tablo = yukle(dilim)
+        if tablo is None or len(tablo) == 0:
+            eksik.append(dilim)
+        else:
+            ek[dilim] = tablo
+    return ek, eksik
+
+
+def _yapi_omru(tanim: dict) -> int:
+    return int(tanim.get("blok_omru") or 20 * int(tanim["periyot"]))
 
 
 def _macd_ayarlari(tanim: dict) -> tuple[int, int, int]:
@@ -124,12 +175,20 @@ def kural_dogrula(kural: dict) -> None:
         if ust_dk <= taban_dk or ust_dk % taban_dk != 0:
             raise KuralHatasi("'ust_zaman_dilimi' taban dilimin tam katı ve ondan büyük olmalı.")
 
+    borsadan = kural.get("borsa_dilimleri", [])
+    if not isinstance(borsadan, list) or len(set(map(str, borsadan))) != len(borsadan):
+        raise KuralHatasi("'borsa_dilimleri' birbirinden farklı dilimlerin listesi olmalı.")
+    for dilim in borsadan:
+        _ust_dilim_denetle(dilim, taban_dk, "'borsa_dilimleri'")
+
     # Göstergeler
     gost = kural["gostergeler"]
     if not isinstance(gost, dict):
         raise KuralHatasi("'gostergeler' bir sözlük olmalı.")
-    bilinen = set(g.FIYAT_SUTUNLARI) | set(g.TURKCE_SUTUN)
-    ust_bilinen = set(bilinen)
+    fiyatlar = set(g.FIYAT_SUTUNLARI) | set(g.TURKCE_SUTUN)
+    bilinen = set(fiyatlar)
+    # Her üst dilimin kendi sütunları: bir gösterge yalnız kendi dilimindeki bir kaynağı kullanabilir.
+    dilim_bilinen: dict[str | None, set] = {None: bilinen}
     for ad, tanim in gost.items():
         if not ad.isidentifier() or ad in bilinen:
             raise KuralHatasi(f"Gösterge adı uygun değil ya da çakışıyor: {ad!r}")
@@ -138,11 +197,12 @@ def kural_dogrula(kural: dict) -> None:
                 f"'{ad}' göstergesinin türü şunlardan biri olmalı: {', '.join(GOSTERGE_TURLERI)}"
             )
         tur = tanim["tur"]
-        ust_mu = tanim.get("dilim") == "ust"
-        if tanim.get("dilim") not in (None, "ust", "taban"):
-            raise KuralHatasi(f"'{ad}': 'dilim' yalnız 'ust' ya da 'taban' olabilir.")
-        if ust_mu and ust is None:
+        if tanim.get("dilim") == "ust" and ust is None:
             raise KuralHatasi(f"'{ad}' üst dilimde tanımlı ama 'ust_zaman_dilimi' verilmemiş.")
+        dilim = gosterge_dilimi(kural, tanim)
+        ust_mu = dilim is not None
+        if ust_mu and tanim.get("dilim") != "ust":
+            _ust_dilim_denetle(dilim, taban_dk, f"'{ad}': 'dilim'")
         if tur == "macd":
             for alan in MACD_VARSAYILAN:
                 deger = tanim.get(alan, MACD_VARSAYILAN[alan])
@@ -155,6 +215,19 @@ def kural_dogrula(kural: dict) -> None:
             periyot = tanim.get("periyot")
             if not isinstance(periyot, int) or isinstance(periyot, bool) or not 1 <= periyot <= 1000:
                 raise KuralHatasi(f"'{ad}': 'periyot' 1 ile 1000 arasında tam sayı olmalı.")
+        if tur == "yapi":
+            alt_sinir, ust_sinir = YAPI_UZUNLUK_SINIRI
+            if not alt_sinir <= tanim["periyot"] <= ust_sinir:
+                raise KuralHatasi(
+                    f"'{ad}': piyasa yapısında 'periyot' (salınım uzunluğu) {alt_sinir} ile {ust_sinir} arasında olmalı."
+                )
+            omur = tanim.get("blok_omru")
+            if omur is not None and (
+                not isinstance(omur, int) or isinstance(omur, bool) or not 1 <= omur <= 1000
+            ):
+                raise KuralHatasi(f"'{ad}': 'blok_omru' 1 ile 1000 arasında tam sayı olmalı.")
+            if tanim.get("kaynak") is not None:
+                raise KuralHatasi(f"'{ad}': piyasa yapısı mumun kendisinden hesaplanır, 'kaynak' almaz.")
         if tur == "vwap" and ust_mu:
             raise KuralHatasi(f"'{ad}': VWAP yalnız taban dilimde hesaplanır.")
         if tur == "bollinger":
@@ -162,17 +235,17 @@ def kural_dogrula(kural: dict) -> None:
             if not isinstance(sapma, (int, float)) or not 0.1 <= sapma <= 10:
                 raise KuralHatasi(f"'{ad}': 'sapma' 0,1 ile 10 arasında olmalı.")
         kaynak = tanim.get("kaynak")
-        if kaynak is not None:
-            gecerli = ust_bilinen if ust_mu else bilinen
-            if kaynak not in gecerli:
-                raise KuralHatasi(
-                    f"'{ad}': kaynak '{kaynak}' tanımlı değil. Kaynak bir fiyat sütunu ya da "
-                    "daha önce tanımlanmış, aynı dilimdeki bir gösterge olmalı."
-                )
+        gecerli = dilim_bilinen.setdefault(dilim, set(fiyatlar))
+        if kaynak is not None and kaynak not in gecerli:
+            raise KuralHatasi(
+                f"'{ad}': kaynak '{kaynak}' tanımlı değil. Kaynak bir fiyat sütunu ya da "
+                "daha önce tanımlanmış, aynı dilimdeki bir gösterge olmalı."
+            )
         for sutun in _gosterge_sutunlari(ad, tanim):
+            if sutun in bilinen:
+                raise KuralHatasi(f"Gösterge adı uygun değil ya da çakışıyor: {sutun!r}")
             bilinen.add(sutun)
-            if ust_mu:
-                ust_bilinen.add(sutun)
+            gecerli.add(sutun)
 
     # Giriş koşulları
     _kosul_dogrula(kural["giris"], bilinen, "giris")
@@ -196,6 +269,19 @@ def kural_dogrula(kural: dict) -> None:
         raise KuralHatasi(
             f"Bu kural {ihtiyac} başlangıç mumu istiyor; sınır {EN_FAZLA_BASLANGIC_MUMU}. "
             "Üst dilimdeki göstergelerin periyodunu küçültün ya da taban dilimi büyütün."
+        )
+
+
+def _ust_dilim_denetle(dilim, taban_dk: int, yer: str) -> None:
+    """Bir üst dilim, taban dilimin tam katı ve ondan büyük olmalıdır."""
+    try:
+        dk = g.dilim_dakika(dilim) if isinstance(dilim, str) else 0
+    except ValueError:
+        dk = 0
+    if dk <= taban_dk or dk % taban_dk != 0:
+        raise KuralHatasi(
+            f"{yer} 'ust', 'taban' ya da taban dilimin tam katı olan daha büyük bir dilim "
+            f"(örnek: '15m', '1h', '1d') olmalı; verilen: {dilim!r}"
         )
 
 
@@ -256,12 +342,12 @@ def _kosul_dogrula(kosul, bilinen: set, yer: str) -> None:
 # --------------------------------------------------------------------------
 
 
-def gereken_mum(kural: dict, sinirla: bool = True) -> int:
-    """Göstergelerin oturması için gereken başlangıç mumu sayısı (taban dilimde)."""
+def _mum_ihtiyaclari(kural: dict) -> tuple[int, dict[str, int]]:
+    """(taban dilimde gereken mum, borsadan istenen her dilim için o dilimde gereken mum)."""
     taban_dk = g.dilim_dakika(kural["zaman_dilimi"])
-    ust = kural.get("ust_zaman_dilimi")
-    oran = g.dilim_dakika(ust) // taban_dk if ust else 1
-    ihtiyaclar: dict[str, int] = {}
+    borsadan = set(borsa_dilimleri(kural))
+    ihtiyaclar: dict[str, int] = {}      # sütun -> kendi hesaplandığı ölçüde ihtiyaç
+    taban_ihtiyac, ek_ihtiyac = [50], {}
     for ad, tanim in kural["gostergeler"].items():
         periyot = int(tanim.get("periyot", 0))
         # Üstel ortalamalar yaklaşık üç periyotta oturur.
@@ -272,15 +358,38 @@ def gereken_mum(kural: dict, sinirla: bool = True) -> int:
         if tanim["tur"] == "macd":
             _, yavas, sinyal = _macd_ayarlari(tanim)
             ihtiyac = (yavas + sinyal) * 3
-        if tanim.get("dilim") == "ust":
-            ihtiyac *= oran
+        if tanim["tur"] == "yapi":
+            # Yapı, veri nereden başlarsa başlasın aynı yere otursun: salınımların ve yönün
+            # yeniden kurulması, üstüne en eski geçerli bloğun ömrü.
+            ihtiyac = max(30 * periyot, _yapi_omru(tanim) + 10 * periyot)
+        dilim = gosterge_dilimi(kural, tanim)
+        borsadan_mi = dilim in borsadan
+        if dilim and not borsadan_mi:
+            ihtiyac *= g.dilim_dakika(dilim) // taban_dk
         # Başka bir göstergeden türeyen gösterge, kaynağının ihtiyacını da taşır.
         ihtiyac += ihtiyaclar.get(tanim.get("kaynak"), 0)
-        sutunlar = _gosterge_sutunlari(ad, tanim)
-        for sutun in sutunlar:
+        for sutun in _gosterge_sutunlari(ad, tanim):
             ihtiyaclar[sutun] = ihtiyac
-    en_cok = max([50, *ihtiyaclar.values()]) + 10
+        if borsadan_mi:
+            ek_ihtiyac[dilim] = max(ek_ihtiyac.get(dilim, 0), ihtiyac + 10)
+        else:
+            taban_ihtiyac.append(ihtiyac)
+    return max(taban_ihtiyac) + 10, ek_ihtiyac
+
+
+def gereken_mum(kural: dict, sinirla: bool = True) -> int:
+    """Göstergelerin oturması için gereken başlangıç mumu sayısı (taban dilimde).
+
+    'borsa_dilimleri' içindeki dilimler buna katılmaz; onların mumları ayrıca gelir
+    (bkz. gereken_ek_mum).
+    """
+    en_cok, _ek = _mum_ihtiyaclari(kural)
     return min(en_cok, EN_FAZLA_BASLANGIC_MUMU) if sinirla else en_cok
+
+
+def gereken_ek_mum(kural: dict) -> dict[str, int]:
+    """Borsadan ayrıca istenen her dilim için gereken mum sayısı (o dilimin kendi mumuyla)."""
+    return _mum_ihtiyaclari(kural)[1]
 
 
 def _tek_gosterge(cerceve: pd.DataFrame, ad: str, tanim: dict) -> dict:
@@ -293,6 +402,9 @@ def _tek_gosterge(cerceve: pd.DataFrame, ad: str, tanim: dict) -> dict:
         return {ad: g.atr_yuzde(cerceve, periyot)}
     if tur == "hacim_ort":
         return {ad: g.sma(cerceve["volume"], periyot)}
+    if tur == "yapi":
+        yapi = g.piyasa_yapisi(cerceve, periyot, _yapi_omru(tanim))
+        return {f"{ad}_{sutun}": yapi[sutun] for sutun in g.YAPI_SUTUNLARI}
     varsayilan = {"en_yuksek": "high", "en_dusuk": "low"}.get(tur, "close")
     kaynak = cerceve[_sutun_adi(tanim.get("kaynak") or varsayilan)]
     if tur == "ema":
@@ -316,30 +428,56 @@ def _tek_gosterge(cerceve: pd.DataFrame, ad: str, tanim: dict) -> dict:
     raise KuralHatasi(f"Tanınmayan gösterge türü: {tur}")
 
 
-def gosterge_ekle(df: pd.DataFrame, kural: dict) -> pd.DataFrame:
+def _ust_tablo(df: pd.DataFrame, taban: str, dilim: str, ek_veri: dict | None) -> pd.DataFrame:
+    """Bir üst dilimin mum tablosu: verildiyse borsadan gelen, yoksa taban mumlardan toplanan.
+
+    Boş bir tablo vermek "bu dilimin verisi yok" demektir: toplamaya gidilmez, o dilimin
+    göstergeleri boş kalır. Canlıda borsadan veri alınamadığında işlem açılmasın diye.
+    """
+    hazir = (ek_veri or {}).get(dilim)
+    if hazir is None:
+        return g.ust_dilime_cevir(df, taban, dilim)
+    fiyatlar = ["open", "high", "low", "close", "volume"]
+    tablo = hazir[["date", *fiyatlar]].copy()
+    tablo["date"] = pd.to_datetime(tablo["date"], utc=True)
+    # Boş tabloda sütun türü belirsiz kalabilir; ortalamalar sayı türü ister.
+    tablo[fiyatlar] = tablo[fiyatlar].astype(float)
+    return tablo.drop_duplicates("date", keep="last").sort_values("date").reset_index(drop=True)
+
+
+def gosterge_ekle(df: pd.DataFrame, kural: dict, ek_veri: dict | None = None) -> pd.DataFrame:
     """Kuraldaki tüm göstergeleri hesaplayıp tabloya sütun olarak ekler.
+
+    ek_veri: {dilim: mum tablosu}. 'borsa_dilimleri' içindeki bir dilimin borsadan
+    gelen mumları buradan verilir (örnek: {"1d": günlük mumlar}). Sözlükte hiç yer
+    almayan dilim taban mumlardan toplanır (geçmiş veriyle çalışan araçlar ve testler
+    için; eldeki taban veri kısaysa göstergeler boş kalır). Boş tablo verilen dilim
+    toplanmaz: göstergeleri boş kalır ve kural sinyal üretmez.
 
     Girdi tablosu değiştirilmez; yeni bir tablo döner.
     """
     sonuc = df.copy()
     taban = kural["zaman_dilimi"]
-    ust = kural.get("ust_zaman_dilimi")
     gost = kural["gostergeler"]
 
-    # 1) Üst dilim göstergeleri: üst dilim tablosunda hesaplanır, sonra hizalanır.
-    ust_tanimlar = {ad: t for ad, t in gost.items() if t.get("dilim") == "ust"}
-    if ust_tanimlar:
-        ust_tablo = g.ust_dilime_cevir(df, taban, ust)
-        for ad, tanim in ust_tanimlar.items():
+    # 1) Üst dilim göstergeleri: kendi dilimlerinin tablosunda hesaplanır, sonra hizalanır.
+    gruplar: dict[str, dict] = {}
+    for ad, tanim in gost.items():
+        dilim = gosterge_dilimi(kural, tanim)
+        if dilim:
+            gruplar.setdefault(dilim, {})[ad] = tanim
+    for dilim, tanimlar in gruplar.items():
+        ust_tablo = _ust_tablo(df, taban, dilim, ek_veri)
+        for ad, tanim in tanimlar.items():
             for sutun, seri in _tek_gosterge(ust_tablo, ad, tanim).items():
                 ust_tablo[sutun] = seri
                 sonuc[sutun] = g.ust_dilimden_hizala(
-                    seri, ust_tablo["date"], df["date"], taban, ust
+                    seri, ust_tablo["date"], df["date"], taban, dilim
                 )
 
     # 2) Taban dilim göstergeleri.
     for ad, tanim in gost.items():
-        if tanim.get("dilim") == "ust":
+        if gosterge_dilimi(kural, tanim):
             continue
         for sutun, seri in _tek_gosterge(sonuc, ad, tanim).items():
             sonuc[sutun] = seri
@@ -400,9 +538,9 @@ def giris_sinyali(df: pd.DataFrame, kural: dict) -> pd.Series:
     return sinyal.fillna(False).astype(bool)
 
 
-def sinyal_uret(df: pd.DataFrame, kural: dict) -> pd.DataFrame:
+def sinyal_uret(df: pd.DataFrame, kural: dict, ek_veri: dict | None = None) -> pd.DataFrame:
     """Kısa yol: göstergeleri ekler ve 'sinyal' sütununu koyar."""
-    tablo = gosterge_ekle(df, kural)
+    tablo = gosterge_ekle(df, kural, ek_veri)
     tablo["sinyal"] = giris_sinyali(tablo, kural)
     return tablo
 
