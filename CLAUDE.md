@@ -117,6 +117,7 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | `kurulum/sunucu_blogu.sh` | Ahmet'in sunucuyu oluştururken "Cloud config" kutusuna yapıştırdığı blok |
 | `kur.sh` | Kurulum; soru sormaz, her adımı Telegram'a yazar, her güncellemede yeniden çalışır |
 | `araclar/oto_guncelle.sh` | 5 dakikada bir `main`'i denetler, yeni kodu alır, `kur.sh`'ı çalıştırır |
+| `araclar/takas.sh` | 2 GB takas alanı (swap); `kur.sh` 2. adımda çağırır, kurulu olanı atlar |
 | `araclar/ozel_ag.sh` | Tailscale onay bağlantısını Telegram'dan yollar; kapıları özel ağ adresine taşır |
 | `araclar/claude_sunucu.sh` | Claude Code'u sunucuya kurar; girişi Telegram üzerinden yaptırır; uzaktan yönetim oturumunu (Remote Control) açık tutar |
 | `.claude/settings.json` | Sunucudaki oturumun onay sormadan çalıştırabileceği salt okunur komutlar; gizli dosyaları okuma yasağı |
@@ -178,7 +179,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 358 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 363 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -312,10 +313,14 @@ aralığı + hacim. Çıkış %1,2 / %0,8 / 240 dk. Ayrıntı README'de.
   coin başına günde yarım işlem kadar açıyor (alım ve satış birlikte). Gerçek
   verideki sonucu bilinmiyor; Ahmet'e "henüz tahmin" dendi. Aynı uyarı
   geçerli: çok fikir denedikçe birinin şans eseri iyi görünme olasılığı artar.
-- On iki botun belleği ölçülmedi (sunucu 8 GB). `kur.sh` her çalışmanın
-  sonunda `free -m` çıktısını kurulum kaydına yazar; sunucudaki Claude
-  `docker stats --no-stream` ile bakabilir. Bellek yetmezse botlar yeniden
-  başlayıp durur ve "susan bot" uyarısı gelir; o zaman bot sayısını azalt.
+- On iki botun belleği ölçüldü (11 Ekim 2026, sunucudaki Claude): toplam
+  7,6 GB, kullanılan ~6,2 GB, boşta ~1,4 GB; bot başına ~440 MB, haberci /
+  kayıtçı / panel birlikte ~64 MB. Takas alanı yoktu, "bellek bitti" kaydı
+  yok. Risk uyum denemesi ve geçmiş ölçümüdür (ek `arac` kapsayıcısı). Bu
+  yüzden `kur.sh` 2. adımda `araclar/takas.sh` ile 2 GB takas alanı kurar
+  (`/swapfile`, `/etc/fstab`'a bir kez, `vm.swappiness=10`); kurulamazsa
+  yalnız uyarı yazar. Bir bot daha eklemek ~440 MB ister: 13. bot boşluğun
+  üçte birini yer; eklemeden önce yerine bir botu çıkarmayı düşün.
 - `ozel_ag.sh` artık adres değişmese de çalışmayan köprüleri açar; yoksa
   sonradan eklenen botların kapıları (8091, 8092) özel ağa taşınmazdı.
 - Haberci, açılışından sonraki yarım saat boyunca hiç kayıt yazmamış botu
@@ -400,7 +405,9 @@ Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
 - `download-data --timeframes 1d --days 200` ile vadeli günlük verinin
   `user_data/data/binance/futures/<COIN>_USDT_USDT-1d-futures.feather` adıyla
   inmesi (araçlar bu adı arar; ad 5 dakikalık dosyalardan türetildi).
-- On iki botun 8 GB bellekte rahat çalışması.
+- `araclar/takas.sh`: `fallocate`, `mkswap`, `swapon` ve `sysctl` çağrıları yalnız sahte
+  komutlarla denendi (`TakasAlaniTesti`). Gerçek sunucuda ilk kez çalışacak; sonucu kurulum
+  kaydında "Takas alanı açıldı" ve `free -m`'in "Swap:" satırıyla görülür.
 
 - `download-data --prepend` ile eldeki verinin başına 80 güne kadar eski veri
   eklenebilmesi (`analiz.sh`; olmazsa `--erase` ile baştan indirir).

@@ -422,12 +422,97 @@ class BagimsizKarsilastirma(unittest.TestCase):
         self.assertIn("UYARI", cikti.getvalue())
 
 
+class TakasAlaniTesti(unittest.TestCase):
+    """araclar/takas.sh sahte fallocate / mkswap / swapon / sysctl / df ile çalıştırılır."""
+
+    SAHTE = {
+        "fallocate": 'echo "fallocate $*" >> "$SAHTE_KAYIT"; [ "${SAHTE_MOD:-}" = "fallocate_yok" ] && exit 1; : > "$3"',
+        "dd": 'echo "dd $*" >> "$SAHTE_KAYIT"; for a in "$@"; do case "$a" in of=*) : > "${a#of=}";; esac; done',
+        "mkswap": 'echo "mkswap $*" >> "$SAHTE_KAYIT"; echo TAKAS > "$1"',
+        "swapon": ('if [ "$1" = "--show=NAME" ]; then cat "$SAHTE_ETKIN" 2> /dev/null; exit 0; fi\n'
+                   'echo "swapon $*" >> "$SAHTE_KAYIT"; grep -q TAKAS "$1" || exit 1; echo "$1" >> "$SAHTE_ETKIN"'),
+        "sysctl": 'echo "sysctl $*" >> "$SAHTE_KAYIT"',
+        "df": 'echo "Avail"; echo "${SAHTE_BOS:-50000}"',
+    }
+
+    def _calistir(self, kok, **ek):
+        import os
+        import subprocess
+
+        ortam = {**os.environ, "PATH": f"{kok / 'bin'}:{os.environ['PATH']}",
+                 "TAKAS_DOSYASI": str(kok / "swapfile"), "TAKAS_FSTAB": str(kok / "fstab"),
+                 "TAKAS_SYSCTL": str(kok / "sysctl.conf"), "SAHTE_KAYIT": str(kok / "kayit"),
+                 "SAHTE_ETKIN": str(kok / "etkin"), **ek}
+        return subprocess.run(["bash", str(KOK / "araclar" / "takas.sh")], capture_output=True,
+                              text=True, env=ortam)
+
+    def _kok(self, gecici):
+        kok = Path(gecici)
+        (kok / "bin").mkdir()
+        for ad, govde in self.SAHTE.items():
+            yol = kok / "bin" / ad
+            yol.write_text("#!/bin/bash\n" + govde + "\n", encoding="utf-8")
+            yol.chmod(0o755)
+        (kok / "fstab").write_text("UUID=abc / ext4 defaults 0 1\n", encoding="utf-8")
+        return kok
+
+    def test_kurar_ve_ikinci_calismada_atlar(self):
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = self._kok(gecici)
+            ilk = self._calistir(kok)
+            self.assertEqual(ilk.returncode, 0, ilk.stdout + ilk.stderr)
+            self.assertIn("Takas alanı açıldı.", ilk.stdout)
+            ikinci = self._calistir(kok)
+            self.assertEqual(ikinci.returncode, 0, ikinci.stdout + ikinci.stderr)
+            self.assertIn("zaten açık, atlandı", ikinci.stdout)
+            kayit = (kok / "kayit").read_text(encoding="utf-8")
+            self.assertEqual(kayit.count("fallocate -l 2048M"), 1)
+            self.assertEqual(kayit.count("mkswap"), 1)
+            fstab = (kok / "fstab").read_text(encoding="utf-8").splitlines()
+            self.assertEqual(fstab.count(f"{kok / 'swapfile'} none swap sw 0 0"), 1)
+            self.assertEqual(len(fstab), 2)
+            self.assertEqual((kok / "sysctl.conf").read_text(encoding="utf-8").strip(), "vm.swappiness=10")
+            self.assertIn("sysctl -q -w vm.swappiness=10", kayit)
+            self.assertEqual(oct((kok / "swapfile").stat().st_mode & 0o777), "0o600")
+            self.assertFalse((kok / "swapfile.yeni").exists())
+
+    def test_fallocate_yoksa_dd_ile_kurar(self):
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = self._kok(gecici)
+            sonuc = self._calistir(kok, SAHTE_MOD="fallocate_yok")
+            self.assertEqual(sonuc.returncode, 0, sonuc.stdout + sonuc.stderr)
+            self.assertIn("dd if=/dev/zero", (kok / "kayit").read_text(encoding="utf-8"))
+
+    def test_disk_doluysa_kurmaz_uyarir(self):
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = self._kok(gecici)
+            sonuc = self._calistir(kok, SAHTE_BOS="3000")
+            self.assertEqual(sonuc.returncode, 1)
+            self.assertIn("yeterli boş yer yok", sonuc.stdout)
+            self.assertFalse((kok / "swapfile").exists())
+            self.assertEqual(len((kok / "fstab").read_text(encoding="utf-8").splitlines()), 1)
+
+    def test_bozuk_dosya_silinir(self):
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = self._kok(gecici)
+            (kok / "swapfile").write_text("bozuk", encoding="utf-8")
+            sonuc = self._calistir(kok)
+            self.assertEqual(sonuc.returncode, 1)
+            self.assertFalse((kok / "swapfile").exists())
+            # Sonraki çalışma baştan kurar.
+            self.assertEqual(self._calistir(kok).returncode, 0)
+
+    def test_kur_sh_hatayi_yutar(self):
+        metin = (KOK / "kur.sh").read_text(encoding="utf-8")
+        self.assertIn('bash araclar/takas.sh || echo "UYARI', metin)
+
+
 class KurulumBetikleriTesti(unittest.TestCase):
     """Sunucu betikleri burada çalıştırılamaz; yalnız yazım ve temel güvenlik denetlenir."""
 
     BETIKLER = ["kur.sh", "guncelle.sh", "araclar/oto_guncelle.sh", "araclar/ozel_ag.sh",
                 "araclar/uyum_denemesi.sh", "araclar/claude_sunucu.sh", "araclar/analiz.sh",
-                "kurulum/sunucu_blogu.sh"]
+                "araclar/takas.sh", "kurulum/sunucu_blogu.sh"]
 
     def test_betikler_yazim_denetiminden_gecer(self):
         import subprocess

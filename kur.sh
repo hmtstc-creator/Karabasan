@@ -125,6 +125,10 @@ Senden tek bir şey isteyeceğim: birazdan göndereceğim Tailscale bağlantıs�
     else
         echo "Paketler kurulu, atlandı."
     fi
+    # Takas alanı (2 GB): 12 bot belleğin ~6,2 / 7,6 GB'ını kullanıyor; uyum denemesi
+    # ve geçmiş ölçümü sırasında bellek bitmesin. Kurulamazsa yalnız uyarı yazılır.
+    bash araclar/takas.sh || echo "UYARI: takas alanı kurulamadı; kurulum sürüyor."
+    free -m 2> /dev/null | sed -n '1p;3p' || true
 
     # ------------------------------------------------------------ 3
     adim "3/10 Güvenlik duvarı"
