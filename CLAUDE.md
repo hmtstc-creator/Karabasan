@@ -113,6 +113,7 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | `araclar/yapilandirma_uret.py` | Bot yapılandırmalarını ve `docker-compose.yml`'i üretir |
 | `araclar/uyum_denemesi.sh`, `araclar/karsilastir.py` | Sunucudaki uyum denemesi |
 | `karabasan/eslestirme.py`, `araclar/islem_eslestir.py` | Uyum denemesinin son bölümü: motorun işlem listesini (`--export trades`, `user_data/backtest_results/`) benzetimle işlem işlem eşleştirir; yalnız bilgi verir, denemenin geçip kalmasını etkilemez |
+| `karabasan/yillik.py`, `araclar/yillik_test.py`, `araclar/yillik_test.sh` | 12 aylık geçmiş testi: bir yıllık vadeli veriyi indirir (5m/15m 400 gün, 1d 600 gün), her botu son 365 günde bağımsız benzetimle çalıştırır, sonucu dört çeyreğe böler; bilgi için aynı sinyallerle "stop = hedef" sütunu. Çıktı `user_data/logs/yillik_test.txt` (Telegram'da `/yillik`) ve `user_data/gecmis_test.json` (sınavın 7. ölçütü). `kur.sh` içinde `YILLIK_SURUMU` |
 | `araclar/analiz.sh`, `araclar/karabasan_gecmis.py` | Sunucudaki tek seferlik ölçüm: 80 günlük veri indirir, stratejilerin sonucunu Karabasan durumuna göre ayırır ve stop genişliğini sınar (aynı sinyaller, stop 1,5 / 2 / 3 kat; dönemin iki yarısı ayrı). `kur.sh` içinde `ANALIZ_SURUMU`; Telegram'da `/olcum` |
 | `kurulum/sunucu_blogu.sh` | Ahmet'in sunucuyu oluştururken "Cloud config" kutusuna yapıştırdığı blok |
 | `kur.sh` | Kurulum; soru sormaz, her adımı Telegram'a yazar, her güncellemede yeniden çalışır |
@@ -179,7 +180,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 365 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 372 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -384,9 +385,11 @@ Sıradaki işler, öncelik sırasıyla:
    söyledi; canlı ölçüm bunu gerçek dominans ve TOTAL2 verisiyle sınar.
 2. Sanal işlemlerin açıldıkları andaki Karabasan durumu ve filtre puanlarıyla
    etiketlenmesi (botların SQLite kayıtları ile Karabasan kaydının birleşimi).
-3. 12 aylık geçmiş testi ve raporu (sonucu `user_data/gecmis_test.json`'a
-   yazılır; 7. ölçüt bunu okur). S3 / S4'ün Kırmızı'da kazanması burada da
-   görülüyor mu, bak.
+3. 12 aylık geçmiş testi YAZILDI (12 Ekim 2026, Ahmet seçti), `YILLIK_SURUMU=1`
+   ile sunucuda ilk kez çalışacak. Raporu oku: kaç bot yıl sonunda artıda, kaç
+   tanesi dört çeyreğin en az üçünde artıda? Ahmet'e rakamla söyle; "stop =
+   hedef" sütunu ayar önerisi değildir. Karabasan durumuna göre ayırma bu
+   testte yok (S3 / S4'ün Kırmızı'da kazanması sorusu hâlâ açık).
 4. (Büyük ölçüde bitti: neden benzetimdeki yeniden giriş kuralıydı, düzeltildi.
    8. uyum denemesinde doğrula.)
 5. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
@@ -429,6 +432,9 @@ Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
   komutlarla denendi (`TakasAlaniTesti`). Gerçek sunucuda ilk kez çalışacak; sonucu kurulum
   kaydında "Takas alanı açıldı" ve `free -m`'in "Swap:" satırıyla görülür.
 
+- 12 aylık test (`araclar/yillik_test.sh`): vadeli 5m / 15m için `--days 400 --prepend`
+  (olmazsa `--erase`) ile bir yıllık verinin inmesi; `arac` kapsayıcısının
+  `user_data/gecmis_test.json`'ı yazabilmesi. Yalnız yapay veriyle sınandı.
 - `download-data --prepend` ile eldeki verinin başına 80 güne kadar eski veri
   eklenebilmesi (`analiz.sh`; olmazsa `--erase` ile baştan indirir).
 - Binance'in BTC vadeli sözleşmesinde en küçük emir tutarının 100 USDT olduğu

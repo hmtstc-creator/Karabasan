@@ -131,6 +131,7 @@ ekranda "henüz canlı ölçülmüyor" yazar.
 | `/gunluk` | Botların son kayıt satırları; `/gunluk s1-vadeli` tek bot |
 | `/uyum` | Uyum denemesi raporu |
 | `/olcum` | Karabasan geçmiş ölçümü: stratejilerin sonucu piyasa durumuna ve stop genişliğine göre |
+| `/yillik` | 12 aylık geçmiş testi: her bot son bir yılda ne yapardı, dört çeyrek ayrı |
 | `/dersler` | Stop sonrası izleme: stop daha geniş olsaydı ne olurdu, bot başına |
 | `/kurulum` | Kurulum kaydı |
 | `/sinav_baslat` | 30 günlük sınavın saatini başlatır (onay ister) |

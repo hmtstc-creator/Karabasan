@@ -250,6 +250,15 @@ class ServisTesti(Taban):
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/uyum"))
         self.assertIn("henüz çalışmadı", self.sahte.gonderilenler()[0])
 
+    def test_yillik_komutu(self):
+        self._sahip_ol()
+        self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/yillik"))
+        self.assertIn("henüz çalışmadı", self.sahte.gonderilenler()[0])
+        (self.klasor / "logs").mkdir(exist_ok=True)
+        (self.klasor / "logs" / "yillik_test.txt").write_text("12 aylık geçmiş testi: x\nÖZET\n")
+        self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/yillik"))
+        self.assertIn("ÖZET".encode("utf-8"), self.sahte.belgeler()[-1])
+
     def test_bilinmeyen_komut(self):
         self._sahip_ol()
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/sat"))

@@ -346,6 +346,7 @@ YARDIM = """Karabasan komutları
 /gunluk s1-vadeli  Tek bir botun kayıtları
 /uyum  Uyum denemesi raporu
 /olcum  Karabasan geçmiş ölçümü (stratejilerin duruma göre sonucu)
+/yillik  12 aylık geçmiş testi (her bot son bir yılda ne yapardı)
 /dersler  Stop sonrası izleme: stop daha geniş olsaydı ne olurdu
 /kurulum  Kurulum kaydı
 /sinav_baslat  30 günlük sınavın saatini başlatır
@@ -434,6 +435,9 @@ class Servis:
         if ad == "/olcum":
             return self._dosya("karabasan_gecmis.txt", "Karabasan geçmiş ölçümü", 2000,
                                "Karabasan geçmiş ölçümü henüz çalışmadı.")
+        if ad == "/yillik":
+            return self._dosya("yillik_test.txt", "12 aylık geçmiş testi", 2000,
+                               "12 aylık geçmiş testi henüz çalışmadı.")
         if ad == "/dersler":
             return [("mesaj", dersler_metni(self.ozet()))]
         if ad == "/kurulum":

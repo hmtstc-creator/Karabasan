@@ -347,6 +347,26 @@ print(' '.join(b[0] for b in BOTLAR))")"
         echo "Analiz bu sürümde zaten çalıştı, atlandı."
     fi
 
+    # ------------------------------------------------------------ 12 aylık test
+    adim "Ek: 12 aylık geçmiş testi"
+    # Bir yıllık veriyi indirir (ilk seferde 10-20 dakika), her botu son 365 günde
+    # çalıştırır, sonucu çeyreklere böler. Sonuç sınavın 7. ölçütüne de gider
+    # (user_data/gecmis_test.json). Başarısız olursa botlar ve kurulum etkilenmez.
+    local YILLIK_SURUMU=1
+    if [ "$(cat user_data/logs/yillik_surumu 2> /dev/null)" != "surum-$YILLIK_SURUMU" ]; then
+        bildir "12 aylık geçmiş testi başladı: her bot son bir yılın gerçek fiyatlarında ne yapardı? Bir yıllık veri indiriliyor; 15-30 dakika sürer, bitince raporu yollarım. Botlar bu sırada çalışmaya devam eder."
+        if bash araclar/yillik_test.sh; then
+            belge "$KLASOR/user_data/logs/yillik_test.txt" "12 aylık geçmiş testi. Bu dosyayı Claude'a ilet. Sonra da /yillik yazarak yeniden alabilirsin."
+        else
+            belge "$KLASOR/user_data/logs/yillik_test.txt" "12 aylık geçmiş testi tamamlanamadı. Bu dosyayı Claude'a ilet."
+        fi
+        arsivle user_data/logs/yillik_test.txt "yillik_test_surum${YILLIK_SURUMU}.txt"
+        echo "surum-$YILLIK_SURUMU" > user_data/logs/yillik_surumu
+        chown -R 1000:1000 user_data
+    else
+        echo "12 aylık test bu sürümde zaten çalıştı, atlandı."
+    fi
+
     rm -f "$DURUM_KLASORU/son_deneme"
     if [ "$ILK" -eq 1 ]; then
         date -u '+%Y-%m-%dT%H:%M:%SZ' > user_data/kurulum_tamam
