@@ -112,6 +112,7 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | `user_data/strategies/karabasan_stratejileri.py` | Freqtrade bağlantı katmanı |
 | `araclar/yapilandirma_uret.py` | Bot yapılandırmalarını ve `docker-compose.yml`'i üretir |
 | `araclar/uyum_denemesi.sh`, `araclar/karsilastir.py` | Sunucudaki uyum denemesi |
+| `karabasan/eslestirme.py`, `araclar/islem_eslestir.py` | Uyum denemesinin son bölümü: motorun işlem listesini (`--export trades`, `user_data/backtest_results/`) benzetimle işlem işlem eşleştirir; yalnız bilgi verir, denemenin geçip kalmasını etkilemez |
 | `araclar/analiz.sh`, `araclar/karabasan_gecmis.py` | Sunucudaki tek seferlik ölçüm: 80 günlük veri indirir, stratejilerin sonucunu Karabasan durumuna göre ayırır ve stop genişliğini sınar (aynı sinyaller, stop 1,5 / 2 / 3 kat; dönemin iki yarısı ayrı). `kur.sh` içinde `ANALIZ_SURUMU`; Telegram'da `/olcum` |
 | `kurulum/sunucu_blogu.sh` | Ahmet'in sunucuyu oluştururken "Cloud config" kutusuna yapıştırdığı blok |
 | `kur.sh` | Kurulum; soru sormaz, her adımı Telegram'a yazar, her güncellemede yeniden çalışır |
@@ -177,7 +178,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 304 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 309 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -248,43 +249,53 @@ sıkılaştırıldı). On bot × üç seçenek sınandığı için yine de arada
 "dar" çıkabilir; bu yüzden sonuç ayar değil, yeni bir sanal bot önerisidir.
 Ahmet'e söylendi.
 
-Ahmet 11 Ekim'de Tailscale bağlantısını henüz onaylamamıştı. Sunucudaki
-Claude 11 Ekim'de eklendi; Ahmet girişi Telegram üzerinden yaptı ve bot "giriş
-tamam" dedi. **Uzaktan yönetim oturumu 10 Ekim'de açılamadı; nedeni bulundu ve
-düzeltildi (11 Ekim), sunucuda doğrulanması bekleniyor.** Ahmet'in ilettiği
-kayıtta (`/gunluk claude`) program iki bilinen soruyu ("Trust ...? [y/N]",
-"Enable Remote Control? (y/n)") yanıtladıktan sonra üçüncü bir soruda
-bekliyordu: "Choose [1/2] (default: 1):" (oturumlar aynı klasörde mi, ayrı
-çalışma kopyasında mı açılsın). Betik artık `--spawn=same-dir` veriyor (soru
-hiç çıkmasın), çıkarsa `1` yanıtlıyor. Ayrıca: sorular ekranın son altı
-satırında aranır, adres iki dakikada gelmezse ekranın son satırları Telegram'a
-yazılır (bir sonraki bilinmeyen soru kendini göstersin diye), beş dakikada
-gelmezse oturum kapatılıp yeniden denenir, `kur` adres yokken servisi yeniden
-başlatır. Aynı kayıt şunu da gösterdi: program `.claude/settings.json`'daki 20
-izin kuralını tanıdı.
+Ahmet 11 Ekim'de Tailscale bağlantısını henüz onaylamamıştı. **Sunucudaki
+Claude oturumu çalışıyor (11 Ekim 2026, doğrulandı).** `claude remote-control`
+gerçek sunucuda açıldı; `--spawn=same-dir` ile üçüncü soru ("Choose [1/2]")
+çıkmadı. O oturum arşivdeki raporları kendisi okuyup özetini Ahmet üzerinden
+bu oturuma iletiyor.
+
+**Dördüncü uyum denemesi geçti (11 Ekim 2026; sunucudaki Claude'un özeti).**
+Alım botları motorla birebir tutuyor (motor / benzetim, işlem / net USDT):
+S5 211 / −7,64 ile 211 / −7,84; S6 214 / −18,11 ile 213 / −17,24. Açığa
+satış botlarında motor her coinde yaklaşık %10 fazla işlem sayıyor (BTC
+hariç; motor / benzetim): S2K 162 / 145, S5K 217 / 197, S6K 238 / 225,
+S1K 86 / 83. Fark sistematik ama sonucun yönünü değiştirmiyor. Nedeni koddan
+çıkarılamadı: benzetim ve motorun bilinen kuralları (stop önce, hedef fiyatı,
+süre aşımı, stop sonrası bekleme) alım ve açığa satışta simetrik; alımda
+tuttuğuna göre fark açığa satışa özgü bir şeyde. Tahminle düzeltme yapılmadı;
+bunun yerine uyum denemesine işlem işlem eşleştirme eklendi (`UYUM_SURUMU=5`):
+hangi işlemlerin yalnız motorda olduğunu, o sırada benzetimde hangi işlemin
+açık olduğunu ve iki tarafın çıkış nedenlerini yazar. Beşinci raporda
+"yalnız motor" satırlarına bak; farkın nedeni oradan okunur.
+
+**Karabasan geçmiş ölçümü (`ANALIZ_SURUMU=3`, 11 Ekim 2026; sunucudaki
+Claude'un özeti).** Süzgeç on stratejinin hiçbirini artıya çevirmiyor.
+Hiçbir strateji "Stop dar" çıkmadı: S5K "yerinde", S1, S4 ve S1K "yetersiz",
+diğerleri "kararsız". Yeni bot önerisi yok. Not edilecek bir gözlem: S3 ve
+S4 Kırmızı durumda kazanıyor (S4: 28 işlem, %68 kazanma, +2,76 USDT). Bu
+tek bir dönem ve az işlemdir; ayar değil, ileride "yalnız Kırmızı'da çalışan
+S3 / S4" diye ayrı bir sanal bot fikri olarak duruyor. Ahmet'e önermeden önce
+12 aylık veride (3. iş) aynı şey görülmeli.
 
 Sıradaki işler, öncelik sırasıyla:
 
-1. Ahmet'in ileteceği üç şeyi oku: (a) uzak oturum için "Claude sunucuda hazır"
-   mesajı geldi mi; gelmediyse "açılışta bekliyor" mesajındaki ekran satırları,
-   (b) dördüncü uyum denemesi (yeni dört
-   strateji gerçek motorda ilk kez), (c) Karabasan geçmiş ölçümü (`ANALIZ_SURUMU=3`):
-   stratejiler yalnız izinli durumda çalışsaydı ve stop daha geniş olsaydı
-   sonuç değişir miydi? Raporda "Stop dar" çıkan strateji olursa geniş stoplu
-   hali ayrı bir sanal bot olarak eklemeyi Ahmet'e öner; ayarı değiştirme.
-2. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
+1. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).
-   Asıl soru bununla yanıtlanır: stratejiler yalnız "Yeşil" dönemde
-   çalışsaydı sonuç artıya döner miydi?
-3. Sanal işlemlerin açıldıkları andaki Karabasan durumu ve filtre puanlarıyla
+   Geçmiş ölçüm (yaklaşık) süzgecin hiçbir stratejiyi artıya çevirmediğini
+   söyledi; canlı ölçüm bunu gerçek dominans ve TOTAL2 verisiyle sınar.
+2. Sanal işlemlerin açıldıkları andaki Karabasan durumu ve filtre puanlarıyla
    etiketlenmesi (botların SQLite kayıtları ile Karabasan kaydının birleşimi).
-4. 12 aylık geçmiş testi ve raporu (sonucu `user_data/gecmis_test.json`'a
-   yazılır; 7. ölçüt bunu okur).
-5. Sunucudaki Claude oturumunun (`claude remote-control`) gerçekte açıldığını
-   doğrula; takılırsa Ahmet `/gunluk claude` dosyasını iletir.
-6. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
-7. Sonuç sayfasına Karabasan durumu ve filtre hunisi (strateji ayrıntıları 11 Ekim'de eklendi; ana ekranda
-   Karabasan için "henüz canlı ölçülmüyor" yazan bir şerit var, 2. iş bitince gerçek durumla değişecek).
+3. 12 aylık geçmiş testi ve raporu (sonucu `user_data/gecmis_test.json`'a
+   yazılır; 7. ölçüt bunu okur). S3 / S4'ün Kırmızı'da kazanması burada da
+   görülüyor mu, bak.
+4. Beşinci uyum denemesinin eşleştirme bölümünü oku (sunucudaki Claude
+   okuyup iletebilir): açığa satıştaki %10 fazla işlemin nedeni benzetimde mi,
+   motorda mı? Benzetimde bir hata çıkarsa düzelt; motorun bilinen bir
+   davranışıysa benzetime ekle ya da burada not et.
+5. Haftalık Telegram raporu ve 30. gün karar raporu (`karne.sinav_karari`).
+6. Sonuç sayfasına Karabasan durumu ve filtre hunisi (strateji ayrıntıları 11 Ekim'de eklendi; ana ekranda
+   Karabasan için "henüz canlı ölçülmüyor" yazan bir şerit var, 1. iş bitince gerçek durumla değişecek).
 
 ## Sunucuda doğrulanacak varsayımlar
 
@@ -300,7 +311,9 @@ Geçmiş testiyle doğrulananlar (11 Ekim 2026): `minimal_roi`, `stoploss`,
 `can_short` ve süre aşımının (`custom_exit`) beklenen değerlerle uygulanması;
 `minimal_roi`'nin komisyon sonrası oran olarak yorumlanması; geçmiş testi
 çıktısında "BACKTESTING REPORT" başlığı; `claude auth login` akışının Telegram
-üzerinden gerçek girişle çalışması.
+üzerinden gerçek girişle çalışması; `claude remote-control`'ün açılış sorularının
+metni, `--spawn=same-dir` verilince üçüncü sorunun çıkmaması ve uzak oturumun açılıp
+çalışması; yeni dört stratejinin (S5, S5K, S6, S6K) motorda yüklenip işlem açması.
 
 Bir ders: hazır motorun çıkış koduna tek başına güvenme. Ayar hatasında
 `docker compose run` temiz kodla dönmüş göründü; nedeni bilinmiyor. Çıktıda
@@ -320,12 +333,12 @@ Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
 - `socat` köprüsünün sunucunun Tailscale adresinde dinleyebilmesi ve
   telefonun `http://karabasan:8080` adını çözebilmesi (MagicDNS).
 - Motor görüntüsünde saat dilimi verisinin bulunması (yoksa sayfa UTC gösterir).
-- `claude auth login` ekranının tmux içinde bağlantıyı ve kod sorusunu
-  provadaki gibi göstermesi; `claude remote-control`'ün açılış sorularının
-  ("Enable Remote Control? (y/n)", "Trust ...? [y/N]") metni gerçek sunucuda
-  görüldü (11 Ekim); `--spawn=same-dir` verilince üçüncü sorunun çıkmaması ve
-  programın oturum adresini `https://claude.ai/code...` biçiminde ekrana yazması
-  henüz görülmedi.
+- Geçmiş testinde `--export trades` ile işlem listesinin
+  `user_data/backtest_results/` altına yazılması ve sonuç dosyasının biçimi (zip içinde
+  `strategy` → sınıf adı → `trades`; alanlar `pair`, `open_date`, `close_date`,
+  `exit_reason`, `is_short`). Okuyucu düz `.json` dosyasını da kabul eder. Yalnız sahte
+  sonuç dosyasıyla denendi. Dışa yazma kalırsa geçmiş testi adımı kalır; botlar yine
+  çalışmaya devam eder.
 - `.claude/settings.json` içindeki izin kurallarının yazımı.
 - Stop sonrası izlemenin sunucudan Binance'in açık mum adreslerine (`api.binance.com/api/v3/klines`,
   `fapi.binance.com/fapi/v1/klines`) ulaşabilmesi ve yanıt biçimi; `kayitci` kapsayıcısının botların

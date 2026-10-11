@@ -250,7 +250,7 @@ PY
     adim "9/10 Uyum denemesi"
     # Uyum denemesinin içeriği değişince bu sayı artırılır; sunucu denemeyi bir
     # sonraki güncellemede kendiliğinden yeniden çalıştırır.
-    local UYUM_SURUMU=4 SURUM
+    local UYUM_SURUMU=5 SURUM
     SURUM="$(git rev-parse HEAD 2> /dev/null || echo bilinmiyor)"
     if [ "$(cat user_data/logs/uyum_gecti 2> /dev/null)" != "surum-$UYUM_SURUMU" ]; then
         if [ "$ILK" -eq 1 ]; then

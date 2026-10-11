@@ -105,6 +105,11 @@ fi
 yaz ""
 yaz "4/5 Her bot için $GUN günlük geçmiş testi (hazır motor)"
 BASLANGIC=$(date -u -d "$GUN days ago" +%Y%m%d)
+# Motorun işlem listeleri 5. adımda benzetimle tek tek eşleştirilir. Klasör
+# yalnız bu deneme içindir; eski sonuçlar karışmasın diye boşaltılır.
+mkdir -p user_data/backtest_results
+rm -f user_data/backtest_results/backtest-result-* user_data/backtest_results/.last_result.json
+chown 1000:1000 user_data/backtest_results 2> /dev/null || true
 for SATIR in $BOTLAR; do
     BOT=${SATIR%%:*}; KALAN=${SATIR#*:}; SINIF=${KALAN%%:*}; PIYASA=${KALAN#*:}
     yaz ""
@@ -113,7 +118,7 @@ for SATIR in $BOTLAR; do
         --config "/freqtrade/user_data/config/$BOT.json" \
         --config "/freqtrade/user_data/config/geri_test_$PIYASA.json" \
         --strategy "$SINIF" --timerange "$BASLANGIC-" \
-        --enable-protections --export none
+        --enable-protections --export trades
     SONUC=$?
     if [ "$SONUC" -ne 0 ]; then
         kaldi "$BOT geçmiş testi hata verdi: $(hata_satiri)"
@@ -142,6 +147,14 @@ else
     # Bu adım yalnız bir çapraz kontroldür; botların başlamasını engellemez.
     yaz "  [UYARI] Bağımsız benzetim çalışmadı; karşılaştırma yapılamadı."
 fi
+
+# İşlem işlem eşleştirme: toplamlar tutmadığında farkın nedenini gösterir.
+# Yalnız bilgi içindir; sonucu denemenin geçip kalmasını etkilemez.
+yaz ""
+yaz "İşlem işlem eşleştirme"
+docker compose run --rm -T --entrypoint python3 arac /freqtrade/araclar/islem_eslestir.py "$BASLANGIC" > "$GECICI" 2>&1 \
+    || yaz "  [UYARI] Eşleştirme tamamlanamadı (aşağıdaki çıktıya bak)."
+cat "$GECICI" >> "$RAPOR"
 
 yaz ""
 if [ "$HATA" -eq 0 ]; then
