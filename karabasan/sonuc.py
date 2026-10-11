@@ -354,7 +354,7 @@ def birikimli_egri(islemler: list, en_fazla: int = EGRI_NOKTA) -> list:
 
 
 def _gecmis_test_oku(yol: Path) -> dict:
-    """12 aylık geçmiş testinin bot başına net beklentisi: {"s1-vadeli": 0.12, ...}."""
+    """12 aylık geçmiş testinin bot başına net beklentisi: {"sm-vadeli": 0.12, ...}."""
     import json
 
     try:

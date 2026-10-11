@@ -6,10 +6,20 @@ import pandas as pd
 
 from karabasan import gecmis_olcum as go
 from karabasan import puan as p
-from testler.veri import yapay_mumlar
+from testler.veri import eski_bot_listesi_baslat, yapay_mumlar
 
 GUN = 75
 ADET = GUN * 288
+
+def setUpModule():
+    # Bu testler on iki botluk eski listeyle kurulur (bkz. testler.veri.ESKI_BOTLAR).
+    global _geri_al
+    _geri_al = eski_bot_listesi_baslat()
+
+
+def tearDownModule():
+    _geri_al()
+
 
 
 def _mumlar(adet=ADET, egim=0.0):

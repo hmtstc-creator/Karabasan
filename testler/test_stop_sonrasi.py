@@ -11,9 +11,19 @@ from unittest import mock
 
 from karabasan import kayitci, sonuc
 from karabasan import stop_sonrasi as ss
-from testler.veri import sahte_islem_db
+from testler.veri import eski_bot_listesi_baslat, sahte_islem_db
 
 T0 = datetime(2026, 10, 12, 10, 0, tzinfo=timezone.utc)
+
+def setUpModule():
+    # Bu testler on iki botluk eski listeyle kurulur (bkz. testler.veri.ESKI_BOTLAR).
+    global _geri_al
+    _geri_al = eski_bot_listesi_baslat()
+
+
+def tearDownModule():
+    _geri_al()
+
 
 
 def mumlar(fiyatlar, baslangic=T0, dakika=1):

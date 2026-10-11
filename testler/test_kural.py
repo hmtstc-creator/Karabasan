@@ -6,7 +6,7 @@ import pandas as pd
 
 from karabasan import gostergeler as g
 from karabasan import kural as k
-from testler.veri import yapay_mumlar
+from testler.veri import butun_kurallar, yapay_mumlar
 
 
 def basit_kural(**ek):
@@ -24,7 +24,7 @@ class KuralDosyalari(unittest.TestCase):
     def test_tum_stratejiler_yuklenir(self):
         kurallar = k.tum_kurallar()
         self.assertEqual(sorted(kurallar),
-                         ["S1", "S1K", "S2", "S3", "S4", "S5", "S5K", "S6K", "S7", "S7K", "SM", "SMK"])
+                         ["SM", "SMK"])
         for kod, kural in kurallar.items():
             with self.subTest(kod=kod):
                 self.assertEqual(kural["kod"], kod)
@@ -60,7 +60,7 @@ class KuralDosyalari(unittest.TestCase):
 
     def test_emekli_stratejiler_yuklenmez_ama_okunabilir(self):
         kurallar = k.tum_kurallar()
-        for kod in ("S2K", "S6"):
+        for kod in ("S1", "S1K", "S2", "S2K", "S3", "S4", "S5", "S5K", "S6", "S6K", "S7", "S7K"):
             self.assertNotIn(kod, kurallar)
             self.assertEqual(k.kural_yukle(k.STRATEJI_KLASORU / "emekli" / f"{kod}.json")["kod"], kod)
 
@@ -72,7 +72,7 @@ class KuralDosyalari(unittest.TestCase):
 
     def test_ters_yonlu_ciftler_ayni_cikisi_kullanir(self):
         kurallar = k.tum_kurallar()
-        for kod in ("S5", "S7", "SM"):
+        for kod in ("SM",):
             self.assertEqual(kurallar[kod]["cikis"], kurallar[kod + "K"]["cikis"], kod)
             self.assertEqual(kurallar[kod]["gostergeler"], kurallar[kod + "K"]["gostergeler"], kod)
 
@@ -80,7 +80,7 @@ class KuralDosyalari(unittest.TestCase):
         kurallar = k.tum_kurallar()
         # 12 Ekim 2026'dan beri bütün stratejilerde hedef %0,8, stop %3:
         # (3 + 0,2) / (0,8 + 3) = %84,21.
-        beklenen = {"S1": 84.21, "S2": 84.21, "S3": 84.21, "S4": 84.21}
+        beklenen = {"SM": 84.21, "SMK": 84.21}
         for kod, oran in beklenen.items():
             self.assertAlmostEqual(k.basabas_orani(kurallar[kod], 0.20), oran, places=2)
 
@@ -107,9 +107,8 @@ class YeniStratejilerinMantigi(unittest.TestCase):
     def setUpClass(cls):
         cls.df = yapay_mumlar(12000, tohum=17, oynaklik=0.003)
         cls.df15 = yapay_mumlar(6000, dilim_dk=15, tohum=17, oynaklik=0.004)
-        cls.kurallar = k.tum_kurallar()
-        # S6 emekli (12 Ekim 2026); ikizi S6K çalıştığı için mantık sınaması kalır.
-        cls.kurallar["S6"] = k.kural_yukle(k.STRATEJI_KLASORU / "emekli" / "S6.json")
+        # Bu stratejiler 12 Ekim 2026'dan beri emekli; kural dosyaları geçerli kalsın diye sınanır.
+        cls.kurallar = butun_kurallar()
 
     def _sinyaller(self, kod):
         tablo = k.sinyal_uret(self.df, self.kurallar[kod])

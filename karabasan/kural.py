@@ -62,6 +62,10 @@ def kural_yukle(kod_veya_yol) -> dict:
     yol = Path(str(kod_veya_yol))
     if yol.suffix != ".json":
         yol = STRATEJI_KLASORU / f"{kod_veya_yol}.json"
+        # Emekli kurallar koduyla da okunur (eski raporlar, karşılaştırmalar, testler);
+        # hangi botların çalıştığını yalnız botlar.BOTLAR belirler.
+        if not yol.exists() and (STRATEJI_KLASORU / "emekli" / yol.name).exists():
+            yol = STRATEJI_KLASORU / "emekli" / yol.name
     if not yol.exists():
         raise KuralHatasi(f"Strateji dosyası bulunamadı: {yol}")
     try:

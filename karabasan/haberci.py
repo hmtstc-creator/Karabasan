@@ -251,7 +251,7 @@ def _sayi(deger: float, basamak: int = 2) -> str:
 
 
 def _bot_adi(bot: dict) -> str:
-    """Botun düz adı ve kısa kodu: 'Tepe kırılımını al (s2-vadeli)'."""
+    """Botun düz adı ve kısa kodu: 'Smartmoney: ... (sm-vadeli)'."""
     return f"{bot.get('ad') or bot['bot']} ({bot['bot']})"
 
 
@@ -343,7 +343,7 @@ YARDIM = """Karabasan komutları
 /botlar  Her botun sonucu
 /sayfa  Sonuç sayfasını dosya olarak gönderir
 /gunluk  Botların son kayıt satırları (sorun olursa Claude'a iletmek için)
-/gunluk s1-vadeli  Tek bir botun kayıtları
+/gunluk sm-vadeli  Tek bir botun kayıtları
 /uyum  Uyum denemesi raporu
 /olcum  Karabasan geçmiş ölçümü (stratejilerin duruma göre sonucu)
 /yillik  12 aylık geçmiş testi (her bot son bir yılda ne yapardı)

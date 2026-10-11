@@ -129,3 +129,58 @@ def sahte_sinav_klasoru(klasor, simdi, sinav_gunu=12, isinma_gunu=7):
             islemler.append((f"{coinler[k]}/USDT{ek}", simdi - timedelta(minutes=30 * (k + 1)), None, 0.0, None, False))
         sahte_islem_db(klasor / "db" / f"{bot}.sqlite", islemler)
     return klasor
+
+
+def butun_kurallar() -> dict:
+    """Çalışan ve emekli bütün kural dosyaları: kod -> kural.
+
+    12 Ekim 2026'dan beri yalnız Smartmoney çalışıyor; motorun ve araçların genel
+    mantığını sınayan testler emekli kuralları da örnek olarak kullanır.
+    """
+    from karabasan import kural as k
+
+    kurallar = {yol.stem: k.kural_yukle(yol) for yol in sorted((k.STRATEJI_KLASORU / "emekli").glob("*.json"))}
+    kurallar.update(k.tum_kurallar())
+    return kurallar
+
+
+def kural_ornek(kod: str) -> dict:
+    """Bir kuralı koduyla yükler; çalışmıyorsa emekli klasöründen."""
+    return butun_kurallar()[kod]
+
+
+# 12 Ekim 2026'ya kadarki on iki botluk liste. Sonuç sayfası, Telegram ve stop sonrası
+# izleme testleri çeşitli bot davranışlarını (iyi, kötü, işlemsiz, kaydı olmayan) bu
+# listeyle kurar; çalışan liste (yalnız Smartmoney) bu çeşitliliğe yetmez.
+ESKI_BOTLAR = [
+    ("s1-vadeli", "S1Vadeli", "S1", "vadeli"),
+    ("s2-vadeli", "S2Vadeli", "S2", "vadeli"),
+    ("s3-vadeli", "S3Vadeli", "S3", "vadeli"),
+    ("s4-vadeli", "S4Vadeli", "S4", "vadeli"),
+    ("s1k-vadeli", "S1KVadeli", "S1K", "vadeli"),
+    ("s7k-vadeli", "S7KVadeli", "S7K", "vadeli"),
+    ("s5-vadeli", "S5Vadeli", "S5", "vadeli"),
+    ("s5k-vadeli", "S5KVadeli", "S5K", "vadeli"),
+    ("s7-vadeli", "S7Vadeli", "S7", "vadeli"),
+    ("s6k-vadeli", "S6KVadeli", "S6K", "vadeli"),
+    ("sm-vadeli", "SMVadeli", "SM", "vadeli"),
+    ("smk-vadeli", "SMKVadeli", "SMK", "vadeli"),
+]
+
+
+def eski_bot_listesi_baslat():
+    """ESKI_BOTLAR'ı karabasan.botlar'a ve onu adıyla alan modüllere yerleştirir.
+
+    Test modülünün setUpModule'ünde çağrılır; dönen işlev tearDownModule'de eski hale getirir.
+    """
+    from unittest import mock
+
+    import karabasan.sonuc
+    import karabasan.yillik
+
+    yamalar = [mock.patch("karabasan.botlar.BOTLAR", ESKI_BOTLAR),
+               mock.patch.object(karabasan.sonuc, "BOTLAR", ESKI_BOTLAR),
+               mock.patch.object(karabasan.yillik, "BOTLAR", ESKI_BOTLAR)]
+    for y in yamalar:
+        y.start()
+    return lambda: [y.stop() for y in yamalar]

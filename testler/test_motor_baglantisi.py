@@ -53,6 +53,17 @@ class StratejiSiniflari(unittest.TestCase):
     def setUpClass(cls):
         cls.modul = strateji_modulu()
 
+    def emekli(self, kod, piyasa="vadeli"):
+        """Emekli bir kuraldan deneme sınıfı: bağlantı katmanının genel mantığını sınamak için.
+
+        12 Ekim 2026'dan beri yalnız Smartmoney çalışıyor; tek dilimli basit kurallar
+        (S1, S3 ...) emekli klasöründen dosya yoluyla yüklenir.
+        """
+        from karabasan.kural import STRATEJI_KLASORU
+
+        yol = str(STRATEJI_KLASORU / "emekli" / f"{kod}.json")
+        return type(f"{kod}Deneme", (self.modul.KarabasanTaban,), {"kural_kodu": yol, "piyasa": piyasa})
+
     def test_her_bot_icin_sinif_var(self):
         for bot, sinif, kural_kodu, piyasa in botlar.BOTLAR:
             with self.subTest(bot=bot):
@@ -63,16 +74,16 @@ class StratejiSiniflari(unittest.TestCase):
                 self.assertEqual(s.__module__, "karabasan_stratejileri")
 
     def test_sinif_ozellikleri_kural_dosyasindan(self):
-        s = self.modul.S1Vadeli
+        s = self.emekli("S1")
         self.assertEqual(s.timeframe, "5m")
         self.assertAlmostEqual(s.stoploss, -0.03)
         self.assertFalse(s.can_short)
         self.assertEqual(s.startup_candle_count, 1870)
-        self.assertEqual(self.modul.S3Vadeli.timeframe, "15m")
-        self.assertEqual(self.modul.S7Vadeli.timeframe, "15m")
-        self.assertAlmostEqual(self.modul.S4Vadeli.stoploss, -0.03)
-        self.assertAlmostEqual(self.modul.S6KVadeli.stoploss, -0.03)
-        self.assertTrue(self.modul.S6KVadeli.can_short)
+        self.assertEqual(self.emekli("S3").timeframe, "15m")
+        self.assertAlmostEqual(self.modul.SMVadeli.stoploss, -0.03)
+        self.assertAlmostEqual(self.modul.SMKVadeli.stoploss, -0.03)
+        self.assertTrue(self.modul.SMKVadeli.can_short)
+        self.assertFalse(self.modul.SMVadeli.can_short)
 
     def test_yalniz_ters_yonluler_aciga_satar(self):
         for _bot, sinif, kural_kodu, _piyasa in botlar.BOTLAR:
@@ -83,11 +94,11 @@ class StratejiSiniflari(unittest.TestCase):
 
     def test_kar_hedefi_fiyat_hareketine_karsilik_gelir(self):
         # Vadeli, komisyon %0,05: fiyat %0,8 yükseldiğinde komisyon sonrası kâr
-        roi = self.modul.S1Vadeli.minimal_roi["0"]
+        roi = self.modul.SMVadeli.minimal_roi["0"]
         self.assertAlmostEqual(roi, 1.008 * (1 - 0.0005) / (1 + 0.0005) - 1)
         self.assertTrue(0.0069 < roi < 0.0071, roi)
         # Açığa satışta formül farklıdır; %0,05 komisyonla %0,8 hedef yine %0,7 civarı net verir.
-        kisa = self.modul.S1KVadeli.minimal_roi["0"]
+        kisa = self.modul.SMKVadeli.minimal_roi["0"]
         self.assertAlmostEqual(kisa, 1 - 0.992 * (1 + 0.0005) / (1 - 0.0005))
         self.assertTrue(0.0069 < kisa < 0.0071, kisa)
 
@@ -131,8 +142,8 @@ class StratejiSiniflari(unittest.TestCase):
         self.assertEqual(s.informative_pairs(), [(p, "1d") for p in pariteler])
         self.assertEqual(self.modul.SMVadeli.startup_candle_count, 1810)
         self.assertTrue(self.modul.SMKVadeli.can_short)
-        for sinif in ("S1Vadeli", "S3Vadeli", "S5Vadeli", "S6KVadeli", "S7Vadeli"):
-            eski = getattr(self.modul, sinif)()
+        for sinif in ("S1", "S3", "S5", "S6K", "S7"):
+            eski = self.emekli(sinif)()
             eski.dp = SahteSaglayici(pariteler, {})
             self.assertEqual(eski.informative_pairs(), [], sinif)
 
@@ -182,7 +193,7 @@ class StratejiSiniflari(unittest.TestCase):
             self.assertEqual(s.informative_pairs(), [])
 
     def test_sure_asimi(self):
-        s = self.modul.S1Vadeli()
+        s = self.emekli("S1")()
         acilis = datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc)
         islem = sys.modules["freqtrade.persistence"].Trade(acilis)
         self.assertIsNone(s.custom_exit("X/USDT", islem, acilis + timedelta(minutes=239), 1.0, 0.0))
@@ -191,17 +202,17 @@ class StratejiSiniflari(unittest.TestCase):
         )
 
     def test_kaldirac_her_zaman_bir(self):
-        s = self.modul.S1KVadeli()
+        s = self.modul.SMKVadeli()
         simdi = datetime(2026, 1, 1, tzinfo=timezone.utc)
         self.assertEqual(s.leverage("X/USDT:USDT", simdi, 1.0, 5.0, 20.0, None, "short"), 1.0)
 
     def test_stop_sonrasi_bekleme_korumasi(self):
-        koruma = self.modul.S1Vadeli().protections
+        koruma = self.emekli("S1")().protections
         self.assertEqual(len(koruma), 1)
         self.assertEqual(koruma[0]["method"], "StoplossGuard")
         self.assertEqual(koruma[0]["stop_duration_candles"], 48)   # 240 dk / 5 dk
         self.assertTrue(koruma[0]["only_per_pair"])
-        self.assertEqual(self.modul.S3Vadeli().protections[0]["stop_duration_candles"], 16)
+        self.assertEqual(self.emekli("S3")().protections[0]["stop_duration_candles"], 16)
 
 
 class Ayarlar(unittest.TestCase):
@@ -258,8 +269,8 @@ class Yapilandirma(unittest.TestCase):
                 json.dumps(y)  # JSON'a çevrilebilir olmalı
 
     def test_piyasa_ayarlari(self):
-        spot = self.uret.bot_yapilandirmasi("s1-spot", "S1", "spot", self.ayar)
-        vadeli = self.uret.bot_yapilandirmasi("s5-vadeli", "S5", "vadeli", self.ayar)
+        spot = self.uret.bot_yapilandirmasi("sm-spot", "SM", "spot", self.ayar)
+        vadeli = self.uret.bot_yapilandirmasi("smk-vadeli", "SMK", "vadeli", self.ayar)
         self.assertEqual(spot["trading_mode"], "spot")
         self.assertNotIn("margin_mode", spot)
         self.assertAlmostEqual(spot["fee"], 0.00075)
@@ -268,7 +279,7 @@ class Yapilandirma(unittest.TestCase):
         self.assertAlmostEqual(vadeli["fee"], 0.0005)
 
     def test_piyasa_emri_karsi_taraftan_fiyatlanir(self):
-        y = self.uret.bot_yapilandirmasi("s1-spot", "S1", "spot", self.ayar)
+        y = self.uret.bot_yapilandirmasi("sm-spot", "SM", "spot", self.ayar)
         self.assertEqual(y["entry_pricing"]["price_side"], "other")
         self.assertEqual(y["exit_pricing"]["price_side"], "other")
         self.assertEqual(y["order_types"]["entry"], "market")
@@ -560,7 +571,7 @@ class UyumDenemesiTesti(unittest.TestCase):
 
     SAHTE_DOCKER = r'''#!/bin/bash
 case "$*" in
-  *list-strategies*) echo "KarabasanTaban S1Vadeli S2Vadeli S3Vadeli S4Vadeli S1KVadeli S5Vadeli S5KVadeli S7Vadeli S6KVadeli SMVadeli SMKVadeli $SAHTE_SON_SINIF";;
+  *list-strategies*) echo "KarabasanTaban SMVadeli $SAHTE_SON_SINIF";;
   *"--version"*) echo "freqtrade 2026.9";;
   *download-data*) echo "docker $*" >> "$SAHTE_KAYIT"
                    [ "$SAHTE_MOD" = "gunluk_inmez" ] && case "$*" in *"--timeframes 1d"*) echo "freqtrade - ERROR - veri yok"; exit 1;; esac
@@ -602,7 +613,7 @@ exit 0
             docker.chmod(0o755)
             ortam = {**os.environ, "PATH": f"{kok / 'bin'}:{os.environ['PATH']}", "SAHTE_MOD": mod,
                      "SAHTE_KAYIT": str(kok / "cagrilar.txt"),
-                     "SAHTE_SON_SINIF": "" if mod == "sinif_eksik" else "S7KVadeli"}
+                     "SAHTE_SON_SINIF": "" if mod == "sinif_eksik" else "SMKVadeli"}
             sonuc = subprocess.run(["bash", str(kok / "araclar" / "uyum_denemesi.sh")],
                                    capture_output=True, text=True, env=ortam)
             rapor = (kok / "user_data" / "logs" / "uyum_denemesi.txt").read_text(encoding="utf-8")
@@ -644,10 +655,10 @@ exit 0
         self.assertIn("SONUÇ: 1 adım kaldı.", rapor)
 
     def test_eksik_sinif_yakalanir(self):
-        # "S7Vadeli" çıktıda var ama "S7KVadeli" yok: biri diğerinin yerine sayılmamalı.
+        # "SMVadeli" çıktıda var ama "SMKVadeli" yok: biri diğerinin yerine sayılmamalı.
         kod, rapor = self._calistir("sinif_eksik")
         self.assertEqual(kod, 1)
-        self.assertIn("Bulunamayan sınıflar: S7KVadeli", rapor)
+        self.assertIn("Bulunamayan sınıflar: SMKVadeli", rapor)
 
     def test_ayar_hatasi_cikis_kodu_temiz_olsa_da_kalir(self):
         kod, rapor = self._calistir("ayar_hatasi")

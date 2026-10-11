@@ -174,7 +174,7 @@ emirler piyasa emri olduğu için alıcı (taker) oranı kullanılır. Hesabınd
 oranlar farklıysa Claude'a yaz; değeri depoda o günceller, sunucu kendisi alır.
 
 Bot ekranları (hazır motorun kendi İngilizce ekranı), Tailscale açıkken
-`http://karabasan:8081` ile `http://karabasan:8092` arasındadır. Kullanıcı adı
+`http://karabasan:8081` ve `http://karabasan:8082` adresindedir. Kullanıcı adı
 `karabasan`, parola sunucudaki `.env` dosyasındadır. Günlük kullanımda
 gerekmez; sonuç sayfası ve Telegram yeterlidir.
 
@@ -182,54 +182,30 @@ gerekmez; sonuç sayfası ve Telegram yeterlidir.
 
 | Bot | Strateji | Ne yapar | Piyasa | Ekran |
 | --- | --- | --- | --- | --- |
-| s1-vadeli | S1 Yükselişte düşüşü al | Yükselen trendde aşırı satımdan dönüşü alır | Vadeli, 1 kat | 8081 |
-| s2-vadeli | S2 Tepe kırılımını al | Son 4 saatin tepesi hacimle kırılınca alır | Vadeli, 1 kat | 8082 |
-| s3-vadeli | S3 Yatay piyasada dipten al | Yatay piyasada bandın dibinden dönüşü alır | Vadeli, 1 kat | 8083 |
-| s4-vadeli | S4 Sert düşüşten dönüşü al | Fiyat gün içi ortalamadan çok uzaklaşınca dönüşü alır | Vadeli, 1 kat | 8084 |
-| s1k-vadeli | S1K Düşüşte yükselişi sat | S1'in tersi: düşen trendde tepkiyi açığa satar | Vadeli, 1 kat | 8085 |
-| s7k-vadeli | S7K Düşüşte aşırı yükselişi sat (RSI 2) | S7'nin tersi | Vadeli, 1 kat | 8086 |
-| s5-vadeli | S5 Momentum vuruşu (MACD + RSI) | MACD yukarı kesip RSI yükselirken hacimli mumda alır; küçük hedef, hızlı çıkış | Vadeli, 1 kat | 8087 |
-| s5k-vadeli | S5K Momentum vuruşu, satış | S5'in tersi | Vadeli, 1 kat | 8088 |
-| s7-vadeli | S7 Yükselişte aşırı düşüşü al (RSI 2) | 15 dakikalıkta, yükseliş trendinde 2 mumluk RSI 10'un altına inince alır | Vadeli, 1 kat | 8089 |
-| s6k-vadeli | S6K Likidite avı sonrası satış | Fiyat son 2 saatin tepesinin üstüne çıkıp yeniden altında kapanınca açığa satar | Vadeli, 1 kat | 8090 |
-| sm-vadeli | SM Smartmoney: geri çekilme sonrası yapı kırılımıyla alım | Günlük trend ve 1 saatlik yapı yukarıyken, 15 dakikalıkta geri çekilmeden sonra 5 dakikalık yapı yukarı kırılınca alır | Vadeli, 1 kat | 8091 |
-| smk-vadeli | SMK Smartmoney: tepki sonrası yapı kırılımıyla satış | SM'nin tersi | Vadeli, 1 kat | 8092 |
+| sm-vadeli | SM Smartmoney: geri çekilme sonrası yapı kırılımıyla alım | Günlük trend ve 1 saatlik yapı yukarıyken, 15 dakikalıkta geri çekilmeden sonra 5 dakikalık yapı yukarı kırılınca alır | Vadeli, 1 kat | 8081 |
+| smk-vadeli | SMK Smartmoney: tepki sonrası yapı kırılımıyla satış | SM'nin tersi | Vadeli, 1 kat | 8082 |
 
-**12 Ekim 2026'dan beri (Ahmet'in isteğiyle) bütün botlar 1 kat vadelidedir ve
-hepsinde çıkış aynıdır: kâr hedefi %0,8, stop %3.** Komisyon gidiş-dönüş %0,1
+**12 Ekim 2026'dan beri yalnız Smartmoney çalışır (Ahmet'in isteğiyle).** Aynı
+gün 12 aylık geçmiş testi (11.10.2025–11.10.2026) on iki botun hepsini ekside
+gösterdi; hiçbiri dört çeyreğin üçünde artıda değildi. Öbür on stratejinin
+kural dosyaları kayıt için `karabasan/stratejiler/emekli/` altında durur (neden
+çıkarıldıkları oradaki BENIOKU.md'de). Smartmoney de o testte eksideydi
+(SM −30,17, SMK −26,69 USDT); en az kaybedenler onlardı.
+
+Çıkış: kâr hedefi %0,8, stop %3, 1 kat vadeli. Komisyon gidiş-dönüş %0,1
 olduğu için kazanan işlem net yaklaşık +%0,7, stop olan işlem −%3,1 getirir;
-başa baş için işlemlerin yaklaşık %82'si kazanmalıdır. Süre aşımı her
-stratejinin kendi süresidir; stopa gitmeden süresi dolan işlem o anki fiyattan
-kapanır. S1–S4 spot'tan taşındı (bot adları `s1-spot` → `s1-vadeli`, eski
-kayıtları sayılmaz). En çok kaybeden iki strateji, S2K ve S6, çıkarıldı;
-yerlerine S7 ve S7K geldi (kural dosyaları `karabasan/stratejiler/emekli/`).
+başa baş için işlemlerin yaklaşık %82'si kazanmalıdır. Vadelide 50 USDT'lik
+işlem tutarıyla BTC işlem görmez.
 
 Her botun 1.000 USDT sanal bakiyesi vardır, işlem başına 50 USDT kullanır,
 aynı anda en fazla 20 pozisyon açar. Tüm emirler piyasa emridir ve karşı
 taraftan fiyatlanır; bu, sonuçları olduğundan iyi göstermemek için seçilmiş
 kötümser bir varsayımdır.
 
-S7 ve S7K "RSI(2) geri çekilme" fikridir (Larry Connors'un hisse senetleri
-için yayımladığı kısa vadeli dönüş kuralından uyarlandı): trend yönündeyken
-2 mumluk RSI aşırı bir uca gidince, trend yönünde küçük bir tepkiyi hedefler.
-Seçilme nedeni küçük hedef ve geniş stopla uyumudur: bu tür kurallar çok
-sayıda küçük kazanç ve seyrek ama büyük kayıp üretir. Kriptoda kazandırıp
-kazandırmadığı bilinmiyor; yalnız yapay veride sınandı.
-
-S5 ve S6, 11 Ekim 2026'da eklendi ve S1-S4'ün "vadeli alım" botlarının yerine
-geçti. O dört bot spot'taki ikizleriyle aynı işlemleri açıyordu. Yeni
-stratejiler vadelide çalışır, çünkü komisyon daha düşüktür ve açığa satış
-yalnız orada mümkündür. Vadelide 50 USDT'lik işlem tutarıyla BTC işlem görmez.
-
-S6 "akıllı para" fikirlerinin yalın bir halidir: yalnız likidite avını
-(stopların süpürülmesi) ve seviyenin geri alınmasını arar. Emir bloğu ve
-fiyat boşluğu (FVG) gibi parçalar yoktur.
-
 ### Smartmoney (SM ve SMK)
 
 11 Ekim 2026'da, Ahmet'in gönderdiği "Smart Money Concepts" göstergesindeki
-kavramlardan yola çıkılarak eklendi; mevcut on bota dokunulmadı, iki yeni bot
-oldu. Göstergenin kodu kopyalanmadı (lisansı ticari kullanıma izin vermiyor);
+kavramlardan yola çıkılarak eklendi (iki bot). Göstergenin kodu kopyalanmadı (lisansı ticari kullanıma izin vermiyor);
 aynı kavramlar `karabasan/gostergeler.py` içindeki `piyasa_yapisi` ile baştan
 yazıldı. Dört katman birlikte aranır (alım hali; satış hali her birinin tersidir):
 

@@ -97,12 +97,12 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | --- | --- |
 | `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama) ve `piyasa_yapisi` (salınımlar, yapı kırılımı BOS / CHoCH, denge, emir blokları) |
 | `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme. Bir gösterge `dilim` ile istediği üst dilimde hesaplanır (`"ust"`, `"15m"`, `"1h"`, `"1d"`). `borsa_dilimleri` içindeki dilimlerin mumları taban mumlardan toplanmaz, `ek_veri` ile dışarıdan verilir (motor, araçlar); boş tablo "veri yok, sinyal de yok" demektir |
-| `karabasan/stratejiler/*.json` | On iki strateji: S1–S5, S7 ve SM (alım), S1K, S5K, S6K, S7K ve SMK (açığa satış). Çıkarılanlar (S2K, S6) `stratejiler/emekli/` altında durur; `tum_kurallar()` orayı okumaz. Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
+| `karabasan/stratejiler/*.json` | 12 Ekim 2026'dan beri yalnız iki strateji: SM (alım) ve SMK (açığa satış). Çıkarılan on iki kural (S1–S7 ve ters yönlüleri) `stratejiler/emekli/` altında durur; `tum_kurallar()` orayı okumaz ama `kural_yukle("S1")` koduyla bulur (eski raporlar ve testler için). Hangi botun çalıştığını yalnız `botlar.BOTLAR` belirler. Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
 | `karabasan/puan.py` | Karabasan puanı, durum makinesi, vetolar |
 | `karabasan/filtre.py` | Filtre (Elek): dört katman, elenme nedenleri |
 | `karabasan/karne.py` | İşlem ölçümleri ve 30. günün yedi karar ölçütü |
 | `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim |
-| `karabasan/botlar.py` | On iki sanal botun listesi (12 Ekim 2026'dan beri hepsi 1 kat vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
+| `karabasan/botlar.py` | Sanal botların listesi (12 Ekim 2026'dan beri yalnız `sm-vadeli` 8081 ve `smk-vadeli` 8082, 1 kat vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder; aynı döngüde stop sonrası izleme turunu çalıştırır |
 | `karabasan/stop_sonrasi.py` | Stop sonrası izleme: stop olan işlemi kendi süresi dolana kadar izler, stop 1,5 / 2 / 3 kat geniş olsaydı ne olurdu hesaplar, bot başına karar çıkarır (yetersiz, dar, yerinde, kararsız), karar değişince ders yazar. Mumlar Binance'in herkese açık, anahtarsız fiyat verisinden gelir. Çıktı: `user_data/kayit/stop_sonrasi.json`. **Hiçbir ayarı değiştirmez** |
 | `karabasan/gecmis_olcum.py` | Karabasan puanını geçmiş mumlardan geriye dönük hesaplar (yaklaşık: dominans ve TOTAL2 yerine altcoin vekili); işlemleri açıldıkları andaki durumla etiketler |
@@ -385,6 +385,25 @@ süre aşımı. "Stop = hedef" sütunu da hepsini ekside bırakıyor (yalnız bi
 Rapor: `user_data/logs/yillik_test.txt`. Ahmet'e söylendi; gerçek paraya geçme
 önerilmedi. Bu stratejilerin ayarıyla oynamak sonucu kurtarmaz (her ayar yeni
 bir ezber denemesi); yön kararı Ahmet'in.
+
+**Yalnız Smartmoney kaldı (12 Ekim 2026, Ahmet'in isteğiyle).** Ahmet "mevcut
+stratejileri sil, sadece smartmoney tut; sonra yeni bir strateji üstünde
+çalışacağız" dedi. `BOTLAR` artık iki bot: `sm-vadeli` (8081), `smk-vadeli`
+(8082). Öbür on kural `stratejiler/emekli/`'ye taşındı (silinmedi; neden
+`emekli/BENIOKU.md`'de). Sunucuda `docker compose up --remove-orphans` eski on
+kapsayıcıyı kaldırır; bellek ~4,4 GB boşalır. Eski botların SQLite kayıtları
+`user_data/db/`'de kalır, okunmaz. Eski kapılar (8083–8092) için Tailscale
+köprüleri kalabilir; boşa dinler, zararsız. `UYUM_SURUMU=9`.
+- Testler: sonuç sayfası, Telegram, stop sonrası, geçmiş ölçüm ve 12 aylık test
+  testleri çeşitli bot davranışlarını kurmak için eski on iki botluk listeyle
+  çalışır (`testler.veri.ESKI_BOTLAR`, `eski_bot_listesi_baslat` modül başında).
+  Bağlantı katmanı testleri tek dilimli kuralları emekli dosyalardan deneme
+  sınıfı olarak yükler (`StratejiSiniflari.emekli`).
+- Smartmoney'nin 12 aylık sonucu da ekside (SM −30,17, SMK −26,69 USDT); en az
+  kaybedenler olduğu için tutuldu, kazandırdığı için değil. Ahmet'e söylendi.
+- Sıradaki iş Ahmet'le yeni bir strateji. Yeni strateji = yeni kural dosyası ve
+  `BOTLAR`'ın sonuna yeni bot; önce 12 aylık testten geçsin (`YILLIK_SURUMU`
+  artır), sonuç dört çeyreğin en az üçünde artı değilse Ahmet'e açıkça söyle.
 
 Sıradaki işler, öncelik sırasıyla:
 

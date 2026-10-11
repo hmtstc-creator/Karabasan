@@ -7,11 +7,21 @@ import pandas as pd
 
 from karabasan import gostergeler as g
 from karabasan import yillik as y
-from karabasan.botlar import BOTLAR
+from testler.veri import ESKI_BOTLAR as BOTLAR
 from karabasan.kural import kural_yukle
-from testler.veri import yapay_mumlar
+from testler.veri import eski_bot_listesi_baslat, yapay_mumlar
 
 AYAR = {"komisyon_yuzde": {"spot": 0.075, "vadeli": 0.05}, "islem_tutari": 50, "sanal_bakiye": 1000}
+
+def setUpModule():
+    # Bu testler on iki botluk eski listeyle kurulur (bkz. testler.veri.ESKI_BOTLAR).
+    global _geri_al
+    _geri_al = eski_bot_listesi_baslat()
+
+
+def tearDownModule():
+    _geri_al()
+
 
 
 def yukleyici(gun=120, eksik=()):

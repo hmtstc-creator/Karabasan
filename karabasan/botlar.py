@@ -12,25 +12,13 @@ from pathlib import Path
 
 # (bot adı, strateji sınıfı, kural kodu, piyasa)
 #
-# 11 Ekim 2026'da iki kez değişti. Önce S1-S4'ün "vadeli alım" botları kaldırıldı,
-# yerlerine S5, S5K, S6, S6K geldi; sonra Smartmoney (SM, SMK) sona eklendi.
-#
-# 12 Ekim 2026 (Ahmet'in isteğiyle): bütün botlar 1 kat vadelide çalışır (S1-S4
-# spot'tan taşındı; komisyon daha düşük, ama 50 USDT'lik işlemle BTC'de işlem
-# açılamıyor). En çok kaybeden iki strateji (30 günlük gerçek veride S6 −18,11 ve
-# S2K −17,61 USDT) çıkarıldı; yerlerine RSI(2) geri çekilme stratejisi geldi (S7,
-# S7K). Sıra ve kapılar korunur: yeni botlar çıkanların yerine oturur.
+# Geçmiş: 10-11 Ekim 2026'da on bot (S1-S6 ve ters yönlüleri), sonra Smartmoney
+# (SM, SMK) eklendi. 12 Ekim 2026'da hepsi 1 kat vadeliye taşındı ve hedef %0,8,
+# stop %3 oldu. Aynı gün 12 aylık geçmiş testi on iki botun hepsini ekside
+# gösterdi; Ahmet'in isteğiyle yalnız Smartmoney kaldı (öbür kural dosyaları
+# karabasan/stratejiler/emekli/ altında). Yeni bot listenin sonuna eklenir ki
+# öncekilerin kapısı ve açılış sırası değişmesin.
 BOTLAR = [
-    ("s1-vadeli", "S1Vadeli", "S1", "vadeli"),
-    ("s2-vadeli", "S2Vadeli", "S2", "vadeli"),
-    ("s3-vadeli", "S3Vadeli", "S3", "vadeli"),
-    ("s4-vadeli", "S4Vadeli", "S4", "vadeli"),
-    ("s1k-vadeli", "S1KVadeli", "S1K", "vadeli"),
-    ("s7k-vadeli", "S7KVadeli", "S7K", "vadeli"),
-    ("s5-vadeli", "S5Vadeli", "S5", "vadeli"),
-    ("s5k-vadeli", "S5KVadeli", "S5K", "vadeli"),
-    ("s7-vadeli", "S7Vadeli", "S7", "vadeli"),
-    ("s6k-vadeli", "S6KVadeli", "S6K", "vadeli"),
     ("sm-vadeli", "SMVadeli", "SM", "vadeli"),
     ("smk-vadeli", "SMKVadeli", "SMK", "vadeli"),
 ]

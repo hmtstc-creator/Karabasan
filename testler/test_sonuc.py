@@ -7,9 +7,19 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from karabasan import sonuc
-from testler.veri import sahte_islem_db, sahte_sinav_klasoru
+from testler.veri import eski_bot_listesi_baslat, sahte_islem_db, sahte_sinav_klasoru
 
 SIMDI = datetime(2026, 11, 2, 9, 30, tzinfo=timezone.utc)
+
+def setUpModule():
+    # Bu testler on iki botluk eski listeyle kurulur (bkz. testler.veri.ESKI_BOTLAR).
+    global _geri_al
+    _geri_al = eski_bot_listesi_baslat()
+
+
+def tearDownModule():
+    _geri_al()
+
 
 
 class ZamanTesti(unittest.TestCase):
