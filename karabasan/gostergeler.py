@@ -439,6 +439,58 @@ def uyumsuzluk(df: pd.DataFrame, uzunluk: int = 5, tip: str = "ikisi") -> pd.Dat
 # Makaledeki oynaklığa göre pozisyon büyüklüğü burada yok (sabit işlem tutarı).
 
 
+FVG_SUTUNLARI = ("boga", "boga_ust", "boga_alt", "ayi", "ayi_ust", "ayi_alt")
+
+
+def fvg(df: pd.DataFrame, omur: int = 50, en_az_yuzde: float = 0.0) -> pd.DataFrame:
+    """Adil değer boşluğu (FVG, "fair value gap"): üç mumluk hızlı hareketin bıraktığı boşluk.
+
+    Yaygın bilinen kavramın bu depo için yazılmış bağımsız bir uygulamasıdır.
+    Boğa boşluğu: mumun düşüğü, iki önceki mumun yükseğinden yukarıdaysa aradaki fiyat
+    aralığına hiç işlem olmadan geçilmiştir (alıcılar hızlı davranmış). Ayı boşluğu tersi.
+    Boşluğun boyu, ortadaki mumun kapanışına göre en az `en_az_yuzde` olmalıdır.
+
+    Sütunlar:
+      boga / ayi            bu mumda yeni bir boşluk oluştuysa 1, yoksa 0
+      boga_ust / boga_alt   en yeni geçerli boğa boşluğunun üst ve alt sınırı (yoksa boş)
+      ayi_ust / ayi_alt     en yeni geçerli ayı boşluğunun sınırları
+
+    Bir boşluk, fiyat onun öte yanında kapanınca (boğada alt sınırın altında, ayıda üst
+    sınırın üstünde) ya da `omur` mumdan eskiyince geçersiz olur. İçine sarkmak (geri
+    çekilme) onu bozmaz; asıl aranan da odur.
+
+    Geleceğe bakmaz: her mumun değeri yalnız o mum ve önceki iki mumdan hesaplanır.
+    """
+    omur = int(omur)
+    yuksek = df["high"].astype(float).tolist()
+    dusuk = df["low"].astype(float).tolist()
+    kapanis = df["close"].astype(float).tolist()
+    n = len(df)
+    bos = float("nan")
+    cikti = {ad: [bos] * n for ad in FVG_SUTUNLARI}
+    cikti["boga"] = [0.0] * n
+    cikti["ayi"] = [0.0] * n
+    boga = ayi = None          # (üst, alt, oluştuğu mum)
+    for i in range(n):
+        if i >= 2:
+            orta = kapanis[i - 1]
+            if dusuk[i] > yuksek[i - 2] and (dusuk[i] - yuksek[i - 2]) / orta * 100.0 >= en_az_yuzde:
+                boga = (dusuk[i], yuksek[i - 2], i)
+                cikti["boga"][i] = 1.0
+            if yuksek[i] < dusuk[i - 2] and (dusuk[i - 2] - yuksek[i]) / orta * 100.0 >= en_az_yuzde:
+                ayi = (dusuk[i - 2], yuksek[i], i)
+                cikti["ayi"][i] = 1.0
+        if boga is not None and (kapanis[i] < boga[1] or i - boga[2] > omur):
+            boga = None
+        if ayi is not None and (kapanis[i] > ayi[0] or i - ayi[2] > omur):
+            ayi = None
+        if boga is not None:
+            cikti["boga_ust"][i], cikti["boga_alt"][i] = boga[0], boga[1]
+        if ayi is not None:
+            cikti["ayi_ust"][i], cikti["ayi_alt"][i] = ayi[0], ayi[1]
+    return pd.DataFrame(cikti, index=df.index)
+
+
 def donchian_topluluk(kapanis: pd.Series, uzunluklar: list[int]) -> pd.Series:
     """İçeride olan Donchian modellerinin oranı (0 ile 1 arası). Yalnız geçmişe bakar."""
     k = kapanis.to_numpy(dtype=float)

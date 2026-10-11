@@ -24,8 +24,10 @@ BOTLAR = [
     # 12 Ekim 2026 (Ahmet'in isteği): Smartmoney + uyumsuzluk + girişte emir defteri onayı.
     ("smd-vadeli", "SMDVadeli", "SMD", "vadeli"),
     ("smdk-vadeli", "SMDKVadeli", "SMDK", "vadeli"),
-    # 12 Ekim 2026 (Ahmet'in isteği, adı "sniper"): günlük Donchian topluluğuyla trend takibi.
-    ("sniper-vadeli", "SniperVadeli", "SNIPER", "vadeli"),
+    # 12 Ekim 2026 (Ahmet'in isteği, adı "sniper"): 5 dakikalıkta dip sonrası CHoCH + FVG ile
+    # kısa vuruş. İlk hali (günlük trend takibi, "sniper-vadeli") aynı gün çıkarıldı; eski
+    # kaydı yenisine karışmasın diye bot adı değişti, kapı (8085) aynı.
+    ("sniper5-vadeli", "SniperVadeli", "SNIPER", "vadeli"),
 ]
 
 ILK_PORT = 8081

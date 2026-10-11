@@ -1,0 +1,44 @@
+{
+  "kod": "SNIPERG",
+  "ad": "Sniper (ilk hali): günlük kanal kırılımıyla trend takibi",
+  "yon": "alim",
+  "aciklama": "Günlük kapanışlarla dokuz Donchian kanal modeli birlikte çalışır (5, 10, 20, 30, 60, 90, 150, 250 ve 360 gün). Her model, kapanış son N günün en yüksek kapanışını aşınca trende girer; izleyen stopu son N günün en yüksek ve en düşük kapanışının ortasıdır ve yalnız yukarı taşınır. Modellerin yarıdan fazlası trende girdiğinde alır, yarıdan azına düştüğünde satar. Kâr hedefi yoktur (kazanan işlem trend sürdükçe açık kalır); %10 sabit stop yalnız aşırı uç bir düşüşe karşı güvencedir. Bir işlem en çok 90 gün açık kalır (kural motorunun üst sınırı). Kaynak: Zarattini, Pagani, Barbon, \"Catching Crypto Trends\" (2025).",
+  "zaman_dilimi": "1d",
+  "gostergeler": {
+    "trend": {
+      "tur": "donchian_topluluk",
+      "uzunluklar": [
+        5,
+        10,
+        20,
+        30,
+        60,
+        90,
+        150,
+        250,
+        360
+      ]
+    }
+  },
+  "giris": {
+    "sol": "trend",
+    "islem": "yukari_keser",
+    "sag": 0.5
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 200.0,
+    "zarar_durdur_yuzde": 10.0,
+    "sure_asimi_dakika": 129600,
+    "sinyal": {
+      "sol": "trend",
+      "islem": "asagi_keser",
+      "sag": 0.5
+    }
+  },
+  "izinli_durumlar": [
+    "YESIL",
+    "SARI",
+    "KIRMIZI"
+  ],
+  "bekleme_dakika": 0
+}

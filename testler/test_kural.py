@@ -67,7 +67,7 @@ class KuralDosyalari(unittest.TestCase):
     def test_butun_stratejilerde_hedef_ve_stop_ayni(self):
         """Ahmet'in isteği (12 Ekim 2026): 1 kat vadelide %0,8 hedef, %3 stop.
 
-        Sniper bilerek ayrıdır: günlük trend takibi, kâr hedefi yok, çıkış kanal sinyaliyle.
+        Sniper bilerek ayrıdır: 5 dakikalık kısa vuruş, %1,2 hedef, %1,5 stop (Ahmet'in isteği).
         """
         for kod, kural in k.tum_kurallar().items():
             if kod == "SNIPER":
@@ -85,7 +85,9 @@ class KuralDosyalari(unittest.TestCase):
         kurallar = k.tum_kurallar()
         # 12 Ekim 2026'dan beri bütün stratejilerde hedef %0,8, stop %3:
         # (3 + 0,2) / (0,8 + 3) = %84,21.
-        beklenen = {"SM": 84.21, "SMK": 84.21, "SMD": 84.21, "SMDK": 84.21}
+        beklenen = {"SM": 84.21, "SMK": 84.21, "SMD": 84.21, "SMDK": 84.21,
+                    # Sniper: (1,5 + 0,2) / (1,2 + 1,5) = %62,96
+                    "SNIPER": 62.96}
         for kod, oran in beklenen.items():
             self.assertAlmostEqual(k.basabas_orani(kurallar[kod], 0.20), oran, places=2)
 

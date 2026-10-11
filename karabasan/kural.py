@@ -37,6 +37,7 @@ GOSTERGE_TURLERI = (
     "yapi",
     "uyumsuzluk",
     "donchian_topluluk",
+    "fvg",
 )
 UYUMSUZLUK_TIPLERI = ("normal", "gizli", "ikisi")
 MACD_VARSAYILAN = {"hizli": 12, "yavas": 26, "sinyal": 9}
@@ -106,6 +107,8 @@ def _gosterge_sutunlari(ad: str, tanim: dict) -> list[str]:
         return [f"{ad}_{sutun}" for sutun in g.YAPI_SUTUNLARI]
     if tanim["tur"] == "uyumsuzluk":
         return [f"{ad}_boga", f"{ad}_ayi"]
+    if tanim["tur"] == "fvg":
+        return [f"{ad}_{sutun}" for sutun in g.FVG_SUTUNLARI]
     return [ad]
 
 
@@ -231,6 +234,15 @@ def kural_dogrula(kural: dict) -> None:
                                   "1-12 tam sayının listesi olmalı.")
             if tanim.get("kaynak") is not None:
                 raise KuralHatasi(f"'{ad}': Donchian topluluğu kapanıştan hesaplanır, 'kaynak' almaz.")
+        elif tur == "fvg":
+            omur = tanim.get("omur", 50)
+            if not isinstance(omur, int) or isinstance(omur, bool) or not 3 <= omur <= 500:
+                raise KuralHatasi(f"'{ad}': 'omur' 3 ile 500 arasında tam sayı olmalı.")
+            esik = tanim.get("en_az_yuzde", 0.0)
+            if isinstance(esik, bool) or not isinstance(esik, (int, float)) or not 0 <= esik <= 5:
+                raise KuralHatasi(f"'{ad}': 'en_az_yuzde' 0 ile 5 arasında sayı olmalı.")
+            if tanim.get("kaynak") is not None:
+                raise KuralHatasi(f"'{ad}': FVG mumun kendisinden hesaplanır, 'kaynak' almaz.")
         elif tur != "vwap":
             periyot = tanim.get("periyot")
             if not isinstance(periyot, int) or isinstance(periyot, bool) or not 1 <= periyot <= 1000:
@@ -396,6 +408,8 @@ def _mum_ihtiyaclari(kural: dict) -> tuple[int, dict[str, int]]:
         if tanim["tur"] == "donchian_topluluk":
             # Modellerin durumu geçmişe bağlıdır; en uzun kanalın iki katı kadar ısınma.
             ihtiyac = 2 * max(tanim["uzunluklar"]) + 5
+        if tanim["tur"] == "fvg":
+            ihtiyac = int(tanim.get("omur", 50)) + 3
         if tanim["tur"] == "uyumsuzluk":
             # En eski karşılaştırılan nokta + göstergelerin (MACD, RSI...) oturması.
             ihtiyac = g.UYUMSUZLUK_EN_FAZLA_MUM + periyot + (26 + 9) * 3
@@ -445,6 +459,9 @@ def _tek_gosterge(cerceve: pd.DataFrame, ad: str, tanim: dict) -> dict:
         return {ad: g.sma(cerceve["volume"], periyot)}
     if tur == "donchian_topluluk":
         return {ad: g.donchian_topluluk(cerceve["close"], list(tanim["uzunluklar"]))}
+    if tur == "fvg":
+        f = g.fvg(cerceve, int(tanim.get("omur", 50)), float(tanim.get("en_az_yuzde", 0.0)))
+        return {f"{ad}_{sutun}": f[sutun] for sutun in g.FVG_SUTUNLARI}
     if tur == "uyumsuzluk":
         u = g.uyumsuzluk(cerceve, periyot, tanim.get("tip", "ikisi"))
         return {f"{ad}_boga": u["boga"], f"{ad}_ayi": u["ayi"]}

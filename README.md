@@ -187,7 +187,7 @@ gerekmez; sonuç sayfası ve Telegram yeterlidir.
 | smk-vadeli | SMK Smartmoney: tepki sonrası yapı kırılımıyla satış | SM'nin tersi | Vadeli, 1 kat | 8082 |
 | smd-vadeli | SMD Smartmoney + uyumsuzluk + emir defteri: alım | SM'nin bütün koşulları, son 1 saatte en az bir göstergede boğa uyumsuzluğu, girişte emir defterinde alıcılar belirgin kalabalık | Vadeli, 1 kat | 8083 |
 | smdk-vadeli | SMDK Smartmoney + uyumsuzluk + emir defteri: satış | SMD'nin tersi | Vadeli, 1 kat | 8084 |
-| sniper-vadeli | SNIPER Sniper: çok uzunluklu kanal kırılımıyla trend takibi | Günlük mumda dokuz kanal modelinin çoğu yukarı kırılımdaysa alır, çoğu düşünce satar; kâr hedefi yok | Vadeli, 1 kat | 8085 |
+| sniper5-vadeli | SNIPER Sniper: dip sonrası CHoCH + FVG ile kısa vuruş | 5 dakikalıkta dip görülüp yapı yukarı dönünce, hızlı alım izi (FVG), momentum, RSI ve hacim onayıyla alır; %1,2 kâr, %1,5 stop, en çok 3 saat | Vadeli, 1 kat | 8085 |
 
 **12 Ekim 2026'dan beri yalnız Smartmoney çalışır (Ahmet'in isteğiyle).** Aynı
 gün 12 aylık geçmiş testi (11.10.2025–11.10.2026) on iki botun hepsini ekside
@@ -235,37 +235,35 @@ değiştirip değiştirmediğini canlıda yan yana görmek (SM ile SMD, SMK ile 
 
 ### Sniper (SNIPER)
 
-12 Ekim 2026'da Ahmet'in isteğiyle eklendi ("internette en çok kazananları bul,
-çok gelişmiş bir bot koy, adı sniper olsun"). Seçim gerekçesi: TradingView'de
-"en çok kazanan" diye görünen stratejilerin sonuçları denetlenmemiştir ve çoğu
-geçmişe ezberdir; 3Commas'ın hazır botları da borsa API anahtarı ister (bu
-aşamada yasak) ve pazar yerindeki kazançlar kısa, seçilmiş dönemlerdir. Açık
-yayımlanmış, komisyon dahil ve uzun dönemde sınanmış en güçlü kanıt günlük
-trend takibindedir: Zarattini, Pagani ve Barbon, "Catching Crypto Trends"
-(2025). Sniper o yöntemin sadeleştirilmiş halidir:
+12 Ekim 2026'da Ahmet'in isteğiyle. Amaç: 5 / 15 dakikalık grafikte dip görmüş
+bir coinde, düşüş sonra sürse bile arada %1–1,5'lik kısa bir vuruş yapıp çıkmak.
+İlk hali (günlük trend takibi, haftalarca açık kalan işlemler) Ahmet'in amacına
+uymadığı için aynı gün çıkarıldı (`stratejiler/emekli/SNIPERG.json`).
 
-- **Dokuz Donchian kanal modeli** (5, 10, 20, 30, 60, 90, 150, 250, 360 gün).
-  Her model, günlük kapanış son N günün en yüksek kapanışını aşınca "trendde"
-  olur. İzleyen stopu son N günün en yüksek ve en düşük kapanışının ortasıdır,
-  yalnız yukarı taşınır; kapanış onun altına inince model trendden çıkar.
-- **Giriş:** modellerin yarıdan fazlası trende girdiğinde (topluluk payı 0,5'i
-  yukarı keser) alım. **Çıkış:** pay 0,5'in altına inince bir sonraki günün
-  açılışında satış. Kâr hedefi yoktur; kazanan işlem trend sürdükçe açık kalır.
-  %10 sabit stop yalnız aşırı uç düşüşe karşı güvencedir; bir işlem en çok
-  90 gün açık kalır.
-- **Yalnız alım, 1 kat.** Makaledeki yöntem de yalnız alım yönlüdür.
-- **Sadeleştirmeler:** makale her modelin payını ayrı ağırlıklandırır ve pozisyon
-  büyüklüğünü oynaklığa göre ayarlar; burada sabit 50 USDT ve "çoğunluk" kararı
-  vardır. Sonuç makaledekinden farklı olabilir.
+Altı koşul birlikte aranır (yalnız alım):
 
-Ne beklenmeli: günlük çalıştığı için az işlem açar, çoğu küçük kayıpla
-kapanır, kazancı az sayıdaki uzun trendden gelir.
-Kazanma oranı düşük görünür (yapay veride %32); bu yöntemin doğasıdır. Sinyaller yalnız
-günlük mum kapanınca (03:00 Türkiye saati) oluşur. İlk açılışta 735 günlük mum
-ister; o kadar geçmişi olmayan yeni coinlerde sinyal vermez. Yapay rastgele
-veride ne kazandırdı ne kaybettirdi; gerçek verideki sonucu 12 aylık testte ve
-canlıda görülecek. Geçmişte işe yaramış olması gelecekte de yarayacağı anlamına
-gelmez.
+1. **Dip görülmüş:** son 3 saatte 15 dakikalık RSI 35'in altına inmiş.
+2. **Yapı dönmüş (CHoCH):** son 1 saatte 5 dakikalıkta düşüş yapısının ilk yukarı
+   kırılımı olmuş ve yapı hâlâ yukarı. Salınım uzunluğu 3 mum.
+3. **Hızlı alım izi (FVG):** son 30 dakikada bir boğa FVG'si oluşmuş, ya da fiyat
+   açık bir boğa FVG'sine geri çekilip üstünde kapanmış. FVG ("fair value gap",
+   adil değer boşluğu): üç mumluk hızlı yükselişte birinci mumun tepesi ile üçüncü
+   mumun dibi arasında hiç işlem görmeden geçilen fiyat aralığı. En az %0,05
+   boyunda olmalı; fiyat altında kapanınca ya da 3 saat dolunca geçersiz.
+4. **Momentum:** MACD histogramı sıfırın üstünde.
+5. **RSI:** 5 dakikalık RSI 50 ile 70 arasında (yukarı dönmüş, şişmemiş).
+6. **Hacim:** son 15 dakikada bir mumun hacmi 20 mumluk ortalamanın 1,5 katından fazla.
+
+Çıkış: %1,2 kâr, %1,5 stop ya da en çok 3 saat; stoptan sonra aynı coine 30 dakika
+girilmez. Komisyon gidiş-dönüş %0,1 olduğu için kazanan işlem net ~%1,1, kaybeden
+~−%1,6 getirir; başa baş için işlemlerin yaklaşık %59'u kazanmalıdır.
+
+Kavramlar (CHoCH, BOS, FVG) yaygın "akıllı para" kavramlarının bu depo için
+yazılmış bağımsız uygulamasıdır (`karabasan/gostergeler.py`: `piyasa_yapisi`,
+`fvg`). Yapay rastgele veride coin başına günde yaklaşık 1 işlem açtı ve komisyon
+kadar kaybetti (%52 kazanma); yani kendiliğinden kâr üretmiyor, gerçek piyasada
+bir kenarı olup olmadığı canlıda ve 12 aylık testte görülecek. Garantiye yakın
+işlem diye bir şey yoktur: hiçbir koşul birleşimi her seferinde kazandırmaz.
 
 ### Emir defteri denemesi (BTC/USDT vadeli)
 

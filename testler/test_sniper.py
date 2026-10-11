@@ -1,10 +1,9 @@
-"""Sniper: çok uzunluklu Donchian kanal topluluğu, çıkış sinyali ve günlük dilim."""
+"""Sniper (12 Ekim 2026): 5 dakikalıkta dip sonrası CHoCH + FVG ile kısa vuruş; FVG göstergesi."""
 
 import copy
 import unittest
 
 import numpy as np
-import pandas as pd
 
 from karabasan import benzetim as b
 from karabasan import botlar
@@ -14,151 +13,120 @@ from testler.test_motor_baglantisi import strateji_modulu
 from testler.veri import duz_mumlar, yapay_mumlar
 
 
-def kapanislardan(kapanislar, dilim_dk=1440):
-    """Yalnız kapanışı belli günlük mumlar: açılış önceki kapanış, fitil yok."""
-    onceki = [kapanislar[0]] + list(kapanislar[:-1])
-    return duz_mumlar([(a, max(a, c), min(a, c), c) for a, c in zip(onceki, kapanislar)],
-                      dilim_dk=dilim_dk)
+class FvgTesti(unittest.TestCase):
+    def test_boga_boslugu_bulunur_ve_dibe_kapanisla_bozulur(self):
+        mumlar = duz_mumlar([
+            (100, 101, 99, 100.5),     # 0
+            (100.5, 101, 100, 100.8),  # 1: yükseği 101
+            (101, 104, 101, 103.5),    # 2: hızlı mum
+            (103.5, 105, 102, 104.5),  # 3: düşüğü 102 > 101 -> boşluk [101, 102]
+            (104.5, 104.6, 101.5, 102.0),  # 4: boşluğa sarktı, alt sınırın üstünde kapandı
+            (102, 102.2, 100.2, 100.5),    # 5: alt sınırın (101) altında kapandı -> bozuldu
+        ])
+        f = g.fvg(mumlar)
+        self.assertEqual(f["boga"].tolist(), [0, 0, 0, 1, 0, 0])
+        self.assertEqual(f["ayi"].sum(), 0)
+        self.assertTrue(np.isnan(f["boga_ust"].iloc[2]))
+        self.assertEqual((f["boga_ust"].iloc[3], f["boga_alt"].iloc[3]), (102.0, 101.0))
+        self.assertEqual((f["boga_ust"].iloc[4], f["boga_alt"].iloc[4]), (102.0, 101.0))
+        self.assertTrue(np.isnan(f["boga_ust"].iloc[5]))
 
+    def test_ayi_boslugu_ve_omur(self):
+        fiyat = [(100, 101, 99, 99.5), (99.5, 100, 99, 99.2), (99, 99, 96, 96.5), (96.5, 97.5, 95, 95.5)]
+        fiyat += [(95.5, 96, 95, 95.5)] * 6
+        f = g.fvg(duz_mumlar(fiyat), omur=4)
+        # 3. mumun yükseği (97,5) 1. mumun düşüğünün (99) altında: boşluk [97,5, 99].
+        self.assertEqual(f["ayi"].tolist()[:4], [0, 0, 0, 1])
+        self.assertEqual((f["ayi_ust"].iloc[3], f["ayi_alt"].iloc[3]), (99.0, 97.5))
+        self.assertEqual(f["ayi_ust"].iloc[7], 99.0)        # 4 mum sonra hâlâ geçerli
+        self.assertTrue(np.isnan(f["ayi_ust"].iloc[8]))     # ömrü doldu
 
-class DonchianTopluluk(unittest.TestCase):
-    def test_tek_model_kirilimda_girer_orta_cizgi_altinda_cikar(self):
-        # 5 gün yatay (100), sonra yükseliş: 6. gün kapanış önceki 5 günün tepesini aşar.
-        fiyat = [100.0] * 5 + [101, 102, 103, 104, 105, 106]
-        # Orta çizgi son 5 kapanışın ortası; sonra sert düşüş onun altına iner.
-        fiyat += [105.5, 103.0]
-        sonuc = g.donchian_topluluk(pd.Series(fiyat), [5]).to_numpy()
-        self.assertTrue(np.isnan(sonuc[:5]).all())          # ısınma
-        self.assertEqual(sonuc[5], 1.0)                       # 101 > 100: kırılım
-        self.assertTrue((sonuc[5:11] == 1.0).all())           # trend sürüyor
-        # 11. sırada 105,5: son 5 kapanış 102..106, orta 104; stop 104'e taşınmıştı, 105,5 üstünde.
-        self.assertEqual(sonuc[11], 1.0)
-        # 12. sırada 103 < 104 (taşınmış stop): çıkar; yeni tepe yok, yeniden girmez.
-        self.assertEqual(sonuc[12], 0.0)
+    def test_en_kucuk_bosluk_esigi(self):
+        mumlar = duz_mumlar([(100, 100.1, 99.9, 100), (100, 100.1, 99.9, 100.05),
+                             (100.05, 100.3, 100.05, 100.25), (100.25, 100.4, 100.12, 100.3)])
+        self.assertEqual(g.fvg(mumlar)["boga"].iloc[3], 1)                    # boşluk %0,02
+        self.assertEqual(g.fvg(mumlar, en_az_yuzde=0.05)["boga"].iloc[3], 0)
 
-    def test_stop_her_gun_orta_cizgiye_tasinir(self):
-        # Stop, bir önceki günün sonunda hesaplanan orta çizgidir: 9. gün 115'e, 10. gün
-        # (pencere 120 119 118 117 116,5) 118,25'e çıkar. 10. gün 116,5 eski stopun (115)
-        # üstünde olduğu için işlem sürer; 11. gün 116 yeni stopun altında kalır.
-        fiyat = [100.0] * 5 + [110.0, 120.0, 119.0, 118.0, 117.0, 116.5, 116.0]
-        sonuc = g.donchian_topluluk(pd.Series(fiyat), [5]).to_numpy()
-        self.assertTrue((sonuc[5:11] == 1.0).all())
-        self.assertEqual(sonuc[11], 0.0)
-
-    def test_deger_model_payidir(self):
-        df = yapay_mumlar(1500, dilim_dk=1440, tohum=5, oynaklik=0.03)
-        uzunluklar = [5, 10, 20, 30, 60]
-        sonuc = g.donchian_topluluk(df["close"], uzunluklar)
-        self.assertTrue(sonuc.iloc[:60].isna().all())
-        dolu = sonuc.iloc[60:].to_numpy()
-        self.assertTrue(np.isin(np.round(dolu * len(uzunluklar)), np.arange(len(uzunluklar) + 1)).all())
-        self.assertGreater(dolu.max(), 0.5)
-        self.assertLess(dolu.min(), 0.5)
-
-    def test_sinyaller_gelecege_bakmaz(self):
-        df = yapay_mumlar(1500, dilim_dk=1440, tohum=8, oynaklik=0.03)
-        kural = k.kural_yukle("SNIPER")
-        tam = k.sinyal_uret(df, kural)
-        for kesim in (800, 1100, 1400):
-            kismi = k.sinyal_uret(df.iloc[:kesim], kural)
-            for sutun in ("trend", "sinyal", "cikis_sinyal"):
+    def test_gelecege_bakmaz(self):
+        df = yapay_mumlar(3000, tohum=7, oynaklik=0.003)
+        tam = g.fvg(df, omur=36, en_az_yuzde=0.05)
+        for kesim in (500, 1700, 2999):
+            kismi = g.fvg(df.iloc[:kesim], omur=36, en_az_yuzde=0.05)
+            for sutun in g.FVG_SUTUNLARI:
                 np.testing.assert_array_equal(tam[sutun].to_numpy()[:kesim], kismi[sutun].to_numpy(),
                                               err_msg=f"{sutun} {kesim}")
 
+    def test_kural_dogrulamasi(self):
+        def kural(**tanim):
+            return {"kod": "T", "ad": "Deneme kuralı", "yon": "alim", "zaman_dilimi": "5m",
+                    "gostergeler": {"f": {"tur": "fvg", **tanim}},
+                    "giris": {"sol": "dusuk", "islem": "<=", "sag": "f_boga_ust"},
+                    "cikis": {"kar_hedefi_yuzde": 1, "zarar_durdur_yuzde": 1, "sure_asimi_dakika": 60}}
+
+        k.kural_dogrula(kural())
+        k.kural_dogrula(kural(omur=20, en_az_yuzde=0.1))
+        for hatali in ({"omur": 2}, {"omur": 501}, {"omur": 5.5}, {"en_az_yuzde": -1},
+                       {"en_az_yuzde": "0.1"}, {"kaynak": "kapanis"}):
+            with self.subTest(hatali=hatali), self.assertRaises(k.KuralHatasi):
+                k.kural_dogrula(kural(**hatali))
+        self.assertEqual(k.gereken_mum(kural(omur=100)), 113)
+
 
 class SniperKurali(unittest.TestCase):
-    def setUp(self):
-        self.kural = copy.deepcopy(k.kural_yukle("SNIPER"))
+    @classmethod
+    def setUpClass(cls):
+        cls.kural = k.kural_yukle("SNIPER")
+        cls.df = yapay_mumlar(30 * 288, tohum=1, oynaklik=0.003)
+        cls.tablo = k.sinyal_uret(cls.df, cls.kural)
 
-    def test_kural_gecerli_ve_isinma_motor_sinirinda(self):
+    def test_ayarlar(self):
         k.kural_dogrula(self.kural)
-        self.assertEqual(self.kural["zaman_dilimi"], "1d")
-        self.assertEqual(k.gereken_mum(self.kural), 2 * 360 + 5 + 10)
+        self.assertEqual((self.kural["zaman_dilimi"], self.kural["yon"]), ("5m", "alim"))
+        c = self.kural["cikis"]
+        self.assertEqual((c["kar_hedefi_yuzde"], c["zarar_durdur_yuzde"], c["sure_asimi_dakika"]),
+                         (1.2, 1.5, 180))
+        self.assertNotIn("sinyal", c)
+        self.assertEqual(k.borsa_dilimleri(self.kural), [])
         self.assertLessEqual(k.gereken_mum(self.kural), k.EN_FAZLA_BASLANGIC_MUMU)
-        self.assertIn("sinyal", self.kural["cikis"])
 
-    def test_hatali_uzunluklar_reddedilir(self):
-        for hatali in ([], [5, 5], [1], [500], [5.0], "20", [True], list(range(2, 15))):
-            kural = copy.deepcopy(self.kural)
-            kural["gostergeler"]["trend"]["uzunluklar"] = hatali
-            with self.subTest(uzunluklar=hatali), self.assertRaises(k.KuralHatasi):
-                k.kural_dogrula(kural)
+    def test_her_sinyal_butun_kosullari_saglar(self):
+        t = self.tablo
+        s = t["sinyal"]
+        self.assertGreater(int(s.sum()), 20, "yapay veride neredeyse hiç sinyal yok")
+        son = lambda sutun, n: t[sutun].rolling(n, min_periods=1)  # noqa: E731
+        self.assertTrue((son("rsi14_15", 36).min()[s] < 35).all())          # dip görülmüş
+        self.assertTrue((son("yapi5_donus", 12).max()[s] > 0).all())        # yukarı CHoCH
+        self.assertTrue((t["yapi5_yon"][s] > 0).all())
+        fvg_yeni = son("fvg5_boga", 6).max() > 0
+        geri_cekilme = (t["low"] <= t["fvg5_boga_ust"]) & (t["close"] > t["fvg5_boga_alt"])
+        self.assertTrue((fvg_yeni | geri_cekilme)[s].all())
+        self.assertTrue((t["macd5_fark"][s] > 0).all())
+        self.assertTrue(t["rsi14"][s].between(50, 70, inclusive="neither").all())
+        hacimli = (t["volume"] > 1.5 * t["hacim20"]).astype(float).rolling(3, min_periods=1).max() > 0
+        self.assertTrue(hacimli[s].all())
+
+    def test_sinyaller_gelecege_bakmaz(self):
+        for kesim in (3000, 6000, 8000):
+            kismi = k.sinyal_uret(self.df.iloc[:kesim], self.kural)
+            np.testing.assert_array_equal(self.tablo["sinyal"].to_numpy()[:kesim],
+                                          kismi["sinyal"].to_numpy(), err_msg=str(kesim))
+
+    def test_yapay_veride_kendiliginden_kar_yok(self):
+        """Rastgele yürüyüşte sonuç komisyon kadar kayıp civarında olmalı (kenar yok)."""
+        islemler = []
+        for tohum in range(1, 4):
+            df = yapay_mumlar(30 * 288, tohum=tohum, oynaklik=0.003)
+            islemler += b.benzet(df, self.kural, komisyon_yuzde=0.05)
+        self.assertGreater(len(islemler), 50)
+        ortalama = np.mean([i["net_yuzde"] for i in islemler])
+        self.assertLess(abs(ortalama + 0.1), 0.35, ortalama)
+        self.assertEqual({i["neden"] for i in islemler} - {"kar_hedefi", "zarar_durdur", "sure_asimi"}, set())
+
+    def test_hatali_esik_reddedilir(self):
         kural = copy.deepcopy(self.kural)
-        kural["gostergeler"]["trend"]["kaynak"] = "acilis"
+        kural["gostergeler"]["fvg5"]["omur"] = 1
         with self.assertRaises(k.KuralHatasi):
             k.kural_dogrula(kural)
-
-    def test_cikis_sinyali_dogrulanir(self):
-        kural = copy.deepcopy(self.kural)
-        kural["cikis"]["sinyal"] = {"sol": "olmayan", "islem": "<", "sag": 0.5}
-        with self.assertRaises(k.KuralHatasi):
-            k.kural_dogrula(kural)
-        kural["cikis"]["sinyal"] = {"sol": "trend", "islem": "garip", "sag": 0.5}
-        with self.assertRaises(k.KuralHatasi):
-            k.kural_dogrula(kural)
-
-    def test_sinirlar(self):
-        for alan, deger in (("kar_hedefi_yuzde", 250.0), ("zarar_durdur_yuzde", 12.0),
-                            ("sure_asimi_dakika", 129601)):
-            kural = copy.deepcopy(self.kural)
-            kural["cikis"][alan] = deger
-            with self.subTest(alan=alan), self.assertRaises(k.KuralHatasi):
-                k.kural_dogrula(kural)
-
-    def test_cikis_sinyali_olmayan_kuralda_hep_yanlis(self):
-        df = yapay_mumlar(3000, tohum=2)
-        tablo = k.sinyal_uret(df, k.kural_yukle("SM"), {"1d": g.ust_dilime_cevir(df, "5m", "1d")})
-        self.assertFalse(tablo["cikis_sinyal"].any())
-
-
-class CikisSinyaliBenzetimi(unittest.TestCase):
-    """Çıkış sinyali mumun kapanışında oluşur, işlem bir sonraki mumun açılışında kapanır."""
-
-    @staticmethod
-    def kural():
-        return {
-            "kod": "T", "ad": "Deneme kuralı", "yon": "alim", "zaman_dilimi": "1d",
-            "gostergeler": {"trend": {"tur": "donchian_topluluk", "uzunluklar": [3]}},
-            "giris": {"sol": "trend", "islem": "yukari_keser", "sag": 0.5},
-            "cikis": {"kar_hedefi_yuzde": 200.0, "zarar_durdur_yuzde": 10.0,
-                      "sure_asimi_dakika": 129600,
-                      "sinyal": {"sol": "trend", "islem": "asagi_keser", "sag": 0.5}},
-            "bekleme_dakika": 0,
-        }
-
-    def test_sinyalle_cikis(self):
-        # 5 gün yatay (ilk 3'ü ısınma), yükseliş (kırılım 5. sırada, giriş 6. sıranın
-        # açılışında), sonra düşüş.
-        fiyat = [100.0] * 5 + [102, 104, 106, 108, 107, 103, 102, 101]
-        df = kapanislardan(fiyat)
-        kural = self.kural()
-        k.kural_dogrula(kural)
-        tablo = k.sinyal_uret(df, kural)
-        giris_sirasi = int(np.flatnonzero(tablo["sinyal"].to_numpy())[0])
-        cikis_sirasi = int(np.flatnonzero(tablo["cikis_sinyal"].to_numpy())[0])
-        self.assertEqual(giris_sirasi, 5)
-        islemler = b.benzet(df, kural, komisyon_yuzde=0.05)
-        self.assertEqual(len(islemler), 1)
-        islem = islemler[0]
-        self.assertEqual(islem["neden"], "cikis_sinyali")
-        self.assertEqual(islem["giris_zamani"], df["date"].iloc[giris_sirasi + 1])
-        self.assertEqual(islem["cikis_zamani"], df["date"].iloc[cikis_sirasi + 1])
-        self.assertAlmostEqual(islem["giris_fiyati"], df["open"].iloc[giris_sirasi + 1])
-        self.assertAlmostEqual(islem["cikis_fiyati"], df["open"].iloc[cikis_sirasi + 1])
-        self.assertAlmostEqual(islem["net_yuzde"], islem["brut_yuzde"] - 0.1)
-
-    def test_stop_cikis_sinyalinden_once_gelirse_stop(self):
-        # Girişten sonraki ilk mumda %10'dan fazla düşüş: sinyal henüz oluşmadan stop.
-        fiyat = [100.0] * 5 + [102, 104, 90, 89, 88]
-        islemler = b.benzet(kapanislardan(fiyat), self.kural())
-        self.assertEqual(islemler[0]["neden"], "zarar_durdur")
-
-    def test_cikistan_sonra_yeniden_girebilir(self):
-        fiyat = [100.0] * 5 + [102, 104, 106, 103, 101, 100, 99]
-        fiyat += [103, 105, 107, 104, 100, 99, 98]
-        islemler = b.benzet(kapanislardan(fiyat), self.kural())
-        self.assertEqual([i["neden"] for i in islemler], ["cikis_sinyali", "cikis_sinyali"])
-        self.assertLess(islemler[0]["cikis_zamani"], islemler[1]["giris_zamani"])
 
 
 class SniperBotu(unittest.TestCase):
@@ -166,86 +134,32 @@ class SniperBotu(unittest.TestCase):
     def setUpClass(cls):
         cls.modul = strateji_modulu()
 
-    def test_bot_listenin_sonunda(self):
-        self.assertEqual(botlar.BOTLAR[-1], ("sniper-vadeli", "SniperVadeli", "SNIPER", "vadeli"))
+    def test_bot_listenin_sonunda_kapi_ayni(self):
+        self.assertEqual(botlar.BOTLAR[-1], ("sniper5-vadeli", "SniperVadeli", "SNIPER", "vadeli"))
         self.assertEqual(botlar.ILK_PORT + len(botlar.BOTLAR) - 1, 8085)
+        self.assertNotIn("sniper-vadeli", [bot for bot, *_ in botlar.BOTLAR])  # eski kayıt karışmasın
 
-    def test_gunluk_veri_indirilir(self):
+    def test_yalniz_smartmoney_gunluk_veri_ister(self):
         self.assertEqual(botlar.ek_dilimler("vadeli"), ["1d"])
 
     def test_motor_sinifi(self):
         sinif = self.modul.SniperVadeli
-        self.assertEqual(sinif.timeframe, "1d")
+        self.assertEqual(sinif.timeframe, "5m")
         self.assertFalse(sinif.can_short)
-        self.assertEqual(sinif.startup_candle_count, 735)
-        self.assertAlmostEqual(sinif.stoploss, -0.10)
-        s = sinif()
-        self.assertEqual(s.informative_pairs(), [])    # kendi dilimi zaten 1d; ek veri istemez
+        self.assertEqual(sinif.startup_candle_count, k.gereken_mum(k.kural_yukle("SNIPER")))
+        self.assertAlmostEqual(sinif.stoploss, -0.015)
+        self.assertEqual(sinif().informative_pairs(), [])
 
-    def test_motor_cikis_sutunu_cekirdekle_ayni(self):
-        df = yapay_mumlar(1500, dilim_dk=1440, tohum=13, oynaklik=0.03)
+    def test_motor_sinyali_cekirdekle_ayni(self):
+        df = yapay_mumlar(5000, tohum=4, oynaklik=0.003)
         s = self.modul.SniperVadeli()
         tablo = s.populate_indicators(df.copy(), {"pair": "ETH/USDT:USDT"})
         tablo = s.populate_entry_trend(tablo, {"pair": "ETH/USDT:USDT"})
         tablo = s.populate_exit_trend(tablo, {"pair": "ETH/USDT:USDT"})
-        cekirdek = k.sinyal_uret(df, k.kural_yukle("SNIPER"))
-        self.assertGreater(int(cekirdek["cikis_sinyal"].sum()), 0)
-        self.assertEqual((tablo["enter_long"] == 1).tolist(), cekirdek["sinyal"].tolist())
-        self.assertEqual((tablo["exit_long"] == 1).tolist(), cekirdek["cikis_sinyal"].tolist())
-        self.assertNotIn("exit_short", tablo.columns)
-
-
-class SniperStopSonrasi(unittest.TestCase):
-    def test_sniper_stoplari_izlenmez(self):
-        import tempfile
-        from datetime import datetime, timedelta, timezone
-        from pathlib import Path
-        from unittest import mock
-
-        from karabasan import stop_sonrasi as ss
-        from testler.veri import sahte_islem_db
-
-        t0 = datetime(2026, 10, 1, tzinfo=timezone.utc)
-        istekler = []
-        with tempfile.TemporaryDirectory() as gecici, \
-                mock.patch("karabasan.botlar.BOTLAR", [("sniper-vadeli", "SniperVadeli", "SNIPER", "vadeli")]):
-            klasor = Path(gecici)
-            sahte_islem_db(klasor / "db" / "sniper-vadeli.sqlite",
-                           [("SOL/USDT:USDT", t0, t0 + timedelta(days=2), -10.1, "stop_loss", False)])
-            sayim = ss.bir_tur(klasor, t0 + timedelta(days=200),
-                               getir=lambda *a: istekler.append(a), ara=0)
-        self.assertEqual(istekler, [])
-        self.assertEqual(sayim["izlenen"] + sayim["bekleyen"] + sayim["basarisiz"], 0)
-
-
-class SniperYillikRaporu(unittest.TestCase):
-    """12 aylık test raporu hedefsiz, sinyalle çıkan kuralı doğru anlatır."""
-
-    def test_rapor(self):
-        from unittest import mock
-
-        from karabasan import yillik as y
-
-        def yukle(coin, dilim, piyasa):
-            tohum = sum(map(ord, coin))
-            if dilim == "1d":
-                return yapay_mumlar(1200, dilim_dk=1440, tohum=tohum, baslangic="2023-01-01",
-                                    oynaklik=0.04)
-            return yapay_mumlar(130 * 288, dilim_dk=5, tohum=tohum, baslangic="2026-01-01")
-
-        ayar = {"islem_tutari": 50.0, "sanal_bakiye": 1000.0,
-                "komisyon_yuzde": {"spot": 0.075, "vadeli": 0.05}}
-        with mock.patch.object(y, "BOTLAR", [("sniper-vadeli", "SniperVadeli", "SNIPER", "vadeli")]):
-            metin, sonuc, eksik = y.rapor_uret(yukle, gun=100, ayar=ayar)
-        self.assertEqual(eksik, 0)
-        self.assertIn("hedef yok (çıkış kanal sinyaliyle), stop %10,0", metin)
-        self.assertIn("(başa baş %-)", metin)
-        self.assertIn("kanal sinyali", metin)
-        self.assertIn("1 botun toplamı", metin)
-        self.assertIn("sniper-vadeli", sonuc)
-        # "Stop = hedef" karşılaştırması bu kuralda anlamsız; tabloda satırı yok.
-        bilgi = metin.split("BİLGİ İÇİN", 1)[1]
-        self.assertNotIn("sniper-vadeli", bilgi)
+        beklenen = k.sinyal_uret(df, k.kural_yukle("SNIPER"))["sinyal"]
+        self.assertGreater(int(beklenen.sum()), 0)
+        self.assertEqual((tablo["enter_long"] == 1).tolist(), beklenen.tolist())
+        self.assertEqual(int(tablo["exit_long"].sum()), 0)
 
 
 if __name__ == "__main__":

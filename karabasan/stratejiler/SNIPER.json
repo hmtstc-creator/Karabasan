@@ -1,44 +1,114 @@
 {
   "kod": "SNIPER",
-  "ad": "Sniper: çok uzunluklu kanal kırılımıyla trend takibi",
+  "ad": "Sniper: dip sonrası CHoCH + FVG ile kısa vuruş",
   "yon": "alim",
-  "aciklama": "Günlük kapanışlarla dokuz Donchian kanal modeli birlikte çalışır (5, 10, 20, 30, 60, 90, 150, 250 ve 360 gün). Her model, kapanış son N günün en yüksek kapanışını aşınca trende girer; izleyen stopu son N günün en yüksek ve en düşük kapanışının ortasıdır ve yalnız yukarı taşınır. Modellerin yarıdan fazlası trende girdiğinde alır, yarıdan azına düştüğünde satar. Kâr hedefi yoktur (kazanan işlem trend sürdükçe açık kalır); %10 sabit stop yalnız aşırı uç bir düşüşe karşı güvencedir. Bir işlem en çok 90 gün açık kalır (kural motorunun üst sınırı). Kaynak: Zarattini, Pagani, Barbon, \"Catching Crypto Trends\" (2025).",
-  "zaman_dilimi": "1d",
+  "aciklama": "5 dakikalık grafikte dipten dönüşü yakalar, %1,2 alıp çıkar. Altı koşul birlikte aranır. Dip görülmüş: son 3 saatte 15 dakikalık RSI 35'in altına inmiş. Yapı dönmüş: son 1 saatte 5 dakikalıkta yukarı CHoCH (düşüş yapısının ilk yukarı kırılımı) olmuş ve yapı hâlâ yukarı. Hızlı alım izi: son 30 dakikada bir boğa FVG'si (fiyat boşluğu) oluşmuş ya da fiyat açık bir boğa FVG'sine geri çekilip üstünde kapanmış. Momentum: MACD histogramı sıfırın üstünde. RSI 50 ile 70 arasında (yukarı dönmüş ama şişmemiş). Hacim: son 15 dakikada bir mumun hacmi 20 mumluk ortalamanın 1,5 katından fazla. Çıkış: %1,2 kâr, %1,5 stop ya da en çok 3 saat.",
+  "zaman_dilimi": "5m",
   "gostergeler": {
-    "trend": {
-      "tur": "donchian_topluluk",
-      "uzunluklar": [
-        5,
-        10,
-        20,
-        30,
-        60,
-        90,
-        150,
-        250,
-        360
-      ]
+    "rsi14_15": {
+      "tur": "rsi",
+      "periyot": 14,
+      "dilim": "15m"
+    },
+    "yapi5": {
+      "tur": "yapi",
+      "periyot": 3
+    },
+    "fvg5": {
+      "tur": "fvg",
+      "omur": 36,
+      "en_az_yuzde": 0.05
+    },
+    "macd5": {
+      "tur": "macd"
+    },
+    "rsi14": {
+      "tur": "rsi",
+      "periyot": 14
+    },
+    "hacim20": {
+      "tur": "hacim_ort",
+      "periyot": 20
     }
   },
   "giris": {
-    "sol": "trend",
-    "islem": "yukari_keser",
-    "sag": 0.5
+    "hepsi": [
+      {
+        "sol": "rsi14_15",
+        "islem": "<",
+        "sag": 35,
+        "son_n_mumda": 36
+      },
+      {
+        "sol": "yapi5_donus",
+        "islem": ">",
+        "sag": 0,
+        "son_n_mumda": 12
+      },
+      {
+        "sol": "yapi5_yon",
+        "islem": ">",
+        "sag": 0
+      },
+      {
+        "herhangi": [
+          {
+            "sol": "fvg5_boga",
+            "islem": ">",
+            "sag": 0,
+            "son_n_mumda": 6
+          },
+          {
+            "hepsi": [
+              {
+                "sol": "dusuk",
+                "islem": "<=",
+                "sag": "fvg5_boga_ust"
+              },
+              {
+                "sol": "kapanis",
+                "islem": ">",
+                "sag": "fvg5_boga_alt"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "sol": "macd5_fark",
+        "islem": ">",
+        "sag": 0
+      },
+      {
+        "sol": "rsi14",
+        "islem": ">",
+        "sag": 50
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": 70
+      },
+      {
+        "sol": "hacim",
+        "islem": ">",
+        "sag": {
+          "ad": "hacim20",
+          "carpan": 1.5
+        },
+        "son_n_mumda": 3
+      }
+    ]
   },
   "cikis": {
-    "kar_hedefi_yuzde": 200.0,
-    "zarar_durdur_yuzde": 10.0,
-    "sure_asimi_dakika": 129600,
-    "sinyal": {
-      "sol": "trend",
-      "islem": "asagi_keser",
-      "sag": 0.5
-    }
+    "kar_hedefi_yuzde": 1.2,
+    "zarar_durdur_yuzde": 1.5,
+    "sure_asimi_dakika": 180
   },
   "izinli_durumlar": [
     "YESIL",
     "SARI",
     "KIRMIZI"
   ],
-  "bekleme_dakika": 0
+  "bekleme_dakika": 30
 }

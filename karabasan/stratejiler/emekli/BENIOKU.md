@@ -10,4 +10,6 @@ için saklanır; `kural.tum_kurallar()` bu klasörü okumaz.
 
 | S1, S1K, S2, S3, S4, S5, S5K, S6K, S7, S7K | 12 Ekim 2026 (Ahmet'in isteği): 12 aylık geçmiş testinde (11.10.2025–11.10.2026, hedef %0,8, stop %3) hepsi ekside, hiçbiri dört çeyreğin üçünde artıda değil. İşlem başına net −%0,08 ile −%0,14; komisyon öncesi sıfıra yakın. Yalnız Smartmoney (SM, SMK) kaldı. |
 
+| SNIPERG | Sniper (ilk hali): günlük kanal kırılımıyla trend takibi | 12 Ekim 2026 (Ahmet'in isteği): Ahmet günlük, haftalarca açık kalan trend takibini istemedi; amacı 5 / 15 dakikalık grafiklerde dip sonrası %1–1,5'lik kısa vuruşlar. "Sniper" adı ve botu yeni kurala (SNIPER, 5 dk) geçti. Canlıda hiç sonuç vermeden çıkarıldı. |
+
 Dosyalar çıkarıldıkları andaki ayarlarıyla durur (hedef ve stop o günkü değerler).

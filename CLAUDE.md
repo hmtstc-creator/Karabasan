@@ -95,14 +95,14 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 
 | Yol | İçerik |
 | --- | --- |
-| `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama), `piyasa_yapisi` (salınımlar, yapı kırılımı BOS / CHoCH, denge, emir blokları), `uyumsuzluk` (10 göstergede normal / gizli boğa ve ayı uyumsuzluğu sayısı; kural türü `"uyumsuzluk"`, sütunlar `<ad>_boga`, `<ad>_ayi`) ve `donchian_topluluk` (Sniper: birkaç uzunlukta Donchian kanal modelinin trendde olan payı, 0–1) |
+| `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama), `piyasa_yapisi` (salınımlar, yapı kırılımı BOS / CHoCH, denge, emir blokları), `uyumsuzluk` (10 göstergede normal / gizli boğa ve ayı uyumsuzluğu sayısı; kural türü `"uyumsuzluk"`, sütunlar `<ad>_boga`, `<ad>_ayi`) `donchian_topluluk` (emekli SNIPERG: birkaç uzunlukta Donchian kanal modelinin trendde olan payı, 0–1) ve `fvg` (adil değer boşluğu; kural türü `"fvg"`, sütunlar `<ad>_boga`, `<ad>_boga_ust`, `<ad>_boga_alt` ve ayı karşılıkları) |
 | `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme. Bir gösterge `dilim` ile istediği üst dilimde hesaplanır (`"ust"`, `"15m"`, `"1h"`, `"1d"`). `borsa_dilimleri` içindeki dilimlerin mumları taban mumlardan toplanmaz, `ek_veri` ile dışarıdan verilir (motor, araçlar); boş tablo "veri yok, sinyal de yok" demektir |
-| `karabasan/stratejiler/*.json` | 12 Ekim 2026'dan beri beş strateji: SM, SMD ve SNIPER (alım), SMK ve SMDK (açığa satış). Çıkarılan on iki kural (S1–S7 ve ters yönlüleri) `stratejiler/emekli/` altında durur; `tum_kurallar()` orayı okumaz ama `kural_yukle("S1")` koduyla bulur (eski raporlar ve testler için). Hangi botun çalıştığını yalnız `botlar.BOTLAR` belirler. Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
+| `karabasan/stratejiler/*.json` | 12 Ekim 2026'dan beri beş strateji: SM, SMD ve SNIPER (alım), SMK ve SMDK (açığa satış). Çıkarılan kurallar (S1–S7 ve ters yönlüleri, Sniper'ın ilk hali SNIPERG) `stratejiler/emekli/` altında durur; `tum_kurallar()` orayı okumaz ama `kural_yukle("S1")` koduyla bulur (eski raporlar ve testler için). Hangi botun çalıştığını yalnız `botlar.BOTLAR` belirler. Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
 | `karabasan/puan.py` | Karabasan puanı, durum makinesi, vetolar |
 | `karabasan/filtre.py` | Filtre (Elek): dört katman, elenme nedenleri |
 | `karabasan/karne.py` | İşlem ölçümleri ve 30. günün yedi karar ölçütü |
 | `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim |
-| `karabasan/botlar.py` | Sanal botların listesi (12 Ekim 2026'dan beri `sm-vadeli` 8081, `smk-vadeli` 8082, `smd-vadeli` 8083, `smdk-vadeli` 8084, `sniper-vadeli` 8085; 1 kat vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
+| `karabasan/botlar.py` | Sanal botların listesi (12 Ekim 2026'dan beri `sm-vadeli` 8081, `smk-vadeli` 8082, `smd-vadeli` 8083, `smdk-vadeli` 8084, `sniper5-vadeli` 8085; 1 kat vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder; aynı döngüde stop sonrası izleme turunu çalıştırır |
 | `karabasan/stop_sonrasi.py` | Stop sonrası izleme: stop olan işlemi kendi süresi dolana kadar izler, stop 1,5 / 2 / 3 kat geniş olsaydı ne olurdu hesaplar, bot başına karar çıkarır (yetersiz, dar, yerinde, kararsız), karar değişince ders yazar. Mumlar Binance'in herkese açık, anahtarsız fiyat verisinden gelir. Çıktı: `user_data/kayit/stop_sonrasi.json`. **Hiçbir ayarı değiştirmez** |
 | `karabasan/gecmis_olcum.py` | Karabasan puanını geçmiş mumlardan geriye dönük hesaplar (yaklaşık: dominans ve TOTAL2 yerine altcoin vekili); işlemleri açıldıkları andaki durumla etiketler |
@@ -181,7 +181,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 431 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 443 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -503,12 +503,36 @@ SMD'nin sayıları defter onayı olmadan (geçmiş testi onu uygulayamaz).
   pencerede yalnız kapanmış işlemler sayılır; trend takibinde kaybedenler hızlı
   kapanır, kazananlar açık kalır. Sniper'ı 12 aylık test ve canlı sonuç ölçer.
 
+**Sniper değişti: 5 dakikalık kısa vuruş (12 Ekim 2026, Ahmet'in isteği).**
+Ahmet günlük trend takibini "rezalet" buldu: "hedefim 5-15 dk'lık grafiklerde dip
+görmüş, belki düşüşe devam edecek ama orada %1–1,5 kâr varsa onu almak; 90 gün
+unutmam; kısa ve sık vuruş; komisyon dahil %0,6–0,7'lik garantiye yakın işlemlerle
+günde 1000 pozisyon olsa mükemmel; smart money ile CHoCH ve BOS'ları bul, FVG'leri
+bul, RSI, hacim ve momentumla vurgunu yap" dedi. Yapılan:
+- Eski kural `emekli/SNIPERG.json` (canlıda sonuç vermeden çıktı). Çıkış sinyali,
+  `donchian_topluluk`, hedefsiz kural desteği kural motorunda kaldı; testleri
+  `test_cikis_sinyali.py`'de SNIPERG ile.
+- `g.fvg` (kural türü `"fvg"`, `omur` 3–500, `en_az_yuzde` 0–5): boğa boşluğu
+  `low[t] > high[t-2]`; en yeni geçerli boşluğun sınırları; altında kapanış ya da
+  ömür dolunca biter. Geleceğe bakmaz (testli).
+- Yeni `SNIPER.json` (5m, alım): 15 dk RSI < 35 son 36 mumda (dip), 5 dk yapı
+  (uzunluk 3) yukarı CHoCH son 12 mumda ve yön yukarı, boğa FVG son 6 mumda ya da
+  açık boğa FVG'ye geri çekilip üstünde kapanış, MACD histogramı > 0, RSI 50–70,
+  hacim > 1,5 × 20 ortalama son 3 mumda. Çıkış %1,2 / %1,5 / 180 dk, stop sonrası
+  30 dk bekleme. Başa baş %59 (vadeli). Stopu Ahmet söylemedi; %1,5 seçildi ve söylendi.
+- Bot adı `sniper5-vadeli` (eski `sniper-vadeli` kaydı karışmasın), kapı 8085 aynı.
+  `UYUM_SURUMU=13`, `YILLIK_SURUMU=3`.
+- Yapay rastgele veride coin başına günde ~1 işlem, %52 kazanma, işlem başına
+  komisyon kadar kayıp: kendiliğinden kâr yok. 60 paritede günde ~60 işlem beklenir,
+  1000 değil. Ahmet'e açıkça söylendi: "garantiye yakın %0,6–0,7" yok; 12 aylık
+  testte kısa vadeli girişler yazı turadan iyi değildi, sık işlemde komisyon asıl
+  düşmandır (günde 1000 işlem × %0,1 = sermayenin büyük kısmı).
+
 Sıradaki işler, öncelik sırasıyla:
 
-0. On ikinci uyum denemesinde Sniper'ın geçmiş testi geçmeli (günlük veri
-   2024-08'den başlamalı) ve motor ile benzetim işlem sayıları yakın olmalı.
-   12 aylık testin (`YILLIK_SURUMU=2`) SMD / SMDK / Sniper sonucunu Ahmet'e
-   rakamla ve "tek dönem" uyarısıyla söyle.
+0. On üçüncü uyum denemesinde yeni Sniper (`SniperVadeli`, 5m) motorla benzetim
+   arasında işlem işlem tutmalı. 12 aylık testin (`YILLIK_SURUMU=3`) SMD / SMDK /
+   Sniper sonucunu Ahmet'e rakamla ve "tek dönem" uyarısıyla söyle.
 
 1. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
    puanı 5 dakikada bir hesaplayıp kaydetsin (`puan.py` hesap kısmı hazır).
