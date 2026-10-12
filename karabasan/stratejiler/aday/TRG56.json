@@ -1,0 +1,90 @@
+{
+  "kod": "TRG56",
+  "ad": "Günlük trend takibi, 56 günlük kanal (alım) (deneme)",
+  "yon": "alim",
+  "aciklama": "Uzman panelinin (12 Ekim 2026) ortak önerisi; kaynak: zaman serisi momentumu (geç tepki, trendi kovalayan talep). Giriş: son kapanan gün, önceki 56 günün en yüksek kapanışını aşar; günlük kapanış 50 günlük üstel ortalamanın üstünde ve 20 günlük ortalama 50 günlüğün üstünde; son 3 fonlama ödemesinin ortalaması %0,03 ya da altında (kalabalık o yöne yığılmamış). Giriş, gün kapandıktan sonraki ilk 1 saatlik mumun açılışında piyasa emriyle. Çıkış: günlük kapanış önceki 28 günün en düşüğünün altına geçerse (çıkış sinyali); kâr %6'yı geçince stop en iyi fiyatın %3 gerisinden izler; stop %8; en çok 10 gün. Aynı anda en çok 5 pozisyon. Panelin önceden yazılmış kanal uzunluğu denemesi; canlıya 28 günlük gider.",
+  "zaman_dilimi": "1h",
+  "borsa_dilimleri": [
+    "1d"
+  ],
+  "gostergeler": {
+    "kapanis_1g": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "1d"
+    },
+    "kanal_giris": {
+      "tur": "en_yuksek",
+      "kaynak": "kapanis",
+      "periyot": 56,
+      "dilim": "1d",
+      "kaydir": 1
+    },
+    "kanal_cikis": {
+      "tur": "en_dusuk",
+      "kaynak": "kapanis",
+      "periyot": 28,
+      "dilim": "1d",
+      "kaydir": 1
+    },
+    "ema20_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 20,
+      "dilim": "1d"
+    },
+    "ema50_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "1d"
+    },
+    "fonlama3": {
+      "tur": "fonlama",
+      "periyot": 3
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "kapanis_1g",
+        "islem": "yukari_keser",
+        "sag": "kanal_giris"
+      },
+      {
+        "sol": "kapanis_1g",
+        "islem": ">",
+        "sag": "ema50_1g"
+      },
+      {
+        "sol": "ema20_1g",
+        "islem": ">",
+        "sag": "ema50_1g"
+      },
+      {
+        "sol": "fonlama3",
+        "islem": "<=",
+        "sag": 0.03
+      }
+    ]
+  },
+  "cikis": {
+    "zarar_durdur_yuzde": 8.0,
+    "iz_suren_stop": {
+      "tetik_yuzde": 6.0,
+      "mesafe_yuzde": 3.0
+    },
+    "sure_asimi_dakika": 14400,
+    "sinyal": {
+      "sol": "kapanis_1g",
+      "islem": "<",
+      "sag": "kanal_cikis"
+    }
+  },
+  "portfoy": {
+    "en_fazla_pozisyon": 5,
+    "seri_stop_muaf": true,
+    "en_az_kayma_yuzde": 0.1
+  }
+}

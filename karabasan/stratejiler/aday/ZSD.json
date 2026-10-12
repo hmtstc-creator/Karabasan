@@ -1,0 +1,119 @@
+{
+  "kod": "ZSD",
+  "ad": "Zorla satış dönüşü: piyasa genelindeki çöküşte aşırı satılan coini al",
+  "yon": "alim",
+  "aciklama": "Uzman panelinin (12 Ekim 2026) ortak önerisi. Kâr kaynağı: zorla satana (tasfiye, stop zinciri) likidite sağlamanın primi. Şok mumu: BTC'nin son 1 saatlik getirisi -%2 ya da daha kötü, coinin 15 dakikalık kapanışı Bollinger(20; 2,5) alt bandının altında, hacmi son 24 saatin ortanca hacminin en az 4 katı. Onay: bir sonraki mum, şok mumunun tepesinin üstünde kapanır; giriş onu izleyen mumun açılışında piyasa emriyle. Çıkış: 1 saatlik Bollinger orta bandına dönüşte (çıkış sinyali) ya da %2,5 kârda; stop 2 x ATR (1 saat), %2 ile %3,5 arası; en çok 8 saat. Aynı anda en çok 4 pozisyon, saatte en çok 2, 24 saatte en çok 3 giriş.",
+  "zaman_dilimi": "15m",
+  "gostergeler": {
+    "bb": {
+      "tur": "bollinger",
+      "periyot": 20,
+      "sapma": 2.5
+    },
+    "hacim_orta": {
+      "tur": "hacim_ortanca",
+      "periyot": 96
+    },
+    "btc_saat": {
+      "tur": "degisim_yuzde",
+      "kaynak": "kapanis",
+      "periyot": 4,
+      "parite": "BTC"
+    },
+    "bb1s": {
+      "tur": "bollinger",
+      "periyot": 20,
+      "sapma": 2.0,
+      "dilim": "1h"
+    },
+    "gun_dibi": {
+      "tur": "en_dusuk",
+      "kaynak": "dusuk",
+      "periyot": 1,
+      "dilim": "1d"
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": {
+          "ad": "kapanis",
+          "kaydir": 1
+        },
+        "islem": "<",
+        "sag": {
+          "ad": "bb_alt",
+          "kaydir": 1
+        }
+      },
+      {
+        "sol": {
+          "ad": "hacim",
+          "kaydir": 1
+        },
+        "islem": ">=",
+        "sag": {
+          "ad": "hacim_orta",
+          "kaydir": 1,
+          "carpan": 4
+        }
+      },
+      {
+        "sol": {
+          "ad": "btc_saat",
+          "kaydir": 1
+        },
+        "islem": "<=",
+        "sag": -2.0
+      },
+      {
+        "sol": "kapanis",
+        "islem": ">",
+        "sag": {
+          "ad": "yuksek",
+          "kaydir": 1
+        }
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 2.5,
+    "zarar_durdur_yuzde": 3.5,
+    "stop_atr": {
+      "kat": 2,
+      "periyot": 14,
+      "dilim": "1h",
+      "en_az_yuzde": 2.0
+    },
+    "sure_asimi_dakika": 480,
+    "sinyal": {
+      "sol": "kapanis",
+      "islem": ">=",
+      "sag": "bb1s_orta"
+    }
+  },
+  "portfoy": {
+    "en_fazla_pozisyon": 4,
+    "giris_sinirlari": [
+      {
+        "saat": 1,
+        "sayi": 2
+      },
+      {
+        "saat": 24,
+        "sayi": 3
+      }
+    ],
+    "en_az_kayma_yuzde": 0.05
+  },
+  "bilgi": {
+    "onceki_gun_dibi_delindi": {
+      "sol": {
+        "ad": "dusuk",
+        "kaydir": 1
+      },
+      "islem": "<",
+      "sag": "gun_dibi"
+    }
+  }
+}

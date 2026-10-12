@@ -1,0 +1,105 @@
+{
+  "kod": "ZSDP",
+  "ad": "Zorla satış dönüşü, BTC şartı yok (plasebo)",
+  "yon": "alim",
+  "aciklama": "Kural plasebosu: ZSD'nin BTC şartı kaldırılmış hali. Tek coindeki düşüş çoğunlukla haberdir ve sürer; iddia, piyasa genelindeki çöküşün geri döndüğüdür. ZSD bundan işlem başına en az %0,10 iyi değilse 'tasfiye' iddiası çöker. Canlıya gitmez.",
+  "zaman_dilimi": "15m",
+  "gostergeler": {
+    "bb": {
+      "tur": "bollinger",
+      "periyot": 20,
+      "sapma": 2.5
+    },
+    "hacim_orta": {
+      "tur": "hacim_ortanca",
+      "periyot": 96
+    },
+    "bb1s": {
+      "tur": "bollinger",
+      "periyot": 20,
+      "sapma": 2.0,
+      "dilim": "1h"
+    },
+    "gun_dibi": {
+      "tur": "en_dusuk",
+      "kaynak": "dusuk",
+      "periyot": 1,
+      "dilim": "1d"
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": {
+          "ad": "kapanis",
+          "kaydir": 1
+        },
+        "islem": "<",
+        "sag": {
+          "ad": "bb_alt",
+          "kaydir": 1
+        }
+      },
+      {
+        "sol": {
+          "ad": "hacim",
+          "kaydir": 1
+        },
+        "islem": ">=",
+        "sag": {
+          "ad": "hacim_orta",
+          "kaydir": 1,
+          "carpan": 4
+        }
+      },
+      {
+        "sol": "kapanis",
+        "islem": ">",
+        "sag": {
+          "ad": "yuksek",
+          "kaydir": 1
+        }
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 2.5,
+    "zarar_durdur_yuzde": 3.5,
+    "stop_atr": {
+      "kat": 2,
+      "periyot": 14,
+      "dilim": "1h",
+      "en_az_yuzde": 2.0
+    },
+    "sure_asimi_dakika": 480,
+    "sinyal": {
+      "sol": "kapanis",
+      "islem": ">=",
+      "sag": "bb1s_orta"
+    }
+  },
+  "portfoy": {
+    "en_fazla_pozisyon": 4,
+    "giris_sinirlari": [
+      {
+        "saat": 1,
+        "sayi": 2
+      },
+      {
+        "saat": 24,
+        "sayi": 3
+      }
+    ],
+    "en_az_kayma_yuzde": 0.05
+  },
+  "bilgi": {
+    "onceki_gun_dibi_delindi": {
+      "sol": {
+        "ad": "dusuk",
+        "kaydir": 1
+      },
+      "islem": "<",
+      "sag": "gun_dibi"
+    }
+  }
+}

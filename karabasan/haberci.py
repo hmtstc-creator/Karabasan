@@ -348,6 +348,7 @@ YARDIM = """Karabasan komutları
 /olcum  Karabasan geçmiş ölçümü (stratejilerin duruma göre sonucu)
 /yillik  12 aylık geçmiş testi (her bot son bir yılda ne yapardı)
 /tarama  Çıkış taraması: her bot için 20 çıkış ayarının bir yıllık sonucu
+/panel  Panel sınaması: uzman panelinin aday botlarının 4 yıllık sınaması
 /defter  Emir defteri denemesi: BTC tahminleri ve sanal işlemler (özet ve sayfa)
 /dersler  Stop sonrası izleme: stop daha geniş olsaydı ne olurdu
 /kurulum  Kurulum kaydı
@@ -453,6 +454,9 @@ class Servis:
         if ad == "/tarama":
             return self._dosya("tarama.txt", "Çıkış varyasyonu taraması", 2000,
                                "Çıkış taraması henüz çalışmadı.")
+        if ad == "/panel":
+            return self._dosya("panel_sinama.txt", "Panel sınaması", 2000,
+                               "Panel sınaması henüz çalışmadı.")
         if ad == "/dersler":
             return [("mesaj", dersler_metni(self.ozet()))]
         if ad == "/kurulum":

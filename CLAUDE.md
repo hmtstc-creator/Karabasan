@@ -96,12 +96,15 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | Yol | İçerik |
 | --- | --- |
 | `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama), `piyasa_yapisi` (salınımlar, yapı kırılımı BOS / CHoCH, denge, emir blokları), `uyumsuzluk` (10 göstergede normal / gizli boğa ve ayı uyumsuzluğu sayısı; kural türü `"uyumsuzluk"`, sütunlar `<ad>_boga`, `<ad>_ayi`) `donchian_topluluk` (emekli SNIPERG: birkaç uzunlukta Donchian kanal modelinin trendde olan payı, 0–1) ve `fvg` (adil değer boşluğu; kural türü `"fvg"`, sütunlar `<ad>_boga`, `<ad>_boga_ust`, `<ad>_boga_alt` ve ayı karşılıkları) |
-| `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme. Bir gösterge `dilim` ile istediği üst dilimde hesaplanır (`"ust"`, `"15m"`, `"1h"`, `"1d"`). `borsa_dilimleri` içindeki dilimlerin mumları taban mumlardan toplanmaz, `ek_veri` ile dışarıdan verilir (motor, araçlar); boş tablo "veri yok, sinyal de yok" demektir. `giris_limiti` varsa giriş limit emirdir: `giris_limit_yuzde` (ATR × kat, kırpılmış), `limit_fiyati` |
+| `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme. Bir gösterge `dilim` ile istediği üst dilimde hesaplanır (`"ust"`, `"15m"`, `"1h"`, `"1d"`). `borsa_dilimleri` içindeki dilimlerin mumları taban mumlardan toplanmaz, `ek_veri` ile dışarıdan verilir (motor, araçlar); boş tablo "veri yok, sinyal de yok" demektir. `giris_limiti` varsa giriş limit emirdir: `giris_limit_yuzde` (ATR × kat, kırpılmış), `limit_fiyati`. Panel sınaması için (12 Ekim 2026): göstergede `"parite": "BTC"` (başka paritenin mumları, `ek_veri["BTC@15m"]`, `referans_istekleri`), göstergede `kaydir` (kendi diliminde), `hacim_ortanca`, `fonlama` (son N ödemenin ortalaması, yüzde; `ek_veri["fonlama"]`, ödeme ancak gerçekleştikten sonra görülür), çıkışta `stop_atr` (işlem başına stop = kat × ATR, `zarar_durdur_yuzde` tavan; `stop_yuzde` sütunu), `portfoy` (pozisyon / giriş sınırları, seri stop muafiyeti, en az kayma) ve `bilgi` (işlemleri ayırmak için koşullar). Bunları yalnız aday kurallar kullanır |
+| `karabasan/stratejiler/aday/*.json` | Uzman panelinin aday kuralları (canlı değil): ZSD (+ ZSDF, ZSDT denemeleri, ZSDP plasebo), TRG14/28/56 ve TRGK14/28/56. `kural_yukle` koduyla bulur; `tum_kurallar()` okumaz. Dondurulmuştur: eşik değişirse yeni deneme sayılır (`aday/BENIOKU.md`) |
+| `karabasan/sinama.py`, `araclar/panel_sinama.py`, `araclar/panel_sinama.sh` | Panel sınaması: 20 coin (`COINLER`, BTC referans), 4 yıl; ilk 3 yıl geliştirme, son yıl ayrılmış (`AYRILMIS_ACIK = False`; açmak bir karar ve ayrı bir işlem). Aday işlemler (`benzetim.aday_islemler`) → portföy geçişi (risk 1 USDT / stop, en çok 100 USDT; bot başına pozisyon ve giriş sınırları; günlük fren %2; coin ve seri stop kilidi; isteğe bağlı ortak portföy). Maliyet: komisyon + kayma (sinyal mumu aralığının %10'u, en az kuralınki) + fonlama; ayrıca maliyet iki katı. Ölçümler: gün bazında t, yıllar, en iyi 3 gün payı, BTC ilişkisi; rastgele giriş plasebosu ve kural plasebosu; önceden yazılmış karar (`karar`). Veri `panel_sinama.sh` indirir (15m / 1h 1500 gün, 1d 1700 gün, fonlama). `kur.sh`'ta tarama sonrası, `PANEL_SURUMU`. Çıktı `user_data/logs/panel_sinama.txt` (Telegram `/panel`). Hiçbir ayarı değiştirmez |
+| `karabasan/fonlama.py` | Fonlama oranı geçmişi: Binance'in herkese açık `fapi/v1/fundingRate` adresinden indirir (yalnız standart kütüphane, kaldığı yerden sürer; `user_data/data/fonlama/<COIN>.csv`), `oku` pandas tablosu verir (`date`, `oran_yuzde`) |
 | `karabasan/stratejiler/*.json` | 12 Ekim 2026'dan beri beş strateji: SM, SMD ve SNIPER (alım), SMK ve SMDK (açığa satış). Çıkarılan kurallar (S1–S7 ve ters yönlüleri, Sniper'ın ilk hali SNIPERG) `stratejiler/emekli/` altında durur; `tum_kurallar()` orayı okumaz ama `kural_yukle("S1")` koduyla bulur (eski raporlar ve testler için). Hangi botun çalıştığını yalnız `botlar.BOTLAR` belirler. Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
 | `karabasan/puan.py` | Karabasan puanı, durum makinesi, vetolar |
 | `karabasan/filtre.py` | Filtre (Elek): dört katman, elenme nedenleri |
 | `karabasan/karne.py` | İşlem ölçümleri ve 30. günün yedi karar ölçütü |
-| `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim (limitli girişte emrin dolduğu mumda hedef sayılmaz; iz süren stop bir mumun tepesiyle ancak sonraki mumdan itibaren taşınır). `hazir_tablo` ile sinyaller bir kez hesaplanıp farklı çıkışlarla denenir |
+| `karabasan/benzetim.py` | Bağımsız, kötümser mum bazlı benzetim (limitli girişte emrin dolduğu mumda hedef sayılmaz; iz süren stop bir mumun tepesiyle ancak sonraki mumdan itibaren taşınır). `hazir_tablo` ile sinyaller bir kez hesaplanıp farklı çıkışlarla denenir. Tek işlemi `_Yurutucu.yurut` yürütür; `aday_islemler` her sinyal için bağımsız işlem üretir (`sinyal_i`, `sonraki_i`; portföy kısıtı yokken `benzet` ile birebir aynı, testli), mum başına kayma ve işlem başına stop (`stop_yuzde`) alır |
 | `karabasan/tarama.py`, `araclar/tarama.py`, `araclar/tarama.sh` | Çıkış varyasyonu taraması: her botun girişleriyle 20 çıkış ayarı (`VARYASYONLAR`; V01 canlı ayar), son 365 gün, ilk 9 ay seçim / son 3 ay doğrulama. Veriyi 12 aylık test indirir; `kur.sh`'ta ondan hemen sonra, `TARAMA_SURUMU`. Çıktı `user_data/logs/tarama.txt` (Telegram `/tarama`). Hiçbir ayarı değiştirmez |
 | `karabasan/botlar.py` | Sanal botların listesi (12 Ekim 2026'dan beri `sm-vadeli` 8081, `smk-vadeli` 8082, `smd-vadeli` 8083, `smdk-vadeli` 8084, `sniper5-vadeli` 8085; 1 kat vadeli), komisyon başlangıç değerleri. Uyum denemesi ve analiz bot listesini ve indirilecek ek dilimleri (`ek_dilimler`) buradan okur. Yeni bot listenin sonuna eklenir ki öncekilerin kapısı ve açılış sırası değişmesin |
 | `karabasan/kayitci.py` | BTC dominansı ve TOTAL2'yi 10 dakikada bir kaydeder; aynı döngüde stop sonrası izleme turunu çalıştırır |
@@ -182,7 +185,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 493 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 533 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -672,7 +675,7 @@ sayıları iki tarafta aynı ya da bir eksik.
   %0,2'den çok) benzetimi motora yaklaştırmak düşünülür, çünkü 12 aylık test ve tarama
   benzetimle yapılıyor.
 
-**Uzman paneli: dört bot önerisi (12 Ekim 2026, Ahmet'in isteği; KARAR BEKLİYOR, kod yok).**
+**Uzman paneli: dört bot önerisi (12 Ekim 2026, Ahmet'in isteği; Ahmet "başla, sen karar ver" dedi).**
 Ahmet "botların mantığı çok kötü; 5 farklı okuldan muhalif uzmanlar tartışsın, ortak bir
 strateji çıksın, 4 bot öner" dedi. Beş yapay zekâ ajanı rol yaptı (gerçek kişi değil; Ahmet'e
 söylendi): SMC, kantitatif, trend (CTA), mikro yapı / türev, risk. Üç tur: açılış, çürütme,
@@ -705,11 +708,29 @@ taker komisyonuyla kurtarılamaz ("küçük" = işlem başına küçük risk, "s
 - Şimdiki botlar: yeni botlar sunucuya çıkınca dördü durur, biri kontrol kalır (SM 3 oy, SMD 2).
 - Gereken altyapı: BTC referans sütunu (informative pair), fonlama verisi (motor ve benzetim),
   `custom_stake_amount`, ATR'ye bağlı stop, protections ve benzetimdeki karşılığı, portföy
-  freni, 4 yıllık veri indirme, seans aralığı göstergesi. Ahmet onaylamadan başlanmadı.
+  freni, 4 yıllık veri indirme, seans aralığı göstergesi.
+- Karşılaştırma botu: SM (karar Claude'un, Ahmet "sen karar ver" dedi; panelde 3 / 2 oy).
+- **1. aşama yapıldı (12 Ekim 2026): panel sınaması** (Yapı tablosunda `sinama.py`, `fonlama.py`,
+  `aday/`). Kural motoruna referans parite, gösterge kaydırma, ortanca hacim, fonlama, ATR stopu,
+  portföy ve bilgi alanları eklendi; benzetim `_Yurutucu` / `aday_islemler` olarak bölündü
+  (eski sonuçlar birebir aynı, 493 eski test değişmeden geçti). Canlı botlara, ayarlara
+  dokunulmadı (kural.py değiştiği için botlar bir kez yeniden başlar). Deneme sayısı: ZSD 3, TRG 3,
+  TRGK 3 (+ plasebolar). Panelin eşiklerinden seçilenler (bölünenlerde orta değer): ZSD stop
+  tavanı %3,5, BTC şoku −%2 / 1 saat, 24 saatte en çok 3 giriş; TRG kanal çıkışı giriş
+  kanalının yarısı (14→7, 28→14, 56→28); "en iyi 3 gün" ölçütü trend botlarına uygulanmaz.
+  ASYA AVI ve fonlama sayımı sonraki aşama (`zaman_araligi` göstergesi, iğne altına stop, 1,5R hedef).
+  Yalnız yapay veride sınandı; gerçek veri ve indirme sunucuda ilk kez (`PANEL_SURUMU=1`).
 
 Sıradaki işler, öncelik sırasıyla:
 
-0. On yedinci uyum denemesi: eşleşen işlemlerde motor / benzetim net farkı ve iz süren
+0. Panel sınaması raporu (`/panel`, `PANEL_SURUMU=1`): eksik veri satırına bak (özellikle
+   "fonlama": fonlama yoksa TRG / TRGK hiç işlem açmaz), sonra kararları Ahmet'e açıkla. Geçen
+   aile olursa ayrılmış yıl bütün adaylar için birlikte bir kez açılır (`AYRILMIS_ACIK`), ancak
+   ASYA AVI da sınandıktan sonra. Sonra 2. aşama: ASYA AVI (tek deneme, iki plasebo) ve fonlama
+   sayımı; 3. aşama: geçen adaylar için bağlantı katmanı (BTC informative pair, canlı fonlama,
+   `custom_stake_amount`, `custom_stoploss`, protections, kayıtçının ortak fren dosyası) ve
+   yeni sanal botlar; o zaman SMK, SMD, SMDK, Sniper durur, SM karşılaştırma için kalır.
+   On yedinci uyum denemesi: eşleşen işlemlerde motor / benzetim net farkı ve iz süren
    stopta benzetimin geç / erken kapattığı sayı (yukarıda). On altıncı geçti ve özetlendi.
    Ayar değişikliği yalnız Ahmet isterse. Ahmet Sniper'daki limitli girişi izlemek istedi
    (geri alınmadı).
@@ -786,6 +807,12 @@ Bunlar belgeye göre yazıldı, çalıştırılarak doğrulanmadı:
   sonuç dosyasıyla denendi. Dışa yazma kalırsa geçmiş testi adımı kalır; botlar yine
   çalışmaya devam eder.
 - `.claude/settings.json` içindeki izin kurallarının yazımı.
+- Panel sınaması (`araclar/panel_sinama.sh`): 21 vadeli paritenin (BTC + `sinama.COINLER`) 15m / 1h
+  için 1500, 1d için 1700 günlük verisinin `--prepend` (olmazsa `--erase`) ile inmesi, süresi ve
+  diskte kapladığı yer; listedeki coinlerin hepsinin bugün Binance vadelide işlem görmesi; sunucudan
+  `fapi.binance.com/fapi/v1/fundingRate`'e ulaşılması ve yanıt biçimi (`fundingTime`, `fundingRate`).
+  Yalnız sahte `docker` ve kapalı ağla prova edildi (fonlama indirmesi burada 403 ile kaldı, betik
+  sürdü ve raporu uyarıyla üretti).
 - Stop sonrası izlemenin sunucudan Binance'in açık mum adreslerine (`api.binance.com/api/v3/klines`,
   `fapi.binance.com/fapi/v1/klines`) ulaşabilmesi ve yanıt biçimi; `kayitci` kapsayıcısının botların
   `db/*.sqlite` dosyalarını okuyup `kayit/stop_sonrasi.json` yazabilmesi. Yalnız sahte bir Binance

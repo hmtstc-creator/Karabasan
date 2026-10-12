@@ -15,10 +15,178 @@ Varsayımlar bilerek kötümserdir:
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from . import gostergeler as g
 from .kural import limit_fiyati, sinyal_uret
+
+
+class _Yurutucu:
+    """Bir sinyal mumundan başlayan tek bir işlemi yürütür (benzet ve aday_islemler ortak kullanır)."""
+
+    def __init__(self, tablo: pd.DataFrame, kural: dict, komisyon_yuzde: float,
+                 kayma_yuzde: float, kayma_dizi=None):
+        self.kural = kural
+        self.alim = kural["yon"] == "alim"
+        cikis = kural["cikis"]
+        self.komisyon = komisyon_yuzde
+        self.hedef = float(cikis["kar_hedefi_yuzde"]) / 100.0 if cikis.get("kar_hedefi_yuzde") is not None else None
+        self.stop = float(cikis["zarar_durdur_yuzde"]) / 100.0
+        # ATR'ye bağlı stop: işlem başına stop, sinyal mumunda hesaplanmış 'stop_yuzde' sütunundan.
+        self.stop_dizi = (tablo["stop_yuzde"].to_numpy(dtype=float) / 100.0
+                          if cikis.get("stop_atr") and "stop_yuzde" in tablo else None)
+        self.sure = (pd.Timedelta(minutes=int(cikis["sure_asimi_dakika"]))
+                     if cikis.get("sure_asimi_dakika") is not None else None)
+        iz = cikis.get("iz_suren_stop")
+        self.iz = iz
+        # İz süren stop: kâr (komisyon düşülmüş) tetiğe ulaşınca, en iyi fiyatın mesafe kadar gerisi.
+        self.iz_tetik = float(iz["tetik_yuzde"]) if iz else None
+        self.iz_mesafe = float(iz["mesafe_yuzde"]) / 100.0 if iz else None
+        self.mum = pd.Timedelta(minutes=g.dilim_dakika(kural["zaman_dilimi"]))
+        # Kayma: sabit (kayma_yuzde) ya da mum başına (kayma_dizi, yüzde; panel sınaması).
+        n = len(tablo)
+        self.kayma = (np.asarray(kayma_dizi, dtype=float) / 100.0 if kayma_dizi is not None
+                      else np.full(n, kayma_yuzde / 100.0))
+        self.tarih = list(pd.to_datetime(tablo["date"], utc=True))
+        self.acilis = tablo["open"].to_numpy(dtype=float)
+        self.yuksek = tablo["high"].to_numpy(dtype=float)
+        self.dusuk = tablo["low"].to_numpy(dtype=float)
+        self.kapanis = tablo["close"].to_numpy(dtype=float)
+        self.sinyal = tablo["sinyal"].to_numpy(dtype=bool)
+        self.cikis_sinyal = tablo["cikis_sinyal"].to_numpy(dtype=bool)
+        self.limit_uzaklik = tablo["giris_limit_yuzde"].to_numpy(dtype=float)
+        self.limit = kural.get("giris_limiti")
+        # Limit emir kaç mum bekler: konduğu mum dahil, süre dolana kadar.
+        self.limit_mum = (int(self.limit["sure_dakika"]) // g.dilim_dakika(kural["zaman_dilimi"])
+                          if self.limit else 0)
+        self.n = n
+
+    def _kaymali(self, fiyat: float, k: int, giris: bool) -> float:
+        """Piyasa emrinin aleyhe kaymış fiyatı (alımda girişte yukarı, çıkışta aşağı)."""
+        kayma = self.kayma[k]
+        yukari = self.alim == giris
+        return fiyat * (1 + kayma if yukari else 1 - kayma)
+
+    def yurut(self, i: int):
+        """i. mumun sinyaliyle açılan işlemi sonuna kadar yürütür.
+
+        Dönen: işlem sözlüğü ('_j' çıkış mumu, '_sonraki_i' bir sonraki sinyalin bakılacağı mum);
+        limit emir dolmadıysa {"dolmadi": son mum}; veri işlem kapanmadan bittiyse None.
+        """
+        alim, n = self.alim, self.n
+        acilis, yuksek, dusuk, kapanis, tarih = self.acilis, self.yuksek, self.dusuk, self.kapanis, self.tarih
+        if self.limit:
+            # Sinyal mumunun ardından gelen mumun açılışında, fiyatın biraz altına (açığa
+            # satışta üstüne) limit emir konur; fiyat oraya inerse o fiyattan dolar (kayma
+            # yok). Süresinde dolmazsa iptal edilir; son beklenen mumun sinyali yeni emir açabilir.
+            giris = limit_fiyati(acilis[i + 1], self.limit_uzaklik[i], alim)
+            son = min(i + self.limit_mum, n - 1)
+            giris_i = next((k for k in range(i + 1, son + 1)
+                            if (dusuk[k] <= giris if alim else yuksek[k] >= giris)), None)
+            if giris_i is None:
+                return {"dolmadi": son}
+        else:
+            giris_i = i + 1
+            # Girişteki kayma sinyal mumunun hareketinden ölçülür (emir o mumun kapanışında verilir).
+            giris = self._kaymali(acilis[giris_i], i, giris=True)
+        # İşlemin açılış anı emrin konduğu andır (hazır motor da böyle kaydeder; 14. uyum
+        # denemesinde motor açılışı limit emirde dolduğu mumdan 5-10 dk önce yazdı). Süre
+        # aşımı da oradan sayılır; çıkışlara ise emrin dolduğu mumdan itibaren bakılır.
+        giris_zamani = tarih[i + 1]
+        stop = float(self.stop_dizi[i]) if self.stop_dizi is not None else self.stop
+        stop_fiyat = giris * (1 - stop) if alim else giris * (1 + stop)
+        hedef_fiyat = None
+        if self.hedef is not None:
+            hedef_fiyat = giris * (1 + self.hedef) if alim else giris * (1 - self.hedef)
+        en_iyi = giris          # işlem açıkken görülen en iyi fiyat (alımda en yüksek)
+
+        neden = None
+        cikis_fiyat = None
+        j = giris_i
+        while j < n:
+            # Çıkış sinyali önceki mumun kapanışında oluştuysa işlem bu mumun açılışında kapanır.
+            if j > giris_i and self.cikis_sinyal[j - 1]:
+                neden = "cikis_sinyali"
+                cikis_fiyat = self._kaymali(acilis[j], j - 1, giris=False)
+                break
+            # Etkin stop: sabit stop ya da (devredeyse) iz süren stop, hangisi daha yakınsa.
+            # Önceki mumlardaki en iyi fiyattan hesaplanır; bu mumun tepesi stopu ancak
+            # bir sonraki mumdan itibaren taşır (mum içinde sıra bilinmez: kötümser).
+            etkin, iz_devrede = stop_fiyat, False
+            if self.iz:
+                kar = ((en_iyi / giris - 1.0) if alim else (1.0 - en_iyi / giris)) * 100.0 - 2.0 * self.komisyon
+                if kar >= self.iz_tetik:
+                    seviye = en_iyi * (1 - self.iz_mesafe) if alim else en_iyi * (1 + self.iz_mesafe)
+                    if (seviye > etkin) if alim else (seviye < etkin):
+                        etkin, iz_devrede = seviye, True
+            if alim:
+                stop_oldu = dusuk[j] <= etkin
+                hedef_oldu = hedef_fiyat is not None and yuksek[j] >= hedef_fiyat
+            else:
+                stop_oldu = yuksek[j] >= etkin
+                hedef_oldu = hedef_fiyat is not None and dusuk[j] <= hedef_fiyat
+            if stop_oldu:
+                if iz_devrede:
+                    # Mum stopun ötesinde açıldıysa açılıştan kapanır.
+                    neden = "iz_suren_stop"
+                    cikis_fiyat = min(acilis[j], etkin) if alim else max(acilis[j], etkin)
+                else:
+                    neden = "zarar_durdur"
+                    cikis_fiyat = etkin
+                cikis_fiyat = self._kaymali(cikis_fiyat, j, giris=False)
+                break
+            # Limit emrin dolduğu mumda tepe, fiyat limite inmeden önce görülmüş olabilir:
+            # kötümser olmak için o mumda hedef sayılmaz, en iyi fiyat da güncellenmez.
+            ilk_limit_mumu = bool(self.limit) and j == giris_i
+            if ilk_limit_mumu:
+                hedef_oldu = False
+            if hedef_oldu:
+                neden = "kar_hedefi"
+                cikis_fiyat = hedef_fiyat
+                break
+            if not ilk_limit_mumu:
+                en_iyi = max(en_iyi, yuksek[j]) if alim else min(en_iyi, dusuk[j])
+            if self.sure is not None and tarih[j] + self.mum - giris_zamani >= self.sure:
+                neden = "sure_asimi"
+                cikis_fiyat = self._kaymali(kapanis[j], j, giris=False)
+                break
+            j += 1
+
+        if neden is None:
+            # Veri bitti, işlem açık kaldı: sonuca katılmaz.
+            return None
+
+        if alim:
+            brut = (cikis_fiyat / giris - 1.0) * 100.0
+        else:
+            brut = (giris - cikis_fiyat) / giris * 100.0
+        cikis_zamani = tarih[j] if neden == "cikis_sinyali" else tarih[j] + self.mum
+        return {
+            "kod": self.kural["kod"],
+            "yon": self.kural["yon"],
+            "giris_zamani": giris_zamani,
+            "cikis_zamani": cikis_zamani,
+            "giris_fiyati": float(giris),
+            "cikis_fiyati": float(cikis_fiyat),
+            "neden": neden,
+            "brut_yuzde": float(brut),
+            "net_yuzde": float(brut - 2.0 * self.komisyon),
+            "sure_dakika": float((cikis_zamani - giris_zamani) / pd.Timedelta(minutes=1)),
+            "stop_yuzde": float(stop * 100.0),
+            # Aynı paritede aynı anda tek işlem. Hedef ve stop mumun içinde gerçekleşir;
+            # o mumun kapanışındaki sinyal bir sonraki mumda yeni işlem açabilir (hazır motor
+            # da böyle yapar: önce girişe, sonra çıkışa bakar). Süre aşımı mumun kapanışında
+            # olur; motor onu bir sonraki mumun açılışında kapatır, o mumda yeni giriş olmaz.
+            # 12 Ekim 2026'ya kadar burada hep j + 1 vardı: art arda sinyal veren S2'de motor
+            # benzetimden 26 işlem fazla saydı (uyum denemesi 7, işlem işlem eşleştirme).
+            "_j": j,
+            "_sonraki_i": j + 1 if neden == "sure_asimi" else j,
+        }
+
+
+def _disari(islem: dict) -> dict:
+    return {k: v for k, v in islem.items() if not k.startswith("_")}
 
 
 def benzet(
@@ -43,147 +211,48 @@ def benzet(
     Kâr hedefi ve süre sınırı isteğe bağlıdır.
     """
     tablo = hazir_tablo if hazir_tablo is not None else sinyal_uret(df, kural, ek_veri)
-    alim = kural["yon"] == "alim"
-    cikis = kural["cikis"]
-    hedef = float(cikis["kar_hedefi_yuzde"]) / 100.0 if cikis.get("kar_hedefi_yuzde") is not None else None
-    stop = float(cikis["zarar_durdur_yuzde"]) / 100.0
-    sure = (pd.Timedelta(minutes=int(cikis["sure_asimi_dakika"]))
-            if cikis.get("sure_asimi_dakika") is not None else None)
-    iz = cikis.get("iz_suren_stop")
-    # İz süren stop: kâr (komisyon düşülmüş) tetiğe ulaşınca, en iyi fiyatın mesafe kadar gerisi.
-    iz_tetik = float(iz["tetik_yuzde"]) if iz else None
-    iz_mesafe = float(iz["mesafe_yuzde"]) / 100.0 if iz else None
+    y = _Yurutucu(tablo, kural, komisyon_yuzde, kayma_yuzde)
     bekleme = pd.Timedelta(minutes=int(kural.get("bekleme_dakika", 0)))
-    mum = pd.Timedelta(minutes=g.dilim_dakika(kural["zaman_dilimi"]))
-    kayma = kayma_yuzde / 100.0
-
-    tarih = list(pd.to_datetime(tablo["date"], utc=True))
-    acilis = tablo["open"].to_numpy(dtype=float)
-    yuksek = tablo["high"].to_numpy(dtype=float)
-    dusuk = tablo["low"].to_numpy(dtype=float)
-    kapanis = tablo["close"].to_numpy(dtype=float)
-    sinyal = tablo["sinyal"].to_numpy(dtype=bool)
-    cikis_sinyal = tablo["cikis_sinyal"].to_numpy(dtype=bool)
-    limit_uzaklik = tablo["giris_limit_yuzde"].to_numpy(dtype=float)
-    limit = kural.get("giris_limiti")
-    # Limit emir kaç mum bekler: konduğu mum dahil, süre dolana kadar.
-    limit_mum = int(limit["sure_dakika"]) // g.dilim_dakika(kural["zaman_dilimi"]) if limit else 0
 
     islemler: list[dict] = []
     kilit_bitis = None  # stop sonrası bekleme
     i = 0
-    n = len(tablo)
-    while i < n - 1:
-        if not sinyal[i] or (kilit_bitis is not None and tarih[i + 1] < kilit_bitis):
+    while i < y.n - 1:
+        if not y.sinyal[i] or (kilit_bitis is not None and y.tarih[i + 1] < kilit_bitis):
             i += 1
             continue
-
-        if limit:
-            # Sinyal mumunun ardından gelen mumun açılışında, fiyatın biraz altına (açığa
-            # satışta üstüne) limit emir konur; fiyat oraya inerse o fiyattan dolar (kayma
-            # yok). Süresinde dolmazsa iptal edilir; son beklenen mumun sinyali yeni emir açabilir.
-            giris = limit_fiyati(acilis[i + 1], limit_uzaklik[i], alim)
-            son = min(i + limit_mum, n - 1)
-            giris_i = next((k for k in range(i + 1, son + 1)
-                            if (dusuk[k] <= giris if alim else yuksek[k] >= giris)), None)
-            if giris_i is None:
-                i = max(son, i + 1)
-                continue
-        else:
-            giris_i = i + 1
-            giris = acilis[giris_i] * (1 + kayma if alim else 1 - kayma)
-        # İşlemin açılış anı emrin konduğu andır (hazır motor da böyle kaydeder; 14. uyum
-        # denemesinde motor açılışı limit emirde dolduğu mumdan 5-10 dk önce yazdı). Süre
-        # aşımı da oradan sayılır; çıkışlara ise emrin dolduğu mumdan itibaren bakılır.
-        giris_zamani = tarih[i + 1]
-        stop_fiyat = giris * (1 - stop) if alim else giris * (1 + stop)
-        hedef_fiyat = None
-        if hedef is not None:
-            hedef_fiyat = giris * (1 + hedef) if alim else giris * (1 - hedef)
-        en_iyi = giris          # işlem açıkken görülen en iyi fiyat (alımda en yüksek)
-
-        neden = None
-        cikis_fiyat = None
-        j = giris_i
-        while j < n:
-            # Çıkış sinyali önceki mumun kapanışında oluştuysa işlem bu mumun açılışında kapanır.
-            if j > giris_i and cikis_sinyal[j - 1]:
-                neden = "cikis_sinyali"
-                cikis_fiyat = acilis[j] * (1 - kayma if alim else 1 + kayma)
-                break
-            # Etkin stop: sabit stop ya da (devredeyse) iz süren stop, hangisi daha yakınsa.
-            # Önceki mumlardaki en iyi fiyattan hesaplanır; bu mumun tepesi stopu ancak
-            # bir sonraki mumdan itibaren taşır (mum içinde sıra bilinmez: kötümser).
-            etkin, iz_devrede = stop_fiyat, False
-            if iz:
-                kar = ((en_iyi / giris - 1.0) if alim else (1.0 - en_iyi / giris)) * 100.0 - 2.0 * komisyon_yuzde
-                if kar >= iz_tetik:
-                    seviye = en_iyi * (1 - iz_mesafe) if alim else en_iyi * (1 + iz_mesafe)
-                    if (seviye > etkin) if alim else (seviye < etkin):
-                        etkin, iz_devrede = seviye, True
-            if alim:
-                stop_oldu = dusuk[j] <= etkin
-                hedef_oldu = hedef_fiyat is not None and yuksek[j] >= hedef_fiyat
-            else:
-                stop_oldu = yuksek[j] >= etkin
-                hedef_oldu = hedef_fiyat is not None and dusuk[j] <= hedef_fiyat
-            if stop_oldu:
-                if iz_devrede:
-                    # Mum stopun ötesinde açıldıysa açılıştan kapanır.
-                    neden = "iz_suren_stop"
-                    cikis_fiyat = min(acilis[j], etkin) if alim else max(acilis[j], etkin)
-                else:
-                    neden = "zarar_durdur"
-                    cikis_fiyat = etkin
-                cikis_fiyat *= (1 - kayma if alim else 1 + kayma)
-                break
-            # Limit emrin dolduğu mumda tepe, fiyat limite inmeden önce görülmüş olabilir:
-            # kötümser olmak için o mumda hedef sayılmaz, en iyi fiyat da güncellenmez.
-            ilk_limit_mumu = bool(limit) and j == giris_i
-            if ilk_limit_mumu:
-                hedef_oldu = False
-            if hedef_oldu:
-                neden = "kar_hedefi"
-                cikis_fiyat = hedef_fiyat
-                break
-            if not ilk_limit_mumu:
-                en_iyi = max(en_iyi, yuksek[j]) if alim else min(en_iyi, dusuk[j])
-            if sure is not None and tarih[j] + mum - giris_zamani >= sure:
-                neden = "sure_asimi"
-                cikis_fiyat = kapanis[j] * (1 - kayma if alim else 1 + kayma)
-                break
-            j += 1
-
-        if neden is None:
-            # Veri bitti, işlem açık kaldı: sonuca katılmaz.
+        sonuc = y.yurut(i)
+        if sonuc is None:
             break
-
-        if alim:
-            brut = (cikis_fiyat / giris - 1.0) * 100.0
-        else:
-            brut = (giris - cikis_fiyat) / giris * 100.0
-        cikis_zamani = tarih[j] if neden == "cikis_sinyali" else tarih[j] + mum
-        islemler.append(
-            {
-                "kod": kural["kod"],
-                "yon": kural["yon"],
-                "giris_zamani": giris_zamani,
-                "cikis_zamani": cikis_zamani,
-                "giris_fiyati": float(giris),
-                "cikis_fiyati": float(cikis_fiyat),
-                "neden": neden,
-                "brut_yuzde": float(brut),
-                "net_yuzde": float(brut - 2.0 * komisyon_yuzde),
-                "sure_dakika": float((cikis_zamani - giris_zamani) / pd.Timedelta(minutes=1)),
-            }
-        )
-        if neden == "zarar_durdur" and bekleme > pd.Timedelta(0):
-            kilit_bitis = cikis_zamani + bekleme
-        # Aynı paritede aynı anda tek işlem. Hedef ve stop mumun içinde gerçekleşir;
-        # o mumun kapanışındaki sinyal bir sonraki mumda yeni işlem açabilir (hazır motor
-        # da böyle yapar: önce girişe, sonra çıkışa bakar). Süre aşımı mumun kapanışında
-        # olur; motor onu bir sonraki mumun açılışında kapatır, o mumda yeni giriş olmaz.
-        # 12 Ekim 2026'ya kadar burada hep j + 1 vardı: art arda sinyal veren S2'de motor
-        # benzetimden 26 işlem fazla saydı (uyum denemesi 7, işlem işlem eşleştirme).
-        i = j + 1 if neden == "sure_asimi" else j
+        if "dolmadi" in sonuc:
+            i = max(sonuc["dolmadi"], i + 1)
+            continue
+        islemler.append(_disari(sonuc))
+        if sonuc["neden"] == "zarar_durdur" and bekleme > pd.Timedelta(0):
+            kilit_bitis = sonuc["cikis_zamani"] + bekleme
+        i = sonuc["_sonraki_i"]
     return islemler
+
+
+def aday_islemler(tablo: pd.DataFrame, kural: dict, komisyon_yuzde: float, kayma_dizi=None) -> list[dict]:
+    """Her giriş sinyali için, öbür işlemlerden bağımsız olarak açılacak işlem (panel sınaması).
+
+    Aynı paritede üst üste binen adaylar da döner; hangisinin gerçekten açılacağına
+    portföy geçişi karar verir (karabasan.sinama). Bunun için her aday kendi sinyal
+    mumunu ('sinyal_i') ve kapandıktan sonra yeni sinyale bakılabilecek ilk mumu
+    ('sonraki_i') taşır: portföy kısıtı hiç devreye girmezse sonuç benzet ile aynıdır.
+    Limitli giriş desteklenmez (panel kararı: piyasa emri).
+    """
+    if kural.get("giris_limiti"):
+        raise ValueError("aday_islemler limitli girişi desteklemez.")
+    y = _Yurutucu(tablo, kural, komisyon_yuzde, 0.0, kayma_dizi)
+    adaylar = []
+    for i in np.flatnonzero(y.sinyal[: y.n - 1]):
+        sonuc = y.yurut(int(i))
+        if sonuc is None:
+            continue
+        aday = _disari(sonuc)
+        aday["sinyal_i"] = int(i)
+        aday["sonraki_i"] = int(sonuc["_sonraki_i"])
+        adaylar.append(aday)
+    return adaylar

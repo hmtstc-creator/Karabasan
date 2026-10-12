@@ -387,6 +387,26 @@ print(' '.join(b[0] for b in BOTLAR))")"
         echo "Çıkış taraması bu sürümde zaten çalıştı, atlandı."
     fi
 
+    # ------------------------------------------------------------ panel sınaması
+    adim "Ek: panel sınaması"
+    # Uzman panelinin (12 Ekim 2026) aday botları 4 yıllık veride, önceden yazılmış kurallarla
+    # sınanır; son yıl ayrılmıştır, kullanılmaz. İlk seferde 4 yıllık veri iner (uzun sürebilir).
+    # Hiçbir ayarı değiştirmez; başarısız olursa botlar ve kurulum etkilenmez.
+    local PANEL_SURUMU=1
+    if [ "$(cat user_data/logs/panel_surumu 2> /dev/null)" != "surum-$PANEL_SURUMU" ]; then
+        bildir "Panel sınaması başladı: uzman panelinin önerdiği aday botlar (zorla satış dönüşü, günlük trend alım ve açığa satış) 20 coinin 4 yıllık verisinde sınanıyor. Önce 4 yıllık veri iniyor; 30-90 dakika sürebilir, bitince raporu yollarım. Botlar bu sırada çalışmaya devam eder."
+        if bash araclar/panel_sinama.sh; then
+            belge "$KLASOR/user_data/logs/panel_sinama.txt" "Panel sınaması. Bu dosyayı Claude'a ilet. Sonra da /panel yazarak yeniden alabilirsin."
+        else
+            belge "$KLASOR/user_data/logs/panel_sinama.txt" "Panel sınaması tamamlanamadı. Bu dosyayı Claude'a ilet."
+        fi
+        arsivle user_data/logs/panel_sinama.txt "panel_sinama_surum${PANEL_SURUMU}.txt"
+        echo "surum-$PANEL_SURUMU" > user_data/logs/panel_surumu
+        chown -R 1000:1000 user_data
+    else
+        echo "Panel sınaması bu sürümde zaten çalıştı, atlandı."
+    fi
+
     rm -f "$DURUM_KLASORU/son_deneme"
     if [ "$ILK" -eq 1 ]; then
         date -u '+%Y-%m-%dT%H:%M:%SZ' > user_data/kurulum_tamam

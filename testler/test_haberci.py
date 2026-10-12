@@ -278,6 +278,15 @@ class ServisTesti(Taban):
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/tarama"))
         self.assertIn("ÖZET".encode("utf-8"), self.sahte.belgeler()[-1])
 
+    def test_panel_komutu(self):
+        self._sahip_ol()
+        self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/panel"))
+        self.assertIn("henüz çalışmadı", self.sahte.gonderilenler()[0])
+        (self.klasor / "logs").mkdir(exist_ok=True)
+        (self.klasor / "logs" / "panel_sinama.txt").write_text("PANEL SINAMASI\nÖZET\n")
+        self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/panel"))
+        self.assertIn("ÖZET".encode("utf-8"), self.sahte.belgeler()[-1])
+
     def test_defter_komutu(self):
         self._sahip_ol()
         self.servis.guncelleme_isle(ozel_mesaj(1, 42, "/defter"))

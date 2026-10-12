@@ -1,0 +1,139 @@
+{
+  "kod": "ZSDT",
+  "ad": "Zorla satış dönüşü + günlük trend şartı (deneme)",
+  "yon": "alim",
+  "aciklama": "ZSD'nin aynısı; ek şart: coinin son kapanan günü 50 günlük üstel ortalamasının üstünde (düşüş trendindeki coinde çöküş alınmaz). Panelin önceden yazılmış üçüncü denemesi.",
+  "zaman_dilimi": "15m",
+  "gostergeler": {
+    "bb": {
+      "tur": "bollinger",
+      "periyot": 20,
+      "sapma": 2.5
+    },
+    "hacim_orta": {
+      "tur": "hacim_ortanca",
+      "periyot": 96
+    },
+    "btc_saat": {
+      "tur": "degisim_yuzde",
+      "kaynak": "kapanis",
+      "periyot": 4,
+      "parite": "BTC"
+    },
+    "bb1s": {
+      "tur": "bollinger",
+      "periyot": 20,
+      "sapma": 2.0,
+      "dilim": "1h"
+    },
+    "gun_dibi": {
+      "tur": "en_dusuk",
+      "kaynak": "dusuk",
+      "periyot": 1,
+      "dilim": "1d"
+    },
+    "kapanis_1g": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "1d"
+    },
+    "ema50_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "1d"
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": {
+          "ad": "kapanis",
+          "kaydir": 1
+        },
+        "islem": "<",
+        "sag": {
+          "ad": "bb_alt",
+          "kaydir": 1
+        }
+      },
+      {
+        "sol": {
+          "ad": "hacim",
+          "kaydir": 1
+        },
+        "islem": ">=",
+        "sag": {
+          "ad": "hacim_orta",
+          "kaydir": 1,
+          "carpan": 4
+        }
+      },
+      {
+        "sol": {
+          "ad": "btc_saat",
+          "kaydir": 1
+        },
+        "islem": "<=",
+        "sag": -2.0
+      },
+      {
+        "sol": "kapanis",
+        "islem": ">",
+        "sag": {
+          "ad": "yuksek",
+          "kaydir": 1
+        }
+      },
+      {
+        "sol": "kapanis_1g",
+        "islem": ">",
+        "sag": "ema50_1g"
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 2.5,
+    "zarar_durdur_yuzde": 3.5,
+    "stop_atr": {
+      "kat": 2,
+      "periyot": 14,
+      "dilim": "1h",
+      "en_az_yuzde": 2.0
+    },
+    "sure_asimi_dakika": 480,
+    "sinyal": {
+      "sol": "kapanis",
+      "islem": ">=",
+      "sag": "bb1s_orta"
+    }
+  },
+  "portfoy": {
+    "en_fazla_pozisyon": 4,
+    "giris_sinirlari": [
+      {
+        "saat": 1,
+        "sayi": 2
+      },
+      {
+        "saat": 24,
+        "sayi": 3
+      }
+    ],
+    "en_az_kayma_yuzde": 0.05
+  },
+  "bilgi": {
+    "onceki_gun_dibi_delindi": {
+      "sol": {
+        "ad": "dusuk",
+        "kaydir": 1
+      },
+      "islem": "<",
+      "sag": "gun_dibi"
+    }
+  },
+  "borsa_dilimleri": [
+    "1d"
+  ]
+}

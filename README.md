@@ -137,6 +137,7 @@ ekranda "henüz canlı ölçülmüyor" yazar.
 | `/olcum` | Karabasan geçmiş ölçümü: stratejilerin sonucu piyasa durumuna ve stop genişliğine göre |
 | `/yillik` | 12 aylık geçmiş testi: her bot son bir yılda ne yapardı, dört çeyrek ayrı |
 | `/tarama` | Çıkış taraması: her botun girişleriyle 20 çıkış ayarının bir yıllık sonucu (ilk 9 ay seçim, son 3 ay doğrulama) |
+| `/panel` | Panel sınaması: uzman panelinin aday botlarının 20 coin, 4 yıllık sınaması (son yıl ayrılmış) |
 | `/defter` | Emir defteri denemesi: BTC/USDT tahminleri ve sanal işlemlerin özeti, ayrıca tek sayfalık dosya |
 | `/dersler` | Stop sonrası izleme: stop daha geniş olsaydı ne olurdu, bot başına |
 | `/kurulum` | Kurulum kaydı |
@@ -356,6 +357,36 @@ Dürüst not: bu strateji yalnız yapay (rastgele üretilmiş) veride denendi;
 orada, beklendiği gibi, komisyon kadar kaybediyor. Gerçek verideki ilk sonucu
 uyum denemesi ve Karabasan geçmiş ölçümü raporlarıyla gelecek. Çok koşul bir
 arada arandığı için öbür botlardan daha az işlem açması beklenir.
+
+## Panel sınaması (aday botlar)
+
+12 Ekim 2026'da Ahmet'in isteğiyle beş farklı okuldan uzman rolündeki yapay zekâ
+ajanları (akıllı para, istatistikçi, trend takipçisi, piyasa yapısı / vadeli, risk
+yöneticisi) üç tur tartıştı. Gerçek kişiler değillerdir. Ortak teşhis: şimdiki
+botların girişleri yazı turadan iyi değil, kayıp komisyondan geliyor; "sık küçük
+vuruş" komisyon yüzünden en zor yol.
+
+Önerilen adaylar `karabasan/stratejiler/aday/` altındadır; canlı bot değillerdir:
+
+- **ZSD, zorla satış dönüşü** (alım, 15 dk): BTC bir saatte %2 düşmüşken coin
+  Bollinger(20; 2,5) alt bandının altında ve hacmi 4 katına çıkmışsa, toparlanma
+  mumundan sonra alır. Çıkış: 1 saatlik orta banda dönüş ya da %2,5; stop 2 x ATR
+  (%2-3,5); en çok 8 saat.
+- **TRG / TRGK, günlük trend takibi** (alım / açığa satış ayrı, 1 s): günlük kapanış
+  son 28 günün en yükseğini aşınca (en düşüğünü kırınca), trend ve fonlama süzgeciyle.
+  Çıkış: 14 günlük karşı kanal, iz süren stop (%6'da başlar, %3 geride), stop %8, 10 gün.
+
+Sınama (`karabasan/sinama.py`, sunucuda `araclar/panel_sinama.sh`): 20 coin, 4 yıl;
+ilk 3 yıl geliştirme, son yıl ayrılmış ve kapalı. Komisyon, kayma ve fonlama dahil;
+işlem başına risk 1 USDT; bot başına pozisyon ve giriş sınırları, günlük fren, stop
+kilitleri. Her adayın önceden yazılmış en çok 3 denemesi ve bir plasebosu (rastgele
+giriş; ZSD için ayrıca BTC şartı kaldırılmış hali) vardır. Karar ölçütleri önceden
+yazılmıştır (gün bazında t >= 2,5, plaseboyu geçme, maliyet iki katında artıda
+kalma...). Rapor Telegram'da `/panel`. Geçen aday ayrılmış yılda bir kez sınanır;
+orada da artıda kalırsa sanal bot olur. Şimdiki botlardan SM karşılaştırma için kalır.
+
+Dürüst not: sınama kodu yalnız yapay veride denendi. Gerçek veride ilk kez sunucuda
+çalışacak; 4 yıllık verinin ve fonlama geçmişinin inmesi de orada ilk kez denenecek.
 
 ## Strateji dosyası
 
