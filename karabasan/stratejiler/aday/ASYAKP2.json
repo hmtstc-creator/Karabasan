@@ -1,0 +1,113 @@
+{
+  "kod": "ASYAKP2",
+  "ad": "Asya seansı likidite avı (açığa satış) (plasebo: saat şartı yok)",
+  "yon": "aciga_satis",
+  "aciklama": "Uzman panelinin (12 Ekim 2026) SMC uzmanının önerisi; panelin üçü kuşkulu, tek deneme ve plaseboyla sınanır. Kural plasebosu, canlıya gitmez: aralık, son 4 mumdan önce biten 7 saatlik kayan aralık; her saatte. Asıl kural bundan işlem başına en az %0,10 iyi değilse seans iddiası çöker. Aralık fiyatın %2-6'sı genişliğinde olmalı. Son 4 mumdan birinde iğne aralığın tepesinin üstüne en az 0,5 x ATR taşmış, mum aralığın içinde kapanmış ve hacim 20 mumluk ortalamanın 2,5 katı olmalı (stoplar gerçekten tetiklendi). Son 4 mumda ayrıca 15 dakikalık yapı aşağı döner (CHoCH, salınım uzunluğu 3); günlük 20 ortalama 50'nin altında. Giriş piyasa emriyle. Stop iğnenin 0,25 x ATR ötesi, en az %1,2 ve 1,5 x ATR, en çok %2,5; hedef stopun 1,5 katı; en çok 8 saat. Coin başına günde 1, bot başına aynı anda en çok 2 işlem, 2 saatte en çok 2 giriş.",
+  "zaman_dilimi": "15m",
+  "borsa_dilimleri": [
+    "1d"
+  ],
+  "gostergeler": {
+    "seans": {
+      "tur": "zaman_araligi",
+      "kayan_saat": 7,
+      "pay_atr": 0.5
+    },
+    "yapi": {
+      "tur": "yapi",
+      "periyot": 3
+    },
+    "hacim20": {
+      "tur": "hacim_ort",
+      "periyot": 20
+    },
+    "uc5": {
+      "tur": "en_yuksek",
+      "kaynak": "yuksek",
+      "periyot": 5
+    },
+    "ema20_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 20,
+      "dilim": "1d"
+    },
+    "ema50_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "1d"
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "seans_genislik",
+        "islem": ">=",
+        "sag": 2.0
+      },
+      {
+        "sol": "seans_genislik",
+        "islem": "<=",
+        "sag": 6.0
+      },
+      {
+        "hepsi": [
+          {
+            "sol": "yuksek",
+            "islem": ">",
+            "sag": "seans_ust_esik"
+          },
+          {
+            "sol": "kapanis",
+            "islem": "<",
+            "sag": "seans_tepe"
+          },
+          {
+            "sol": "hacim",
+            "islem": ">=",
+            "sag": {
+              "ad": "hacim20",
+              "carpan": 2.5
+            }
+          }
+        ],
+        "son_n_mumda": 4
+      },
+      {
+        "sol": "yapi_donus",
+        "islem": "<",
+        "sag": 0,
+        "son_n_mumda": 4
+      },
+      {
+        "sol": "ema20_1g",
+        "islem": "<",
+        "sag": "ema50_1g"
+      }
+    ]
+  },
+  "cikis": {
+    "zarar_durdur_yuzde": 2.5,
+    "stop_atr": {
+      "kat": 1.5,
+      "periyot": 14,
+      "en_az_yuzde": 1.2,
+      "seviye": "uc5",
+      "pay": 0.25
+    },
+    "kar_hedefi_r": 1.5,
+    "sure_asimi_dakika": 480
+  },
+  "portfoy": {
+    "en_fazla_pozisyon": 2,
+    "giris_sinirlari": [
+      {
+        "saat": 2,
+        "sayi": 2
+      }
+    ],
+    "coin_gunde_en_fazla": 1,
+    "en_az_kayma_yuzde": 0.05
+  }
+}

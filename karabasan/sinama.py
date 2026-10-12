@@ -94,7 +94,27 @@ ADAYLAR = [
         "en_az_gun": 0, "en_az_islem": 100, "esik_net_yuzde": 0.0, "esik_brut_yuzde": 0.5,
         "en_iyi_3_gun": False, "btc_iliskisi": False, "trend": True,
     },
+    # ASYA AVI (SMC uzmanının önerisi; 2. aşama): tek deneme, iki plaseboyla. Panelin üçü kuşkulu.
+    {
+        "ad": "ASYA", "baslik": "Asya seansı likidite avı (alım, 15 dk)",
+        "denemeler": ["ASYA"], "canli": "ASYA",
+        "kural_plasebolari": {"ASYAP1": "aynı kural 12:00-18:59 penceresiyle",
+                              "ASYAP2": "aynı kural saat şartı olmadan (kayan 7 saatlik aralık)"},
+        "en_az_gun": 100, "en_az_islem": 0, "esik_net_yuzde": 0.15, "esik_brut_yuzde": None,
+        "en_iyi_3_gun": True, "btc_iliskisi": True, "trend": False,
+    },
+    {
+        "ad": "ASYAK", "baslik": "Asya seansı likidite avı (açığa satış, 15 dk)",
+        "denemeler": ["ASYAK"], "canli": "ASYAK",
+        "kural_plasebolari": {"ASYAKP1": "aynı kural 12:00-18:59 penceresiyle",
+                              "ASYAKP2": "aynı kural saat şartı olmadan (kayan 7 saatlik aralık)"},
+        "en_az_gun": 100, "en_az_islem": 0, "esik_net_yuzde": 0.15, "esik_brut_yuzde": None,
+        "en_iyi_3_gun": True, "btc_iliskisi": False, "trend": False,
+    },
 ]
+# Fonlama aşırılığı sayımı (panelin 4. aday oylaması, oybirliğiyle): bot değil, yalnız sayım.
+FONLAMA_ASIRI = 0.05          # 8 saate çevrilmiş tek ödeme, yüzde (olağan %0,01)
+FONLAMA_ASIRI_ORTALAMA = 0.03  # son 3 ödemenin ortalaması
 
 MumYukleyici = Callable[[str, str], "pd.DataFrame | None"]
 FonlamaYukleyici = Callable[[str], "pd.DataFrame | None"]
@@ -243,6 +263,7 @@ def portfoy_gecisi(botlar: list[tuple[str, dict, list[dict]]], ortak: bool = Fal
     seri_kilit = dict(fren)
     coin_kilit: dict = {}
     ortak_fren = pd.Timestamp.min.tz_localize("UTC")
+    gunluk: dict = {}                    # (bot, coin, gün) -> giriş sayısı
     sayac = 0
 
     def kapat(cikis, bot, islem):
@@ -286,6 +307,10 @@ def portfoy_gecisi(botlar: list[tuple[str, dict, list[dict]]], ortak: bool = Fal
         if any(sum(1 for z in gecmis if z > t - pd.Timedelta(hours=s["saat"])) >= s["sayi"]
                for s in p.get("giris_sinirlari", [])):
             continue
+        gun_anahtari = (bot, a["coin"], t.floor("D"))
+        if gunluk.get(gun_anahtari, 0) >= int(p.get("coin_gunde_en_fazla", 100)):
+            continue
+        gunluk[gun_anahtari] = gunluk.get(gun_anahtari, 0) + 1
         tutar = min(ISLEM_RISKI / (a["stop_yuzde"] / 100.0), EN_FAZLA_TUTAR)
         islem = {**a, "bot": bot, "tutar": tutar, "net_usdt": tutar * a["net_yuzde"] / 100.0}
         kabul[bot].append(islem)
@@ -475,6 +500,45 @@ def _s(deger, basamak=2, isaret=True) -> str:
     return (f"{deger:+.{basamak}f}" if isaret else f"{deger:.{basamak}f}").replace(".", ",")
 
 
+def fonlama_olaylari(fonlama: pd.DataFrame | None, bas, son) -> dict:
+    """Aşırı fonlama olayları: ard arda ödemeler tek olay sayılır.
+
+    Oran 8 saate çevrilir (bazı coinler 4 ya da 1 saatte bir öder). 'alim_kalabalik':
+    tek ödeme >= FONLAMA_ASIRI ve son 3 ödeme ortalaması >= FONLAMA_ASIRI_ORTALAMA
+    (kalabalık alımda, açığa satış adayı); 'satis_kalabalik' aynası.
+    """
+    sonuc = {"alim_kalabalik": 0, "satis_kalabalik": 0}
+    if fonlama is None or len(fonlama) < 4:
+        return sonuc
+    tablo = fonlama[(fonlama["date"] >= bas) & (fonlama["date"] < son)].sort_values("date")
+    if len(tablo) < 4:
+        return sonuc
+    aralik_saat = tablo["date"].diff().dt.total_seconds().div(3600).clip(lower=1, upper=8).fillna(8)
+    oran = tablo["oran_yuzde"].to_numpy() * (8.0 / aralik_saat.to_numpy())
+    ortalama = pd.Series(oran).rolling(3).mean().to_numpy()
+    for ad, isaret in (("alim_kalabalik", 1), ("satis_kalabalik", -1)):
+        olay = (isaret * oran >= FONLAMA_ASIRI) & (isaret * ortalama >= FONLAMA_ASIRI_ORTALAMA)
+        sonuc[ad] = int(np.sum(olay[1:] & ~olay[:-1]) + (1 if len(olay) and olay[0] else 0))
+    return sonuc
+
+
+def fonlama_sayimi(kaynak: Kaynak, bas, son) -> str:
+    satirlar = [f"FONLAMA AŞIRILIĞI SAYIMI (bot değil; tek ödeme >= %{_s(FONLAMA_ASIRI, 2, False)} ve son 3 "
+                f"ortalaması >= %{_s(FONLAMA_ASIRI_ORTALAMA, 2, False)}, 8 saate çevrilmiş; ard arda ödemeler tek olay)"]
+    toplam = {"alim_kalabalik": 0, "satis_kalabalik": 0}
+    parcalar = []
+    for coin in COINLER:
+        o = fonlama_olaylari(kaynak.fonlama(coin), bas, son)
+        toplam = {k: toplam[k] + o[k] for k in toplam}
+        if o["alim_kalabalik"] or o["satis_kalabalik"]:
+            parcalar.append(f"{coin} {o['alim_kalabalik']}/{o['satis_kalabalik']}")
+    satirlar.append(f"  Kalabalık alımda: {toplam['alim_kalabalik']} olay; kalabalık açığa satışta: "
+                    f"{toplam['satis_kalabalik']} olay (dönem boyunca, {len(COINLER)} coin).")
+    satirlar.append("  Coin başına (alım / satış): " + (", ".join(parcalar) if parcalar else "yok"))
+    satirlar.append("  Panelin kararı: 3 yılda 100'den az olay varsa bu fikir bot olmaz, en çok süzgeç olur.")
+    return "\n".join(satirlar)
+
+
 def btc_gunluk_getiri(kaynak: Kaynak) -> pd.Series | None:
     tablo = kaynak.mum(REFERANS, "1d")
     if tablo is None or tablo.empty:
@@ -577,6 +641,8 @@ def sina(yukle: MumYukleyici, fonlama_yukle: FonlamaYukleyici, adaylar: list[dic
         f"{AYNI_YON_ORTAK_SINIR} pozisyon, ortak günlük fren)")
     yaz(f"  İşlem {o['islem']}, net {_s(o['net'])} USDT, gün bazında t {_s(o['t'], 2, False)}, "
         f"en büyük düşüş {_s(o['dusus'], 2, False)} USDT; yıllar: " + " | ".join(_s(v) for v in o["yillar"]))
+    yaz("")
+    yaz(fonlama_sayimi(kaynak, bas, bitis))
     yaz("")
     if tum_eksik:
         yaz(f"Eksik veri ({len(tum_eksik)}): " + ", ".join(sorted(tum_eksik)[:30]))

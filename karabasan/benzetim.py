@@ -33,6 +33,8 @@ class _Yurutucu:
         self.komisyon = komisyon_yuzde
         self.hedef = float(cikis["kar_hedefi_yuzde"]) / 100.0 if cikis.get("kar_hedefi_yuzde") is not None else None
         self.stop = float(cikis["zarar_durdur_yuzde"]) / 100.0
+        # Hedef stopun katı olarak (kar_hedefi_r): her işlemin hedefi kendi stopundan.
+        self.hedef_r = float(cikis["kar_hedefi_r"]) if cikis.get("kar_hedefi_r") is not None else None
         # ATR'ye bağlı stop: işlem başına stop, sinyal mumunda hesaplanmış 'stop_yuzde' sütunundan.
         self.stop_dizi = (tablo["stop_yuzde"].to_numpy(dtype=float) / 100.0
                           if cikis.get("stop_atr") and "stop_yuzde" in tablo else None)
@@ -96,9 +98,10 @@ class _Yurutucu:
         giris_zamani = tarih[i + 1]
         stop = float(self.stop_dizi[i]) if self.stop_dizi is not None else self.stop
         stop_fiyat = giris * (1 - stop) if alim else giris * (1 + stop)
+        hedef = self.hedef if self.hedef_r is None else self.hedef_r * stop
         hedef_fiyat = None
-        if self.hedef is not None:
-            hedef_fiyat = giris * (1 + self.hedef) if alim else giris * (1 - self.hedef)
+        if hedef is not None:
+            hedef_fiyat = giris * (1 + hedef) if alim else giris * (1 - hedef)
         en_iyi = giris          # işlem açıkken görülen en iyi fiyat (alımda en yüksek)
 
         neden = None

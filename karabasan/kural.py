@@ -41,6 +41,7 @@ GOSTERGE_TURLERI = (
     "fvg",
     "hacim_ortanca",
     "fonlama",
+    "zaman_araligi",
 )
 # Bir gösterge başka bir paritenin mumlarında hesaplanabilir ("parite": "BTC"); o mumlar
 # ek_veri içinde "<PARİTE>@<dilim>" anahtarıyla gelir (bkz. referans_istekleri).
@@ -120,6 +121,8 @@ def _gosterge_sutunlari(ad: str, tanim: dict) -> list[str]:
         return [f"{ad}_boga", f"{ad}_ayi"]
     if tanim["tur"] == "fvg":
         return [f"{ad}_{sutun}" for sutun in g.FVG_SUTUNLARI]
+    if tanim["tur"] == "zaman_araligi":
+        return [f"{ad}_{sutun}" for sutun in g.SEANS_SUTUNLARI]
     return [ad]
 
 
@@ -288,6 +291,8 @@ def kural_dogrula(kural: dict) -> None:
                 raise KuralHatasi(f"'{ad}': 'en_az_yuzde' 0 ile 5 arasında sayı olmalı.")
             if tanim.get("kaynak") is not None:
                 raise KuralHatasi(f"'{ad}': FVG mumun kendisinden hesaplanır, 'kaynak' almaz.")
+        elif tur == "zaman_araligi":
+            _zaman_araligi_dogrula(ad, tanim, dilim, parite)
         elif tur not in ("vwap", "fonlama"):
             periyot = tanim.get("periyot")
             if not isinstance(periyot, int) or isinstance(periyot, bool) or not 1 <= periyot <= 1000:
@@ -349,8 +354,14 @@ def kural_dogrula(kural: dict) -> None:
     if iz is not None:
         _iz_suren_stop_dogrula(iz)
     if cikis.get("stop_atr") is not None:
-        _stop_atr_dogrula(cikis["stop_atr"], cikis["zarar_durdur_yuzde"], taban_dk)
-    if not any(cikis.get(a) is not None for a in ("kar_hedefi_yuzde", "sure_asimi_dakika",
+        _stop_atr_dogrula(cikis["stop_atr"], cikis["zarar_durdur_yuzde"], taban_dk, bilinen)
+    if cikis.get("kar_hedefi_r") is not None:
+        r = cikis["kar_hedefi_r"]
+        if isinstance(r, bool) or not isinstance(r, (int, float)) or not 0.5 <= r <= 5:
+            raise KuralHatasi("'kar_hedefi_r' (stopun kaç katı hedef) 0,5 ile 5 arasında olmalı.")
+        if cikis.get("kar_hedefi_yuzde") is not None or not cikis.get("stop_atr"):
+            raise KuralHatasi("'kar_hedefi_r' yalnız 'stop_atr' ile ve 'kar_hedefi_yuzde' olmadan yazılır.")
+    if not any(cikis.get(a) is not None for a in ("kar_hedefi_yuzde", "kar_hedefi_r", "sure_asimi_dakika",
                                                   "iz_suren_stop", "sinyal")):
         raise KuralHatasi("'cikis' içinde stoptan başka en az bir çıkış olmalı: kâr hedefi, "
                           "iz süren stop, süre sınırı ya da çıkış sinyali.")
@@ -388,6 +399,33 @@ def kural_dogrula(kural: dict) -> None:
             f"Bu kural {ihtiyac} başlangıç mumu istiyor; sınır {EN_FAZLA_BASLANGIC_MUMU}. "
             "Üst dilimdeki göstergelerin periyodunu küçültün ya da taban dilimi büyütün."
         )
+
+
+def _tam_sayi(deger, alt: int, ust: int) -> bool:
+    return isinstance(deger, int) and not isinstance(deger, bool) and alt <= deger <= ust
+
+
+def _zaman_araligi_dogrula(ad: str, tanim: dict, dilim, parite) -> None:
+    """Seans aralığı: sabit pencere (bas_saat, bit_saat, islem_bas, islem_bit) ya da kayan_saat."""
+    if dilim is not None or parite is not None or tanim.get("kaynak") is not None:
+        raise KuralHatasi(f"'{ad}': seans aralığı taban dilimin kendi mumlarından hesaplanır; "
+                          "'dilim', 'parite' ve 'kaynak' almaz.")
+    pay = tanim.get("pay_atr", 0.5)
+    if isinstance(pay, bool) or not isinstance(pay, (int, float)) or not 0 <= pay <= 5:
+        raise KuralHatasi(f"'{ad}': 'pay_atr' 0 ile 5 arasında sayı olmalı.")
+    if tanim.get("kayan_saat") is not None:
+        if not _tam_sayi(tanim["kayan_saat"], 1, 24) or any(
+                tanim.get(a) is not None for a in ("bas_saat", "bit_saat", "islem_bas", "islem_bit")):
+            raise KuralHatasi(f"'{ad}': 'kayan_saat' 1 ile 24 arasında olmalı ve sabit pencere alanlarıyla "
+                              "birlikte yazılmamalı.")
+        return
+    saatler = [tanim.get(a) for a in ("bas_saat", "bit_saat", "islem_bas", "islem_bit")]
+    if not all(_tam_sayi(h, 0, 24) for h in saatler):
+        raise KuralHatasi(f"'{ad}': 'bas_saat', 'bit_saat', 'islem_bas', 'islem_bit' 0 ile 24 arasında tam sayı olmalı.")
+    bas, bit, ibas, ibit = saatler
+    if not (bas < bit <= ibas < ibit):
+        raise KuralHatasi(f"'{ad}': ölçüm penceresi işlem penceresinden önce bitmeli "
+                          "(bas_saat < bit_saat <= islem_bas < islem_bit); yoksa geleceğe bakar.")
 
 
 def _ust_dilim_denetle(dilim, taban_dk: int, yer: str) -> None:
@@ -442,6 +480,9 @@ def _kosul_dogrula(kosul, bilinen: set, yer: str) -> None:
                 raise KuralHatasi(f"{yer}: '{baglac}' boş olmayan bir liste olmalı.")
             for sira, parca in enumerate(alt, 1):
                 _kosul_dogrula(parca, bilinen, f"{yer} > {baglac}[{sira}]")
+            # Grup da 'son_n_mumda' alabilir: grubun bütün koşulları aynı mumda, son N mumdan birinde.
+            if not _tam_sayi(kosul.get("son_n_mumda", 1), 1, 500):
+                raise KuralHatasi(f"{yer}: 'son_n_mumda' 1 ile 500 arasında tam sayı olmalı.")
             return
     for alan in ("sol", "islem", "sag"):
         if alan not in kosul:
@@ -497,6 +538,10 @@ def _mum_ihtiyaclari(kural: dict) -> tuple[int, dict[str, int]]:
             ihtiyac = 2 * max(tanim["uzunluklar"]) + 5
         if tanim["tur"] == "fvg":
             ihtiyac = int(tanim.get("omur", 50)) + 3
+        if tanim["tur"] == "zaman_araligi":
+            # Bir günlük pencere (ya da kayan pencere) ve ATR'nin oturması.
+            saat = int(tanim.get("kayan_saat") or 24)
+            ihtiyac = saat * 60 // taban_dk + g.SEANS_BOSLUGU + 3 * 14
         if tanim["tur"] == "uyumsuzluk":
             # En eski karşılaştırılan nokta + göstergelerin (MACD, RSI...) oturması.
             ihtiyac = g.UYUMSUZLUK_EN_FAZLA_MUM + periyot + (26 + 9) * 3
@@ -567,6 +612,10 @@ def _tek_gosterge(cerceve: pd.DataFrame, ad: str, tanim: dict) -> dict:
         return {ad: g.atr_yuzde(cerceve, periyot)}
     if tur == "hacim_ort":
         return {ad: g.sma(cerceve["volume"], periyot)}
+    if tur == "zaman_araligi":
+        seans = g.zaman_araligi(cerceve, tanim.get("bas_saat"), tanim.get("bit_saat"), tanim.get("islem_bas"),
+                                tanim.get("islem_bit"), tanim.get("kayan_saat"), float(tanim.get("pay_atr", 0.5)))
+        return {f"{ad}_{sutun}": seans[sutun] for sutun in g.SEANS_SUTUNLARI}
     if tur == "hacim_ortanca":
         return {ad: cerceve["volume"].astype(float).rolling(periyot, min_periods=periyot).median()}
     if tur == "donchian_topluluk":
@@ -725,17 +774,24 @@ def _islenen(df: pd.DataFrame, islenen) -> pd.Series:
     return seri * float(islenen.get("carpan", 1.0))
 
 
+def _son_n(dogru: pd.Series, kosul: dict) -> pd.Series:
+    son_n = int(kosul.get("son_n_mumda", 1))
+    if son_n > 1:
+        dogru = dogru.astype(float).rolling(son_n, min_periods=1).max() > 0
+    return dogru.astype(bool)
+
+
 def _kosul(df: pd.DataFrame, kosul: dict) -> pd.Series:
     if "hepsi" in kosul:
         sonuc = pd.Series(True, index=df.index)
         for parca in kosul["hepsi"]:
             sonuc &= _kosul(df, parca)
-        return sonuc
+        return _son_n(sonuc, kosul)
     if "herhangi" in kosul:
         sonuc = pd.Series(False, index=df.index)
         for parca in kosul["herhangi"]:
             sonuc |= _kosul(df, parca)
-        return sonuc
+        return _son_n(sonuc, kosul)
 
     sol = _islenen(df, kosul["sol"])
     sag = _islenen(df, kosul["sag"])
@@ -754,11 +810,7 @@ def _kosul(df: pd.DataFrame, kosul: dict) -> pd.Series:
         dogru = (sol < sag) & (sol.shift(1) >= sag.shift(1))
     # Eksik veride (NaN) koşul sağlanmamış sayılır.
     dogru = dogru & sol.notna() & sag.notna()
-
-    son_n = int(kosul.get("son_n_mumda", 1))
-    if son_n > 1:
-        dogru = dogru.astype(float).rolling(son_n, min_periods=1).max() > 0
-    return dogru.astype(bool)
+    return _son_n(dogru, kosul)
 
 
 GIRIS_LIMITI_ATR_PERIYODU = 14
@@ -838,7 +890,7 @@ def sinyal_uret(df: pd.DataFrame, kural: dict, ek_veri: dict | None = None) -> p
     tablo["cikis_sinyal"] = cikis_sinyali(tablo, kural)
     tablo["giris_limit_yuzde"] = giris_limit_yuzde(tablo, kural)
     if kural["cikis"].get("stop_atr"):
-        tablo["stop_yuzde"] = stop_yuzdesi(df, kural, ek_veri)
+        tablo["stop_yuzde"] = stop_yuzdesi(tablo, kural, ek_veri)
     return tablo
 
 
@@ -852,12 +904,21 @@ def _stop_atr_gostergesi(stop_atr: dict) -> dict:
     return tanim
 
 
-def _stop_atr_dogrula(stop_atr, en_fazla, taban_dk: int) -> None:
+def _stop_atr_dogrula(stop_atr, en_fazla, taban_dk: int, bilinen: set | None = None) -> None:
     """'stop_atr': {"kat": 2, "periyot": 14, "dilim": "1h", "en_az_yuzde": 2}.
 
     İşlem başına stop = kat x ATR yüzdesi (sinyal mumunda), [en_az_yuzde,
     zarar_durdur_yuzde] aralığına kırpılır. 'zarar_durdur_yuzde' en geniş stoptur.
+
+    'seviye' verilirse (bir sütun adı, örnek: son 5 mumun en düşüğü) stop o seviyenin
+    'pay' x ATR ötesine konur; kat x ATR ve en_az_yuzde o zaman alt sınırdır.
     """
+    if isinstance(stop_atr, dict) and stop_atr.get("seviye") is not None:
+        if bilinen is not None and stop_atr["seviye"] not in bilinen:
+            raise KuralHatasi("'stop_atr' içinde 'seviye' tanımlı bir sütun olmalı.")
+        pay = stop_atr.get("pay", 0.0)
+        if isinstance(pay, bool) or not isinstance(pay, (int, float)) or not 0 <= pay <= 5:
+            raise KuralHatasi("'stop_atr' içinde 'pay' 0 ile 5 arasında olmalı.")
     if not isinstance(stop_atr, dict):
         raise KuralHatasi("'stop_atr' bir sözlük olmalı.")
     kat = stop_atr.get("kat")
@@ -877,6 +938,7 @@ def stop_yuzdesi(df: pd.DataFrame, kural: dict, ek_veri: dict | None = None) -> 
     """Her mumda, o mumun sinyaliyle açılacak işlemin stop uzaklığı (yüzde).
 
     ATR'ye bağlı stop yoksa sabit 'zarar_durdur_yuzde'. ATR henüz oturmadıysa en geniş stop.
+    'seviye' varsa df göstergeleri içermelidir (sinyal_uret onu göstergeli tabloyla çağırır).
     """
     cikis = kural["cikis"]
     en_fazla = float(cikis["zarar_durdur_yuzde"])
@@ -884,11 +946,23 @@ def stop_yuzdesi(df: pd.DataFrame, kural: dict, ek_veri: dict | None = None) -> 
     if not stop_atr:
         return pd.Series(en_fazla, index=df.index)
     tablo = _gostergeleri_hesapla(df, kural, {STOP_ATR_SUTUNU: _stop_atr_gostergesi(stop_atr)}, ek_veri)
-    stop = (float(stop_atr["kat"]) * tablo[STOP_ATR_SUTUNU]).clip(float(stop_atr["en_az_yuzde"]), en_fazla)
+    atr_yuzde = tablo[STOP_ATR_SUTUNU]
+    stop = float(stop_atr["kat"]) * atr_yuzde
+    if stop_atr.get("seviye") is not None:
+        kapanis = df["close"].astype(float)
+        pay = float(stop_atr.get("pay", 0.0)) * atr_yuzde / 100.0 * kapanis
+        seviye = df[_sutun_adi(stop_atr["seviye"])].astype(float)
+        if kural["yon"] == "alim":
+            uzaklik = (kapanis - (seviye - pay)) / kapanis * 100.0
+        else:
+            uzaklik = ((seviye + pay) - kapanis) / kapanis * 100.0
+        stop = np.maximum(stop, uzaklik)
+    stop = stop.clip(float(stop_atr["en_az_yuzde"]), en_fazla)
     return stop.fillna(en_fazla)
 
 
-PORTFOY_ALANLARI = ("en_fazla_pozisyon", "giris_sinirlari", "seri_stop_muaf", "en_az_kayma_yuzde")
+PORTFOY_ALANLARI = ("en_fazla_pozisyon", "giris_sinirlari", "seri_stop_muaf", "en_az_kayma_yuzde",
+                    "coin_gunde_en_fazla")
 
 
 def _portfoy_dogrula(portfoy) -> None:
@@ -913,6 +987,8 @@ def _portfoy_dogrula(portfoy) -> None:
                 or not all(isinstance(sinir[a], int) and not isinstance(sinir[a], bool) for a in sinir)
                 or not 1 <= sinir["saat"] <= 168 or not 1 <= sinir["sayi"] <= 50):
             raise KuralHatasi("'giris_sinirlari' öğeleri {\"saat\": 1-168, \"sayi\": 1-50} biçiminde olmalı.")
+    if not _tam_sayi(portfoy.get("coin_gunde_en_fazla", 1), 1, 100):
+        raise KuralHatasi("'portfoy' içinde 'coin_gunde_en_fazla' 1 ile 100 arasında tam sayı olmalı.")
     if not isinstance(portfoy.get("seri_stop_muaf", False), bool):
         raise KuralHatasi("'portfoy' içinde 'seri_stop_muaf' doğru / yanlış olmalı.")
     kayma = portfoy.get("en_az_kayma_yuzde", 0.05)
@@ -931,13 +1007,16 @@ def cikis_metni(cikis: dict) -> str:
     parcalar = []
     if cikis.get("kar_hedefi_yuzde") is not None:
         parcalar.append(f"hedef %{cikis['kar_hedefi_yuzde']:g}")
+    if cikis.get("kar_hedefi_r") is not None:
+        parcalar.append(f"hedef stopun {cikis['kar_hedefi_r']:g} katı")
     iz = cikis.get("iz_suren_stop")
     if iz:
         parcalar.append(f"iz süren stop %{iz['tetik_yuzde']:g} kârda başlar, tepeden %{iz['mesafe_yuzde']:g} geride")
     stop_atr = cikis.get("stop_atr")
     if stop_atr:
         dilim = f" {stop_atr['dilim']}" if stop_atr.get("dilim") else ""
-        parcalar.append(f"stop {stop_atr['kat']:g} x ATR{dilim} (%{stop_atr['en_az_yuzde']:g}-"
+        seviye = f" ya da {stop_atr['seviye']} ötesi" if stop_atr.get("seviye") else ""
+        parcalar.append(f"stop {stop_atr['kat']:g} x ATR{dilim}{seviye} (%{stop_atr['en_az_yuzde']:g}-"
                         f"%{cikis['zarar_durdur_yuzde']:g})")
     else:
         parcalar.append(f"stop %{cikis['zarar_durdur_yuzde']:g}")

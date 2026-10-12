@@ -519,3 +519,51 @@ def donchian_topluluk(kapanis: pd.Series, uzunluklar: list[int]) -> pd.Series:
     # En uzun model hazır olana kadar oran eksik sayılır.
     sonuc.iloc[:max(uzunluklar)] = np.nan
     return sonuc
+
+
+# --------------------------------------------------------------------------
+# Seans aralığı (uzman paneli, ASYA AVI)
+# --------------------------------------------------------------------------
+
+SEANS_SUTUNLARI = ("tepe", "dip", "genislik", "alt_esik", "ust_esik")
+SEANS_BOSLUGU = 4      # kayan pencerede aralık, son bu kadar mumdan önce biter
+
+
+def zaman_araligi(df: pd.DataFrame, bas_saat: int | None = None, bit_saat: int | None = None,
+                  islem_bas: int | None = None, islem_bit: int | None = None,
+                  kayan_saat: int | None = None, pay_atr: float = 0.5, atr_periyot: int = 14) -> pd.DataFrame:
+    """Bir saat penceresinin (örnek: Asya seansı 00:00-06:59 UTC) tepe ve dibi.
+
+    Sabit pencere: [bas_saat, bit_saat) UTC saatlerindeki mumların en yükseği / en düşüğü,
+    yalnız aynı günün işlem penceresinde [islem_bas, islem_bit) görünür; işlem penceresi
+    ölçüm penceresi bittikten sonra başlar (islem_bas >= bit_saat), yani değer ancak
+    pencere kapandıktan sonra kullanılır (geleceğe bakmaz).
+
+    Kayan pencere (kayan_saat verildiyse; saat şartsız plasebo): son SEANS_BOSLUGU mumdan
+    önce biten 'kayan_saat' saatlik aralık; her saatte görünür.
+
+    Sütunlar: tepe, dip, genislik (yüzde), alt_esik = dip - pay_atr x ATR,
+    ust_esik = tepe + pay_atr x ATR (ATR o mumun).
+    """
+    tarih = pd.to_datetime(df["date"], utc=True)
+    yuksek = df["high"].astype(float)
+    dusuk = df["low"].astype(float)
+    if kayan_saat is not None:
+        adim = (tarih.iloc[1] - tarih.iloc[0]) if len(tarih) > 1 else pd.Timedelta(minutes=15)
+        mum = max(1, int(pd.Timedelta(hours=int(kayan_saat)) / adim))
+        tepe = yuksek.rolling(mum, min_periods=mum).max().shift(SEANS_BOSLUGU)
+        dip = dusuk.rolling(mum, min_periods=mum).min().shift(SEANS_BOSLUGU)
+    else:
+        gun = tarih.dt.floor("D")
+        saat = tarih.dt.hour
+        olcum = (saat >= int(bas_saat)) & (saat < int(bit_saat))
+        tepe = yuksek.where(olcum).groupby(gun).transform("max")
+        dip = dusuk.where(olcum).groupby(gun).transform("min")
+        islem = (saat >= int(islem_bas)) & (saat < int(islem_bit))
+        tepe, dip = tepe.where(islem), dip.where(islem)
+    pay = float(pay_atr) * atr(df, int(atr_periyot))
+    sonuc = pd.DataFrame({"tepe": tepe, "dip": dip}, index=df.index)
+    sonuc["genislik"] = (tepe - dip) / dip * 100.0
+    sonuc["alt_esik"] = dip - pay
+    sonuc["ust_esik"] = tepe + pay
+    return sonuc

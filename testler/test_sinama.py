@@ -83,6 +83,25 @@ class PortfoyGecisi(unittest.TestCase):
         self.assertEqual(sum(len(v) for v in ortak.values()), s.AYNI_YON_ORTAK_SINIR)
 
 
+class CoinGunluk(unittest.TestCase):
+    def test_coin_basina_gunde_bir(self):
+        adaylar = [aday("ETH", 1, 0.5), aday("ETH", 3, 0.5), aday("SOL", 3, 0.5), aday("ETH", 25, 0.5)]
+        k = gecir(adaylar, coin_gunde_en_fazla=1)
+        self.assertEqual([(a["coin"], a["giris_zamani"].hour) for a in k], [("ETH", 1), ("SOL", 3), ("ETH", 1)])
+
+
+class FonlamaSayimi(unittest.TestCase):
+    def test_ard_arda_odemeler_tek_olay(self):
+        oran = [0.01] * 5 + [0.06, 0.07, 0.08] + [0.01] * 5 + [-0.06, -0.07, -0.05] + [0.01] * 3
+        fon = pd.DataFrame({"date": pd.date_range("2026-01-01", periods=len(oran), freq="8h", tz="UTC"),
+                            "oran_yuzde": oran})
+        o = s.fonlama_olaylari(fon, T0, T0 + pd.Timedelta(days=30))
+        self.assertEqual(o, {"alim_kalabalik": 1, "satis_kalabalik": 1})
+        dort = fon.assign(date=pd.date_range("2026-01-01", periods=len(oran), freq="4h", tz="UTC"),
+                          oran_yuzde=[x / 2 for x in oran])
+        self.assertEqual(s.fonlama_olaylari(dort, T0, T0 + pd.Timedelta(days=30)), o)   # 8 saate çevrilir
+
+
 class MaliyetVeOlcum(unittest.TestCase):
     def test_fonlama_maliyeti(self):
         fon = pd.DataFrame({"date": pd.to_datetime(["2026-01-01 00:00", "2026-01-01 08:00", "2026-01-01 16:00"],
@@ -179,7 +198,8 @@ class UcTanUca(unittest.TestCase):
     def test_rapor_bolumleri(self):
         for parca in ("PANEL SINAMASI", "=== ZSD", "=== TRG", "=== TRGK", "KARAR (ZSD)", "KARAR (TRG28)",
                       "Kural plasebosu ZSDP", "Rastgele giriş plasebosu", "PANEL PORTFÖYÜ", "ÖZET",
-                      "ayrılmış, KAPALI", "Deneme defteri: önceki 112 + bu sınamada 9 = 121",
+                      "ayrılmış, KAPALI", "Deneme defteri: önceki 112 + bu sınamada 11 = 123", "=== ASYA", "KARAR (ASYAK)",
+                      "Kural plasebosu ASYAP2", "FONLAMA AŞIRILIĞI SAYIMI",
                       "Bilgi (onceki_gun_dibi_delindi = evet)", "dosya özeti"):
             self.assertIn(parca, self.metin)
 

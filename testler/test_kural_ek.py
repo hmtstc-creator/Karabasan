@@ -182,7 +182,8 @@ class PortfoyVeBilgi(unittest.TestCase):
 
 
 class AdayKurallar(unittest.TestCase):
-    KODLAR = ["ZSD", "ZSDF", "ZSDT", "ZSDP", "TRG14", "TRG28", "TRG56", "TRGK14", "TRGK28", "TRGK56"]
+    KODLAR = ["ZSD", "ZSDF", "ZSDT", "ZSDP", "TRG14", "TRG28", "TRG56", "TRGK14", "TRGK28", "TRGK56",
+              "ASYA", "ASYAP1", "ASYAP2", "ASYAK", "ASYAKP1", "ASYAKP2"]
 
     def test_hepsi_gecerli_ve_canli_degil(self):
         from karabasan.botlar import BOTLAR
@@ -194,8 +195,11 @@ class AdayKurallar(unittest.TestCase):
                 self.assertNotIn(kod, k.tum_kurallar())
                 self.assertIsNone(kural.get("giris_limiti"))   # panel: piyasa emri
                 c = kural["cikis"]
-                tavan = c.get("kar_hedefi_yuzde") or c["iz_suren_stop"]["tetik_yuzde"]
-                self.assertLessEqual(c["zarar_durdur_yuzde"], 1.5 * tavan)   # panel: stop <= 1,5 x hedef
+                if c.get("kar_hedefi_r"):
+                    self.assertGreaterEqual(c["kar_hedefi_r"], 1 / 1.5)        # hedef = r x stop
+                else:
+                    tavan = c.get("kar_hedefi_yuzde") or c["iz_suren_stop"]["tetik_yuzde"]
+                    self.assertLessEqual(c["zarar_durdur_yuzde"], 1.5 * tavan)   # panel: stop <= 1,5 x hedef
 
     def _veri(self, gun=400):
         coin = yapay_mumlar(96 * gun, dilim_dk=15, tohum=4, oynaklik=0.004)
@@ -214,7 +218,7 @@ class AdayKurallar(unittest.TestCase):
     def test_sinyaller_gelecege_bakmaz(self):
         coin, btc = self._veri(300)
         kesim = 96 * 200
-        for kod in ("ZSD", "ZSDF", "ZSDT", "TRG28", "TRGK28"):
+        for kod in ("ZSD", "ZSDF", "ZSDT", "TRG28", "TRGK28", "ASYA", "ASYAK", "ASYAP2"):
             kural = k.kural_yukle(kod)
             veri = coin if kural["zaman_dilimi"] == "15m" else g.ust_dilime_cevir(coin, "15m", "1h")
             ref = btc
@@ -283,6 +287,86 @@ class AdayIslemler(unittest.TestCase):
         with self.assertRaises(ValueError):
             b.aday_islemler(tablo, {**kural, "giris_limiti": {"atr_kat": 0.5, "en_az_yuzde": 0.1,
                                                               "en_fazla_yuzde": 0.6, "sure_dakika": 15}}, 0.05)
+
+
+class SeansAraligi(unittest.TestCase):
+    def test_pencere_kapandiktan_sonra_gorulur(self):
+        df = yapay_mumlar(96 * 3, dilim_dk=15, tohum=6, baslangic="2026-01-01")
+        s = g.zaman_araligi(df, 0, 7, 7, 16)
+        zaman = pd.to_datetime(df["date"], utc=True)
+        gun1 = zaman.dt.floor("D") == pd.Timestamp("2026-01-02", tz="UTC")
+        olcum = gun1 & (zaman.dt.hour < 7)
+        islem = gun1 & (zaman.dt.hour >= 7) & (zaman.dt.hour < 16)
+        self.assertTrue(s["tepe"][gun1 & ~islem].isna().all())
+        self.assertAlmostEqual(s["tepe"][islem].iloc[0], df["high"][olcum].max())
+        self.assertAlmostEqual(s["dip"][islem].iloc[-1], df["low"][olcum].min())
+        np.testing.assert_allclose(s["alt_esik"], s["dip"] - 0.5 * g.atr(df, 14))
+
+    def test_gelecege_bakmaz(self):
+        df = yapay_mumlar(96 * 4, dilim_dk=15, tohum=7)
+        for ayar in ({"bas_saat": 0, "bit_saat": 7, "islem_bas": 7, "islem_bit": 16}, {"kayan_saat": 7}):
+            tam = g.zaman_araligi(df, **ayar)
+            for kesim in (96 + 30, 96 * 2 + 50, 96 * 3 + 70):
+                kesik = g.zaman_araligi(df.iloc[:kesim], **ayar)
+                with self.subTest(ayar=ayar, kesim=kesim):
+                    pd.testing.assert_frame_equal(tam.iloc[:kesim], kesik)
+
+    def test_dogrulama(self):
+        for tanim in ({"tur": "zaman_araligi", "bas_saat": 0, "bit_saat": 7, "islem_bas": 6, "islem_bit": 16},
+                      {"tur": "zaman_araligi", "bas_saat": 0, "bit_saat": 7},
+                      {"tur": "zaman_araligi", "kayan_saat": 30},
+                      {"tur": "zaman_araligi", "kayan_saat": 7, "dilim": "1h"}):
+            with self.subTest(tanim=tanim), self.assertRaises(k.KuralHatasi):
+                k.kural_dogrula(temel(gostergeler={"s": tanim}, giris={"sol": "s_dip", "islem": ">", "sag": 0}))
+
+
+class GrupSonN(unittest.TestCase):
+    def test_grubun_kosullari_ayni_mumda(self):
+        kural = temel(gostergeler={}, giris={"hepsi": [
+            {"hepsi": [{"sol": "kapanis", "islem": ">", "sag": 100.5}, {"sol": "hacim", "islem": ">", "sag": 150}],
+             "son_n_mumda": 3},
+            {"sol": "kapanis", "islem": "<", "sag": 100.2}]})
+        df = duz_mumlar([(100, 100, 100, 100)] * 5 + [(100, 101, 100, 100.8), (100.8, 101, 100, 100.6),
+                                                     (100.6, 101, 100, 100.1), (100.1, 101, 100, 100.1),
+                                                     (100.1, 101, 100, 100.1)], dilim_dk=15)
+        df.loc[5, "volume"] = 200.0       # yüksek kapanış ve hacim aynı mumda (5); 6'da hacim yok
+        sinyal = k.sinyal_uret(df, kural)["sinyal"]
+        self.assertEqual(list(np.flatnonzero(sinyal.to_numpy())), [7])
+        df.loc[5, "volume"] = 100.0
+        df.loc[4, "volume"] = 200.0       # hacim ve yüksek kapanış farklı mumlarda: sinyal yok
+        self.assertFalse(k.sinyal_uret(df, kural)["sinyal"].any())
+
+
+class SeviyeStopuVeRHedef(unittest.TestCase):
+    def kural(self, yon="alim"):
+        return temel(yon=yon, gostergeler={"uc": {"tur": "en_dusuk" if yon == "alim" else "en_yuksek",
+                                                  "kaynak": "dusuk" if yon == "alim" else "yuksek", "periyot": 3}},
+                     giris={"sol": "kapanis", "islem": "yukari_keser" if yon == "alim" else "asagi_keser",
+                            "sag": 100.5 if yon == "alim" else 99.5},
+                     cikis={"zarar_durdur_yuzde": 2.5, "kar_hedefi_r": 1.5,
+                            "stop_atr": {"kat": 0.1, "periyot": 14, "en_az_yuzde": 1.2, "seviye": "uc", "pay": 0.0}})
+
+    def test_stop_seviyenin_otesinde_hedef_r_kati(self):
+        df = duz_mumlar([(100, 100.2, 99.8, 100)] * 20 + [(100, 100.7, 98.4, 100.6),
+                        (100.6, 104.5, 100.5, 104.0)], dilim_dk=15)
+        tablo = k.sinyal_uret(df, self.kural())
+        # Sinyal mumu 20: son 3 mumun dibi 98,4; kapanış 100,6 -> uzaklık %2,187 (ATR alt sınırının üstünde).
+        beklenen = (100.6 - 98.4) / 100.6 * 100
+        self.assertAlmostEqual(tablo["stop_yuzde"].iloc[20], beklenen)
+        i = b.benzet(df, self.kural(), komisyon_yuzde=0.05, hazir_tablo=tablo)[0]
+        self.assertEqual(i["neden"], "kar_hedefi")
+        self.assertAlmostEqual(i["cikis_fiyati"], 100.6 * (1 + 1.5 * beklenen / 100))
+        self.assertIn("hedef stopun 1,5 katı", k.cikis_metni(self.kural()["cikis"]))
+
+    def test_r_hedef_dogrulama(self):
+        kural = self.kural()
+        kural["cikis"]["kar_hedefi_yuzde"] = 2.0
+        with self.assertRaises(k.KuralHatasi):
+            k.kural_dogrula(kural)
+        kural = self.kural()
+        kural["cikis"]["stop_atr"]["seviye"] = "yok"
+        with self.assertRaises(k.KuralHatasi):
+            k.kural_dogrula(kural)
 
 
 if __name__ == "__main__":

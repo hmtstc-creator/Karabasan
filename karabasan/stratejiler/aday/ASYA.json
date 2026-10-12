@@ -1,0 +1,116 @@
+{
+  "kod": "ASYA",
+  "ad": "Asya seansı likidite avı (alım)",
+  "yon": "alim",
+  "aciklama": "Uzman panelinin (12 Ekim 2026) SMC uzmanının önerisi; panelin üçü kuşkulu, tek deneme ve plaseboyla sınanır. Asya seansının (00:00-06:59 UTC) tepe ve dibi, Londra ve New York açılışlarında (07:00-15:59 UTC) avlanır. Aralık fiyatın %2-6'sı genişliğinde olmalı. Son 4 mumdan birinde iğne aralığın dibinin altına en az 0,5 x ATR taşmış, mum aralığın içinde kapanmış ve hacim 20 mumluk ortalamanın 2,5 katı olmalı (stoplar gerçekten tetiklendi). Son 4 mumda ayrıca 15 dakikalık yapı yukarı döner (CHoCH, salınım uzunluğu 3); günlük 20 ortalama 50'nin üstünde. Giriş piyasa emriyle. Stop iğnenin 0,25 x ATR ötesi, en az %1,2 ve 1,5 x ATR, en çok %2,5; hedef stopun 1,5 katı; en çok 8 saat. Coin başına günde 1, bot başına aynı anda en çok 2 işlem, 2 saatte en çok 2 giriş.",
+  "zaman_dilimi": "15m",
+  "borsa_dilimleri": [
+    "1d"
+  ],
+  "gostergeler": {
+    "seans": {
+      "tur": "zaman_araligi",
+      "bas_saat": 0,
+      "bit_saat": 7,
+      "islem_bas": 7,
+      "islem_bit": 16,
+      "pay_atr": 0.5
+    },
+    "yapi": {
+      "tur": "yapi",
+      "periyot": 3
+    },
+    "hacim20": {
+      "tur": "hacim_ort",
+      "periyot": 20
+    },
+    "uc5": {
+      "tur": "en_dusuk",
+      "kaynak": "dusuk",
+      "periyot": 5
+    },
+    "ema20_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 20,
+      "dilim": "1d"
+    },
+    "ema50_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50,
+      "dilim": "1d"
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "seans_genislik",
+        "islem": ">=",
+        "sag": 2.0
+      },
+      {
+        "sol": "seans_genislik",
+        "islem": "<=",
+        "sag": 6.0
+      },
+      {
+        "hepsi": [
+          {
+            "sol": "dusuk",
+            "islem": "<",
+            "sag": "seans_alt_esik"
+          },
+          {
+            "sol": "kapanis",
+            "islem": ">",
+            "sag": "seans_dip"
+          },
+          {
+            "sol": "hacim",
+            "islem": ">=",
+            "sag": {
+              "ad": "hacim20",
+              "carpan": 2.5
+            }
+          }
+        ],
+        "son_n_mumda": 4
+      },
+      {
+        "sol": "yapi_donus",
+        "islem": ">",
+        "sag": 0,
+        "son_n_mumda": 4
+      },
+      {
+        "sol": "ema20_1g",
+        "islem": ">",
+        "sag": "ema50_1g"
+      }
+    ]
+  },
+  "cikis": {
+    "zarar_durdur_yuzde": 2.5,
+    "stop_atr": {
+      "kat": 1.5,
+      "periyot": 14,
+      "en_az_yuzde": 1.2,
+      "seviye": "uc5",
+      "pay": 0.25
+    },
+    "kar_hedefi_r": 1.5,
+    "sure_asimi_dakika": 480
+  },
+  "portfoy": {
+    "en_fazla_pozisyon": 2,
+    "giris_sinirlari": [
+      {
+        "saat": 2,
+        "sayi": 2
+      }
+    ],
+    "coin_gunde_en_fazla": 1,
+    "en_az_kayma_yuzde": 0.05
+  }
+}

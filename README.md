@@ -375,6 +375,13 @@ vuruş" komisyon yüzünden en zor yol.
 - **TRG / TRGK, günlük trend takibi** (alım / açığa satış ayrı, 1 s): günlük kapanış
   son 28 günün en yükseğini aşınca (en düşüğünü kırınca), trend ve fonlama süzgeciyle.
   Çıkış: 14 günlük karşı kanal, iz süren stop (%6'da başlar, %3 geride), stop %8, 10 gün.
+- **ASYA / ASYAK, Asya seansı likidite avı** (alım / açığa satış, 15 dk; 2. aşama): 07:00-15:59
+  UTC'de fiyat Asya aralığının (00:00-06:59) dibini (tepesini) en az 0,5 x ATR deler, içeride kapanır,
+  hacim 2,5 katına çıkar ve yapı döner. Stop iğnenin ötesi (%1,2-2,5), hedef stopun 1,5 katı, 8 saat.
+  Tek deneme; plasebo aynı kuralın başka saatli ve saat şartsız halleri.
+
+İlk sınama (12 Ekim 2026): ZSD, TRG ve TRGK kaldı. Hiçbiri komisyon ve kaymayı karşılamadı;
+yalnız açığa satış trendi rastgele açığa satıştan iyiydi ama sonucu sıfırdı. Ayrıntı `/panel`.
 
 Sınama (`karabasan/sinama.py`, sunucuda `araclar/panel_sinama.sh`): 20 coin, 4 yıl;
 ilk 3 yıl geliştirme, son yıl ayrılmış ve kapalı. Komisyon, kayma ve fonlama dahil;
