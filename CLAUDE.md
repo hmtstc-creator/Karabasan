@@ -623,12 +623,26 @@ farklı varyasyonla bir senelik test yapıp en kazançlıyı bul." Yapılan:
 - **Gerçek motorda ilk kez:** iz süren stopun bu motorda canlı ve geçmiş testinde nasıl
   uygulandığı, `minimal_roi = {"0": 100}`, süresiz `custom_exit`.
 
+**Çıkış taramasının ilk sonucu (11 Ekim 2026 20:54 UTC, Ahmet iletti; 11.10.2025–
+11.10.2026, seçim 12.07.2026'ya kadar).** 100 denemenin 25'i yıl sonunda artıda; hem
+ilk 9 ayda hem son 3 ayda artıda yalnız 2 (SMD V07 +5,41 / +1,23; SM V20 +1,62 /
++3,82): şanstan ayırt edilemez. Dürüst seçim (SMK V10) son 3 ayda −18,83.
+- Tutarlı ders: beş botta da iz süren stoplu ayarlar sabit küçük hedeflerin (V15 eski
+  SM, V16 eski Sniper, V19) belirgin önünde; eski ayarlar her botta en kötüler arasında.
+  Şimdiki V01 yıl sonunda SM −9,88, SMK +14,16, SMD −0,37, SMDK +17,84, Sniper
+  −18,19 (toplam ≈ +3,6); aynı girişler eski çıkışlarla ≈ −166. Yani "erken çıkıyoruz"
+  gözlemi doğru çıktı; ama kenar yaratmadı, kaybı sıfıra çekti.
+- Açığa satış botlarının (SMK, SMDK) artısı tamamen ilk 9 aydan; son 3 ayda 20
+  varyasyonun 20'si de ekside. Piyasa yönü (düşüş dönemi) gibi görünüyor, beceri değil.
+- Son 3 ayda V01 beş botta da ekside (toplam ≈ −59,9).
+- Ahmet'e öneri: ayar değiştirme (en iyi görünenler doğrulamada kaybediyor); V01'de
+  kal, canlı sonucu izle. Ayar değişikliği yalnız Ahmet isterse.
+
 Sıradaki işler, öncelik sırasıyla:
 
 0. On altıncı uyum denemesi: limitli girişte açılış zamanı düzeltmesi ve iz süren
-   stopun motorla benzetimde tutması (çıkış fiyatları, "iz_suren_stop" sayıları). Sonra
-   tarama raporunu (`/tarama`) Ahmet'e rakamla ve ezber uyarısıyla özetle; ayar
-   değişikliği yalnız Ahmet isterse. Ahmet Sniper'daki limitli girişi izlemek istedi
+   stopun motorla benzetimde tutması (çıkış fiyatları, "iz_suren_stop" sayıları). Tarama
+   raporu geldi ve özetlendi (yukarıda); ayar değişikliği yalnız Ahmet isterse. Ahmet Sniper'daki limitli girişi izlemek istedi
    (geri alınmadı).
 
 1. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından
