@@ -672,6 +672,41 @@ sayıları iki tarafta aynı ya da bir eksik.
   %0,2'den çok) benzetimi motora yaklaştırmak düşünülür, çünkü 12 aylık test ve tarama
   benzetimle yapılıyor.
 
+**Uzman paneli: dört bot önerisi (12 Ekim 2026, Ahmet'in isteği; KARAR BEKLİYOR, kod yok).**
+Ahmet "botların mantığı çok kötü; 5 farklı okuldan muhalif uzmanlar tartışsın, ortak bir
+strateji çıksın, 4 bot öner" dedi. Beş yapay zekâ ajanı rol yaptı (gerçek kişi değil; Ahmet'e
+söylendi): SMC, kantitatif, trend (CTA), mikro yapı / türev, risk. Üç tur: açılış, çürütme,
+ortak taslağa oy. Ortak teşhis: girişlerde bilgi yok, kayıp komisyon; "sık küçük vuruş"
+taker komisyonuyla kurtarılamaz ("küçük" = işlem başına küçük risk, "sık" = çok coin).
+- Bot 1 ZSD "Zorla satış dönüşü" (alım, 15 dk; 5 / 5 şartlı kabul): BTC 1 s ≤ −%2; coin 15 dk
+  kapanışı Bollinger(20; 2,5σ) altı, hacim ≥ 4 × son 96 mumun ortancası; onay mumu önceki
+  tepenin üstünde → piyasa emri. Çıkış: 1 s Bollinger orta bandı ya da %2,5; stop 2 × ATR(1 s)
+  %2–3,5; 8 s. En çok 4 pozisyon, aynı şokta en çok 3. Denemeler: temel, + fonlama ≥ 0, +
+  günlük > EMA50; plasebo BTC şartsız; bilgi satırı "iğne önceki gün dibini deldi mi".
+- Bot 2 ve 3 TREND-G alım / açığa satış (günlük 28 g kapanış kanalı kırılımı, EMA20/50 yönü,
+  fonlama süzgeci ±%0,03, giriş 1 s açılış; çıkış 14 g karşı kanal, iz tetik %6 mesafe %3,
+  stop %8, 10 gün; 3 kabul / 2 şartlı): kanal 14 / 28 / 56 raporlanır, canlıya 28; aynı yönde
+  en çok 5; yıl bazında 3 / 4; BTC'yi tutma karşılaştırması; "en iyi 3 gün" ölçütü yerine
+  "≥ 3 coin ve en iyi 3 işlem çıkınca kayıp ≤ %2".
+- Bot 4 ASYA AVI (SMC seans likidite avı; 4 şartlı, CTA ret): yalnız tek deneme, plasebolarla
+  yan yana (12:00–18:59 penceresi, saat şartsız); süpürme ≥ 0,5 × ATR, stop ≥ max(%1,2;
+  1,5 × ATR), 07:00–08:59'da en çok 2 giriş, eşzamanlı 2; hüküm ≥ 100 ayrı sinyal günü.
+- 4. aday oylaması oybirliğiyle C: fonlama aşırılıkları önce yalnız sayılır (bot değil).
+- Ortak kurallar: piyasa emri; kayma = max(%0,05; sinyal mumu aralığının %10'u), TREND-G'de
+  en az %0,10; fonlama gerçek oranla; tutar = 1 USDT / stop (en çok 100); bot freni (24 s'te
+  %2) ve StoplossGuard (trend botları seri kuralından muaf); portföy freni (aynı yönde toplam
+  en çok 10, toplam 24 s zarar %2 → hepsi 24 s durur; kayıtçı + `confirm_trade_entry` + portföy
+  benzetimi, yeni iş); stop ≤ 1,5 × hedef / tetik.
+- Sınama: 4 yıl (Ekim 2022–Ekim 2026), son yıl ayrılmış ve bir kez açılır; o anki hacme göre ~20
+  parite (Binance'ten silinmiş coinlerin verisi motorla inmez, yanılgı kısmen kalır); deneme
+  defteri (eski 112 deneme dahil); kural dosyaları son yıl açılmadan işlenir; plasebo aynı
+  benzetimde aynı kurallarla; gün bazında t ≥ 2,5; maliyet iki katında ≥ 0. 30 günlük canlı
+  sınav yalnız uyumu sınar. Panel çoğunun elenmesini bekliyor.
+- Şimdiki botlar: yeni botlar sunucuya çıkınca dördü durur, biri kontrol kalır (SM 3 oy, SMD 2).
+- Gereken altyapı: BTC referans sütunu (informative pair), fonlama verisi (motor ve benzetim),
+  `custom_stake_amount`, ATR'ye bağlı stop, protections ve benzetimdeki karşılığı, portföy
+  freni, 4 yıllık veri indirme, seans aralığı göstergesi. Ahmet onaylamadan başlanmadı.
+
 Sıradaki işler, öncelik sırasıyla:
 
 0. On yedinci uyum denemesi: eşleşen işlemlerde motor / benzetim net farkı ve iz süren
