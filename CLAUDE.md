@@ -108,7 +108,7 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | `karabasan/stop_sonrasi.py` | Stop sonrası izleme: stop olan işlemi kendi süresi dolana kadar izler, stop 1,5 / 2 / 3 kat geniş olsaydı ne olurdu hesaplar, bot başına karar çıkarır (yetersiz, dar, yerinde, kararsız), karar değişince ders yazar. Mumlar Binance'in herkese açık, anahtarsız fiyat verisinden gelir. Çıktı: `user_data/kayit/stop_sonrasi.json`. **Hiçbir ayarı değiştirmez** |
 | `karabasan/gecmis_olcum.py` | Karabasan puanını geçmiş mumlardan geriye dönük hesaplar (yaklaşık: dominans ve TOTAL2 yerine altcoin vekili); işlemleri açıldıkları andaki durumla etiketler |
 | `karabasan/sonuc.py` | Botların SQLite kayıtlarını salt okunur okuyup özet çıkarır; dönem (ısınma, sınav, bitti) |
-| `karabasan/sayfa.py`, `karabasan/panel.py` | Türkçe sonuç sayfası ve sunucusu (8080; `/`, `/veri.json`, `/saglik`). Beş ekran: ana ekran (gösterge halkası), botlar, işlemler, dersler (stop sonrası izleme), sınav; ekran listesi `sayfa.EKRANLAR`'dadır, biçim ve betik oradan üretilir. Sunucudan açılan hali tek bir satır içi betik taşır (ekran geçişi, dakikada bir yerinde tazeleme); `panel.py` izin başlığını (CSP) o betiğin özetinden üretir. Telegram'ın `/sayfa` ile yolladığı dosya betiksizdir, ekranlar alt alta görünür |
+| `karabasan/sayfa.py`, `karabasan/panel.py` | Türkçe sonuç sayfası ve sunucusu (8080; `/`, `/veri.json`, `/saglik`). Altı ekran: ana ekran (gösterge halkası), botlar, işlemler, dersler (stop sonrası izleme), rapor (bot seçimli günlük kâr / zarar; seçim betiksiz, gizli seçim düğmeleri + biçim kuralları; veri `sonuc.gunluk_ozet` / `gunluk_toplam`, gün sınırı `sonuc.SAAT_DILIMI`), sınav; ekran listesi `sayfa.EKRANLAR`'dadır, biçim ve betik oradan üretilir. Sunucudan açılan hali tek bir satır içi betik taşır (ekran geçişi, dakikada bir yerinde tazeleme); `panel.py` izin başlığını (CSP) o betiğin özetinden üretir. Telegram'ın `/sayfa` ile yolladığı dosya betiksizdir, ekranlar alt alta görünür |
 | `karabasan/haberci.py` | Telegram: kurulum bildirimleri, günlük özet, susan bot uyarısı, yeni ders bildirimi, komutlar (`/dersler` dahil) |
 | `karabasan/defter.py`, `karabasan/defter_servisi.py`, `karabasan/defter_sayfa.py` | Emir defteri denemesi (BTC/USDT vadeli, ileriye dönük, sanal): her saniye herkese açık defteri okur (`/fapi/v1/depth`, 100 kademe), dakikada bir 1 dk mumları; 15 özellik (dengesizlik, mikro fiyat, duvarlar, son getiriler, oynaklık, RSI, hacim, destek / direnç) ile 5 / 15 dk sonrası için sırt regresyonu (sabit terimsiz, yalnız olgunlaşmış kayıttan, 48 saat pencere, 3 saat ısınma, 5 dk'da bir eğitim). Tahmin ≥ %0,15 ise sanal pozisyon (100 USDT, hedef = tahmin, stop aynı uzaklık, süre = ufuk, ufuk başına tek işlem). Kayıt `user_data/kayit/defter.sqlite` (8 gün). Docker servisi `defter`; sayfa `/defter` (panel), Telegram `/defter`. Botlardan bağımsız |
 | `user_data/strategies/karabasan_stratejileri.py` | Freqtrade bağlantı katmanı. Kural `borsa_dilimleri` istiyorsa o mumları motordan ister (`informative_pairs`, `dp.get_pair_dataframe`) ve kural motoruna aktarır; veri gelmezse boş tablo verir ve kayda bir kez yazar |
@@ -182,7 +182,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 483 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 492 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -637,6 +637,14 @@ ilk 9 ayda hem son 3 ayda artıda yalnız 2 (SMD V07 +5,41 / +1,23; SM V20 +1,62
 - Son 3 ayda V01 beş botta da ekside (toplam ≈ −59,9).
 - Ahmet'e öneri: ayar değiştirme (en iyi görünenler doğrulamada kaybediyor); V01'de
   kal, canlı sonucu izle. Ayar değişikliği yalnız Ahmet isterse.
+
+**Rapor ekranı (12 Ekim 2026, Ahmet'in isteği).** "Ortadaki değer kalsın; bir rapor
+sayfası yap, bot seçimi olsun, her botun günlük kâr / zararını gösterelim." Sonuç
+sayfasına altıncı ekran: bot seçimi (Bütün botlar + her bot), seçilen botun toplamı,
+artıda biten gün, en iyi / en kötü gün, son 30 günün çubuk grafiği, gün gün tablo.
+Ana ekrandaki halkanın ortası değişmedi. Not: halkanın ortası "toplam sanal sonuç"tur
+(ısınma / sınav başından beri); Ahmet onu son 24 saat sanıyor, ona söylendi. Sayfa
+yalnız buradaki Chromium'da (390 px ve 1280 px, betikli ve betiksiz) denendi.
 
 Sıradaki işler, öncelik sırasıyla:
 

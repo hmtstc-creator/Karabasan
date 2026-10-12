@@ -19,6 +19,8 @@ from .botlar import BOTLAR, ayarlari_yukle
 from .kural import kural_yukle
 
 SINAV_GUN = 30
+# Günlük rapor günleri bu saat dilimine göre ayırır (sonuç sayfası da aynı saati gösterir).
+SAAT_DILIMI = "Europe/Bucharest"
 
 CIKIS_NEDENI = {
     "roi": "kâr hedefi",
@@ -228,6 +230,7 @@ def bot_ozeti(
         "nedenler": nedenler,
         "olcutler": [],
         "karar": None,
+        "gunluk": gunluk_ozet(islemler),
     }
     if donem["donem"] in ("sinav", "bitti"):
         beklenti = (gecmis_test or {}).get(bot)
@@ -313,6 +316,7 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
             "son_24s_islem": len(son_gun),
             "son_24s_net_tutar": sum(i["net_tutar"] for i in son_gun),
         },
+        "gunluk_toplam": gunluk_topla([b["gunluk"] for b in botlar]),
         "son_islemler": son_islemler[:SON_ISLEM_SAYISI],
         "acik_islemler": acik_islemler,
         "dersler": [
@@ -329,6 +333,45 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
             [i for i in son_islemler if donem["bitis"] is None or i["cikis_zamani"] <= donem["bitis"]]
         ),
     }
+
+
+def _yerel_gun(zaman: datetime) -> str:
+    """İşlemin kapandığı yerel gün, 'YYYY-AA-GG'. Saat dilimi verisi yoksa UTC."""
+    try:
+        from zoneinfo import ZoneInfo
+
+        return zaman.astimezone(ZoneInfo(SAAT_DILIMI)).strftime("%Y-%m-%d")
+    except Exception:  # noqa: BLE001 - saat dilimi verisi yoksa UTC ile devam
+        return zaman.astimezone(timezone.utc).strftime("%Y-%m-%d")
+
+
+def gunluk_ozet(islemler: list) -> list[dict]:
+    """Kapanan işlemlerin gün gün sonucu (eskiden yeniye).
+
+    Her gün: {"gun": "2026-10-12", "islem", "kazanan", "net_tutar", "birikimli"}.
+    Bir işlem kapandığı güne sayılır; açık pozisyonlar kapanınca eklenir.
+    """
+    return gunluk_topla([[
+        {"gun": _yerel_gun(i["cikis_zamani"]), "islem": 1,
+         "kazanan": 1 if float(i["net_tutar"]) > 0 else 0, "net_tutar": float(i["net_tutar"])}
+        for i in islemler
+    ]])
+
+
+def gunluk_topla(listeler: list[list[dict]]) -> list[dict]:
+    """Günlük satır listelerini gün gün toplar, birikimli sonucu ekler (eskiden yeniye)."""
+    gunler: dict[str, dict] = {}
+    for liste in listeler:
+        for g in liste:
+            hedef = gunler.setdefault(g["gun"], {"islem": 0, "kazanan": 0, "net_tutar": 0.0})
+            hedef["islem"] += g["islem"]
+            hedef["kazanan"] += g["kazanan"]
+            hedef["net_tutar"] += g["net_tutar"]
+    sonuc, birikimli = [], 0.0
+    for anahtar in sorted(gunler):
+        birikimli += gunler[anahtar]["net_tutar"]
+        sonuc.append({"gun": anahtar, **gunler[anahtar], "birikimli": birikimli})
+    return sonuc
 
 
 SON_ISLEM_SAYISI = 30

@@ -1,7 +1,7 @@
 """Sonuç sayfası: karabasan.sonuc özetini tek bir Türkçe HTML sayfasına çevirir.
 
-Beş ekran vardır: ana ekran (gösterge halkası), botlar, işlemler, dersler
-(stop sonrası izleme), sınav.
+Altı ekran vardır: ana ekran (gösterge halkası), botlar, işlemler, dersler
+(stop sonrası izleme), rapor (bot seçimli günlük kâr / zarar), sınav.
 Dış kaynak (yazı tipi, resim, dış betik) kullanmaz; sayfa sunucudan tek dosya
 olarak gelir ve önce telefon için tasarlanmıştır.
 
@@ -40,8 +40,13 @@ EKRANLAR = [
     ("botlar", "Botlar"),
     ("islemler", "İşlemler"),
     ("dersler", "Dersler"),
+    ("rapor", "Rapor"),
     ("sinav", "Sınav"),
 ]
+# Rapor ekranında seçilebilecek en çok bot sayısı (biçim kuralları bu kadarı için üretilir).
+RAPOR_EN_FAZLA = 16
+RAPOR_GUN = 30
+GUN_ADLARI = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
 
 
 # --------------------------------------------------------------------------
@@ -611,6 +616,119 @@ Hiçbir emir borsaya gitmez.</p>
 
 
 # --------------------------------------------------------------------------
+# Rapor ekranı: her botun günlük kâr / zararı
+# --------------------------------------------------------------------------
+
+
+def _gun_metni(gun: str) -> str:
+    """'2026-10-12' -> '12.10 Pzt'."""
+    tarih = datetime.strptime(gun, "%Y-%m-%d")
+    return f"{tarih:%d.%m} {GUN_ADLARI[tarih.weekday()]}"
+
+
+def _gunluk_cubuklar(gunluk: list, bugun: str, gun_sayisi: int = RAPOR_GUN) -> str:
+    """Son günlerin net sonucu, gün başına bir çubuk (işlem olmayan gün boş kalır)."""
+    from datetime import date, timedelta
+
+    son = date.fromisoformat(bugun)
+    ilk_kayit = date.fromisoformat(gunluk[0]["gun"])
+    bas = max(ilk_kayit, son - timedelta(days=gun_sayisi - 1))
+    gunler = [(bas + timedelta(days=k)).isoformat() for k in range((son - bas).days + 1)]
+    netler = {g["gun"]: float(g["net_tutar"]) for g in gunluk}
+    gorunen = [netler[g] for g in gunler if g in netler]
+    ust = max([0.0, *gorunen])
+    alt = -min([0.0, *gorunen])
+    en_buyuk = max(ust, alt) or 1.0
+    genislik, bosluk = 600.0, 4.0
+    # Sıfır çizgisi artı ve eksi günlerin büyüklüğüne göre yerleşir; boş yarım alan kalmaz.
+    olcek = 120.0 / ((ust + alt) or 1.0)
+    orta = bosluk + ust * olcek
+    yukseklik = orta + alt * olcek + bosluk
+    adim = genislik / len(gunler)
+    cubuk = max(2.0, min(28.0, adim * 0.7))
+    parcalar = []
+    for k, g in enumerate(gunler):
+        if g not in netler:
+            continue
+        net = netler[g]
+        boy = max(1.0, abs(net) * olcek)
+        y = orta - boy if net > 0 else orta
+        parcalar.append(
+            f'<rect class="g-cubuk {_isaret_sinifi(net)}" x="{k * adim + (adim - cubuk) / 2:.1f}" '
+            f'y="{y:.1f}" width="{cubuk:.1f}" height="{boy:.1f}"><title>{_gun_metni(g)}: '
+            f"{isaretli(net)} USDT</title></rect>"
+        )
+    return (
+        f'<svg class="g-grafik" viewBox="0 0 {genislik:g} {yukseklik:.1f}" role="img" '
+        f'aria-label="Son {len(gunler)} günün günlük sonucu">'
+        f'<line class="s-sifir" x1="0" x2="{genislik:g}" y1="{orta:.1f}" y2="{orta:.1f}"/>{"".join(parcalar)}</svg>'
+        f'<p class="seyir-alt"><span>{_gun_metni(gunler[0])}</span><span>En büyük gün ±{sayi(en_buyuk)} USDT</span>'
+        f'<span>{_gun_metni(gunler[-1])}</span></p>'
+    )
+
+
+def _rapor_paneli(sira: int, baslik: str, gunluk: list, bugun: str) -> str:
+    if not gunluk:
+        govde = '<p class="bos">Henüz kapanmış işlem yok. İşlemler kapandıkça günlük sonuç burada birikir.</p>'
+    else:
+        toplam = sum(g["net_tutar"] for g in gunluk)
+        islem = sum(g["islem"] for g in gunluk)
+        kazanan = sum(g["kazanan"] for g in gunluk)
+        arti_gun = sum(1 for g in gunluk if g["net_tutar"] > 0.005)
+        en_iyi = max(gunluk, key=lambda g: g["net_tutar"])
+        en_kotu = min(gunluk, key=lambda g: g["net_tutar"])
+        satirlar = "".join(
+            f'<tr><th scope="row">{_gun_metni(g["gun"])}</th><td>{g["islem"]}'
+            f'<span class="alt">{g["kazanan"]} kazanan</span></td>'
+            f'<td class="{_isaret_sinifi(g["net_tutar"])}">{isaretli(g["net_tutar"])}</td>'
+            f'<td class="{_isaret_sinifi(g["birikimli"])}">{isaretli(g["birikimli"])}</td></tr>'
+            for g in reversed(gunluk)
+        )
+        govde = (
+            f'<dl class="olcu sonuc">'
+            f'<div><dt>Toplam net</dt><dd class="{_isaret_sinifi(toplam)}">{isaretli(toplam)} '
+            f'<span class="alt">USDT</span></dd></div>'
+            f'<div><dt>Artıda biten gün</dt><dd>{arti_gun} / {len(gunluk)}</dd></div>'
+            f'<div><dt>İşlem</dt><dd>{islem} <span class="alt">%{sayi(kazanan / islem * 100, 0)} kazanan</span></dd></div>'
+            f'<div><dt>En iyi / en kötü gün</dt><dd><span class="{_isaret_sinifi(en_iyi["net_tutar"])}">'
+            f'{isaretli(en_iyi["net_tutar"])}</span> / <span class="{_isaret_sinifi(en_kotu["net_tutar"])}">'
+            f'{isaretli(en_kotu["net_tutar"])}</span></dd></div></dl>'
+            f'{_gunluk_cubuklar(gunluk, bugun)}'
+            f'<table class="cizelge gunluk"><thead><tr><th>Gün</th><th>İşlem</th><th>Net USDT</th>'
+            f'<th>Birikimli</th></tr></thead><tbody>{satirlar}</tbody></table>'
+        )
+    return f'<div class="rapor-panel rp-{sira}"><h3>{escape(baslik)}</h3>{govde}</div>'
+
+
+def _rapor_ekrani(ozet: dict, saat_dilimi: str) -> str:
+    """Bot seçimli günlük kâr / zarar raporu.
+
+    Seçim betiksiz çalışır (gizli seçim düğmeleri ve biçim kuralları); Telegram'dan
+    gönderilen dosyada da kullanılabilir.
+    """
+    yerel, dilim_adi = yerel_zaman(ozet["uretildi"], saat_dilimi)
+    bugun = yerel.strftime("%Y-%m-%d")
+    secenekler = [("Bütün botlar", "Bütün botlar", ozet.get("gunluk_toplam") or [])]
+    secenekler += [(b["kod"], f'{b["kod"]} · {b["ad"]}', b.get("gunluk") or [])
+                   for b in ozet["botlar"]][:RAPOR_EN_FAZLA - 1]
+    dugmeler = "".join(
+        f'<input type="radio" name="rapor-bot" id="rb-{k}" class="rapor-radyo"{" checked" if k == 0 else ""}>'
+        for k in range(len(secenekler))
+    )
+    etiketler = "".join(f'<label for="rb-{k}">{escape(kisa)}</label>' for k, (kisa, _, _) in enumerate(secenekler))
+    paneller = "".join(_rapor_paneli(k, uzun, gunluk, bugun) for k, (_, uzun, gunluk) in enumerate(secenekler))
+    return f"""<section id="rapor" class="ekran">
+<h2 class="ekran-baslik">Rapor</h2>
+<p class="not">Her botun gün gün sanal kâr ya da zararı (komisyon düşülmüş, USDT). Bir işlem
+kapandığı güne sayılır; açık pozisyonlar kapanınca eklenir. Gün sınırı gece yarısıdır
+({escape(dilim_adi)}).</p>
+{dugmeler}
+<div class="rapor-secim" role="group" aria-label="Bot seç">{etiketler}</div>
+<div class="rapor-paneller">{paneller}</div>
+</section>"""
+
+
+# --------------------------------------------------------------------------
 # Dersler ekranı: stop sonrası izleme
 # --------------------------------------------------------------------------
 
@@ -999,6 +1117,22 @@ font-size:.8125rem;margin-top:4px}
 .cizelge-karar.gecti{color:var(--arti)}.cizelge-karar.kaldi{color:var(--eksi)}
 .anahtar{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 0;color:var(--soluk);font-size:.875rem}
 
+.rapor-radyo{position:absolute;opacity:0;pointer-events:none}
+.rapor-secim{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
+.rapor-secim label{padding:7px 12px;border:1px solid var(--cizgi);color:var(--soluk);font-weight:600;
+font-size:.875rem;cursor:pointer;background:var(--cam)}
+RAPOR_SECILI{color:var(--holo);border-color:var(--holo);background:rgba(95,212,255,.14)}
+RAPOR_ODAK{outline:2px solid var(--altin);outline-offset:2px}
+.rapor-panel{display:none}
+RAPOR_GOSTER{display:block}
+.rapor-panel h3{margin-top:18px}
+.g-grafik{display:block;width:100%;height:auto;max-width:820px;overflow:visible;margin-top:6px}
+.g-cubuk{fill:currentColor}
+.g-cubuk.notr{color:var(--soluk)}
+.cizelge.gunluk td{font:700 1rem/1.3 var(--rakam);white-space:nowrap}
+.cizelge.gunluk td .alt{font-family:var(--govde);font-weight:400}
+.cizelge.gunluk th[scope=row]{font-weight:600;white-space:nowrap}
+
 .gezinti{position:fixed;left:0;right:0;bottom:0;z-index:4;display:grid;grid-template-columns:repeat(EKRAN_SAYISI,1fr);
 background:rgba(4,9,17,.9);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
 border-top:1px solid var(--cizgi);padding-bottom:env(safe-area-inset-bottom)}
@@ -1046,6 +1180,9 @@ STIL = (
     .replace("EKRAN_GOSTER", ",".join(f'.sekmeli[data-ekran="{k}"] #{k}' for k, _ in EKRANLAR))
     .replace("EKRAN_SECILI", ",".join(f'.sekmeli[data-ekran="{k}"] .gezinti a[href="#{k}"]' for k, _ in EKRANLAR))
     .replace("EKRAN_SAYISI", str(len(EKRANLAR)))
+    .replace("RAPOR_SECILI", ",".join(f"#rb-{k}:checked~.rapor-secim label[for=rb-{k}]" for k in range(RAPOR_EN_FAZLA)))
+    .replace("RAPOR_ODAK", ",".join(f"#rb-{k}:focus-visible~.rapor-secim label[for=rb-{k}]" for k in range(RAPOR_EN_FAZLA)))
+    .replace("RAPOR_GOSTER", ",".join(f"#rb-{k}:checked~.rapor-paneller .rp-{k}" for k in range(RAPOR_EN_FAZLA)))
 )
 
 
@@ -1073,7 +1210,9 @@ var yeni=new DOMParser().parseFromString(m,'text/html').getElementById('govde');
 if(!yeni)throw 0;
 kok.style.setProperty('--gecen','-'+(performance.now()/1000).toFixed(1)+'s');
 kok.classList.add('acildi');
+var r=document.querySelector('.rapor-radyo:checked'),rid=r?r.id:null;
 govde.innerHTML=yeni.innerHTML;
+if(rid){var s=document.getElementById(rid);if(s)s.checked=true;}
 kok.classList.remove('kopuk');
 goster(false);
 }).catch(function(){kok.classList.add('kopuk');});
@@ -1135,6 +1274,7 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
 {_botlar_ekrani(ozet)}
 {_islemler_ekrani(ozet, saat_dilimi)}
 {_dersler_ekrani(ozet, saat_dilimi)}
+{_rapor_ekrani(ozet, saat_dilimi)}
 {_sinav_ekrani(ozet, yenileme_notu)}
 </main>
 </div>

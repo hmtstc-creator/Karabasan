@@ -98,7 +98,7 @@ veride doğru çalıştığını görmek içindir. Sınavın saatini Telegram'da
 | `http://karabasan:8080` | Sonuç sayfası; yalnız Tailscale açıkken açılır |
 | Telegram, `/sayfa` | Aynı sayfa, dosya olarak |
 
-Sonuç sayfasında beş ekran var; telefonda altta, bilgisayarda üstte duran
+Sonuç sayfasında altı ekran var; telefonda altta, bilgisayarda üstte duran
 şeritten geçilir:
 
 - **Ana ekran:** ortada bir gösterge halkası. Dış halkadaki her dilim bir bottur
@@ -109,6 +109,10 @@ Sonuç sayfasında beş ekran var; telefonda altta, bilgisayarda üstte duran
   uzun süre, işlem sayısı, kazanma ve başabaş oranı, net sonuç, çıkış nedenleri.
 - **İşlemler:** açık pozisyonlar ve son kapanan 30 işlem. Stop olan işlemin
   altında, izlendikten sonra, "stop şu kadar geniş olsaydı ne olurdu" yazar.
+- **Rapor:** bot seç (ya da "Bütün botlar"), o botun gün gün sanal kâr / zararı:
+  toplam, artıda biten gün sayısı, en iyi ve en kötü gün, son 30 günün çubuk
+  grafiği ve gün gün tablo (işlem, kazanan, net, birikimli). Bir işlem kapandığı
+  güne sayılır. Telegram'ın `/sayfa` dosyasında da seçim çalışır.
 - **Dersler:** stop sonrası izleme. Stop olan her işlem kendi süresi dolana
   kadar izlenir; stop 1,5 / 2 / 3 kat geniş olsaydı toplam sonucun ne kadar
   değişeceği bot başına gösterilir. Karar ("stop dar görünüyor", "stop
