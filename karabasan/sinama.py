@@ -111,6 +111,22 @@ ADAYLAR = [
         "en_az_gun": 100, "en_az_islem": 0, "esik_net_yuzde": 0.15, "esik_brut_yuzde": None,
         "en_iyi_3_gun": True, "btc_iliskisi": False, "trend": False,
     },
+    # Fonlama sıkışması (mikro yapı uzmanı; 3. aşama): sayım 3 yılda 571 olay buldu, panel kararıyla
+    # bot olarak sınanır. Tek deneme, fonlama şartı kaldırılmış kural plasebosuyla.
+    {
+        "ad": "FONK", "baslik": "Fonlama sıkışması (açığa satış, 1 s)",
+        "denemeler": ["FONK"], "canli": "FONK",
+        "kural_plasebolari": {"FONKP": "aynı kural fonlama şartı olmadan"},
+        "en_az_gun": 0, "en_az_islem": 60, "esik_net_yuzde": 0.20, "esik_brut_yuzde": None,
+        "en_iyi_3_gun": True, "btc_iliskisi": False, "trend": False,
+    },
+    {
+        "ad": "FON", "baslik": "Fonlama sıkışması (alım, 1 s)",
+        "denemeler": ["FON"], "canli": "FON",
+        "kural_plasebolari": {"FONP": "aynı kural fonlama şartı olmadan"},
+        "en_az_gun": 0, "en_az_islem": 60, "esik_net_yuzde": 0.20, "esik_brut_yuzde": None,
+        "en_iyi_3_gun": True, "btc_iliskisi": True, "trend": False,
+    },
 ]
 # Fonlama aşırılığı sayımı (panelin 4. aday oylaması, oybirliğiyle): bot değil, yalnız sayım.
 FONLAMA_ASIRI = 0.05          # 8 saate çevrilmiş tek ödeme, yüzde (olağan %0,01)

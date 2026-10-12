@@ -380,7 +380,13 @@ vuruş" komisyon yüzünden en zor yol.
   hacim 2,5 katına çıkar ve yapı döner. Stop iğnenin ötesi (%1,2-2,5), hedef stopun 1,5 katı, 8 saat.
   Tek deneme; plasebo aynı kuralın başka saatli ve saat şartsız halleri.
 
-İlk sınama (12 Ekim 2026): ZSD, TRG ve TRGK kaldı. Hiçbiri komisyon ve kaymayı karşılamadı;
+- **FON / FONK, fonlama sıkışması** (alım / açığa satış, 1 s; 3. aşama): kalabalık bir yöne
+  yığılıp fonlama ücreti aşırılaşınca (açığa satışta son ödeme >= %0,05, son 3 ortalaması >= %0,03),
+  fiyat günlük 20 ortalamadan %8 uzaklaşmış ve 1 saatlik grafikte dönüş başlamışsa kalabalığın
+  tersine girer. Stop %4, iz süren stop %3'te başlar %1,5 geride, en çok 72 saat.
+
+İlk sınama (12 Ekim 2026): ZSD, TRG ve TRGK kaldı. İkinci sınamada ASYA ve ASYAK da kaldı
+(belirgin kaybettirdi); fonlama sayımı 3 yılda 571 olay buldu, bu yüzden FON / FONK sınanıyor. Hiçbiri komisyon ve kaymayı karşılamadı;
 yalnız açığa satış trendi rastgele açığa satıştan iyiydi ama sonucu sıfırdı. Ayrıntı `/panel`.
 
 Sınama (`karabasan/sinama.py`, sunucuda `araclar/panel_sinama.sh`): 20 coin, 4 yıl;

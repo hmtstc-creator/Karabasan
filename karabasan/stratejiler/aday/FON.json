@@ -1,0 +1,85 @@
+{
+  "kod": "FON",
+  "ad": "Fonlama sıkışması (alım)",
+  "yon": "alim",
+  "aciklama": "Uzman panelinin (12 Ekim 2026) mikro yapı uzmanının önerisi (FONK'un aynası), tek deneme. Kalabalık açığa satışta sıkışmış: son fonlama ödemesi -%0,03 ya da altı ve son 3'ün ortalaması -%0,02 ya da altı; fiyat günlük 20 ortalamanın en az %8 altında; 1 saatlik yapı yukarı döner ya da kapanış önceki 4 mumun en yükseğinin üstüne çıkar. Alım piyasa emriyle. Çıkış: stop %4; kâr %3'ü geçince stop en iyi fiyatın %1,5 gerisinden izler; en çok 72 saat. Aynı anda en çok 3 pozisyon, coin başına günde 1 giriş. Fonlama oranı 8 saate çevrilmez (4 / 1 saatlik ödeyen coinlerde şart daha zor sağlanır).",
+  "zaman_dilimi": "1h",
+  "borsa_dilimleri": [
+    "1d"
+  ],
+  "gostergeler": {
+    "ema20_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 20,
+      "dilim": "1d"
+    },
+    "yapi": {
+      "tur": "yapi",
+      "periyot": 3
+    },
+    "uc4": {
+      "tur": "en_yuksek",
+      "kaynak": "yuksek",
+      "periyot": 4,
+      "kaydir": 1
+    },
+    "fon1": {
+      "tur": "fonlama",
+      "periyot": 1
+    },
+    "fon3": {
+      "tur": "fonlama",
+      "periyot": 3
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "fon1",
+        "islem": "<=",
+        "sag": -0.03
+      },
+      {
+        "sol": "fon3",
+        "islem": "<=",
+        "sag": -0.02
+      },
+      {
+        "sol": "kapanis",
+        "islem": "<=",
+        "sag": {
+          "ad": "ema20_1g",
+          "carpan": 0.92
+        }
+      },
+      {
+        "herhangi": [
+          {
+            "sol": "yapi_donus",
+            "islem": ">",
+            "sag": 0
+          },
+          {
+            "sol": "kapanis",
+            "islem": ">",
+            "sag": "uc4"
+          }
+        ]
+      }
+    ]
+  },
+  "cikis": {
+    "zarar_durdur_yuzde": 4.0,
+    "iz_suren_stop": {
+      "tetik_yuzde": 3.0,
+      "mesafe_yuzde": 1.5
+    },
+    "sure_asimi_dakika": 4320
+  },
+  "portfoy": {
+    "en_fazla_pozisyon": 3,
+    "coin_gunde_en_fazla": 1,
+    "en_az_kayma_yuzde": 0.1
+  }
+}

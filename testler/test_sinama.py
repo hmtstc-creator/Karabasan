@@ -198,7 +198,7 @@ class UcTanUca(unittest.TestCase):
     def test_rapor_bolumleri(self):
         for parca in ("PANEL SINAMASI", "=== ZSD", "=== TRG", "=== TRGK", "KARAR (ZSD)", "KARAR (TRG28)",
                       "Kural plasebosu ZSDP", "Rastgele giriş plasebosu", "PANEL PORTFÖYÜ", "ÖZET",
-                      "ayrılmış, KAPALI", "Deneme defteri: önceki 112 + bu sınamada 11 = 123", "=== ASYA", "KARAR (ASYAK)",
+                      "ayrılmış, KAPALI", "Deneme defteri: önceki 112 + bu sınamada 13 = 125", "=== FONK", "Kural plasebosu FONP", "=== ASYA", "KARAR (ASYAK)",
                       "Kural plasebosu ASYAP2", "FONLAMA AŞIRILIĞI SAYIMI",
                       "Bilgi (onceki_gun_dibi_delindi = evet)", "dosya özeti"):
             self.assertIn(parca, self.metin)

@@ -97,7 +97,7 @@ değiştirirsen aynı provayı yeniden kur ve çalıştır; sonra Ahmet'e yine d
 | --- | --- |
 | `karabasan/gostergeler.py` | Gösterge blokları (EMA, RSI, MACD, Bollinger, ATR, VWAP, üst dilim hizalama), `piyasa_yapisi` (salınımlar, yapı kırılımı BOS / CHoCH, denge, emir blokları), `uyumsuzluk` (10 göstergede normal / gizli boğa ve ayı uyumsuzluğu sayısı; kural türü `"uyumsuzluk"`, sütunlar `<ad>_boga`, `<ad>_ayi`) `donchian_topluluk` (emekli SNIPERG: birkaç uzunlukta Donchian kanal modelinin trendde olan payı, 0–1), `fvg` (adil değer boşluğu; kural türü `"fvg"`, sütunlar `<ad>_boga`, `<ad>_boga_ust`, `<ad>_boga_alt` ve ayı karşılıkları) ve `zaman_araligi` (seans aralığı: sabit UTC penceresinin tepe / dibi yalnız aynı günün işlem penceresinde, ya da kayan aralık; sütunlar `tepe`, `dip`, `genislik`, `alt_esik`, `ust_esik`) |
 | `karabasan/kural.py` | Kural dosyası (JSON) okuma, doğrulama, sinyal üretme. Bir gösterge `dilim` ile istediği üst dilimde hesaplanır (`"ust"`, `"15m"`, `"1h"`, `"1d"`). `borsa_dilimleri` içindeki dilimlerin mumları taban mumlardan toplanmaz, `ek_veri` ile dışarıdan verilir (motor, araçlar); boş tablo "veri yok, sinyal de yok" demektir. `giris_limiti` varsa giriş limit emirdir: `giris_limit_yuzde` (ATR × kat, kırpılmış), `limit_fiyati`. Panel sınaması için (12 Ekim 2026): göstergede `"parite": "BTC"` (başka paritenin mumları, `ek_veri["BTC@15m"]`, `referans_istekleri`), göstergede `kaydir` (kendi diliminde), `hacim_ortanca`, `fonlama` (son N ödemenin ortalaması, yüzde; `ek_veri["fonlama"]`, ödeme ancak gerçekleştikten sonra görülür), çıkışta `stop_atr` (işlem başına stop = kat × ATR, `zarar_durdur_yuzde` tavan; `stop_yuzde` sütunu), `portfoy` (pozisyon / giriş sınırları, coin başına günde en çok giriş, seri stop muafiyeti, en az kayma) ve `bilgi` (işlemleri ayırmak için koşullar). Ayrıca `stop_atr` içinde `seviye` + `pay` (stop bir sütunun, örnek son 5 mumun dibinin, pay × ATR ötesine; kat × ATR ve en_az alt sınır), `kar_hedefi_r` (hedef = r × işlemin stopu) ve `hepsi` / `herhangi` grubunda `son_n_mumda` (grubun koşulları aynı mumda, son N mumdan birinde). Bunları yalnız aday kurallar kullanır |
-| `karabasan/stratejiler/aday/*.json` | Uzman panelinin aday kuralları (canlı değil): ZSD (+ ZSDF, ZSDT denemeleri, ZSDP plasebo), TRG14/28/56, TRGK14/28/56 ve (2. aşama) ASYA / ASYAK (tek deneme; plasebolar ASYAP1 / ASYAKP1 12:00-18:59 aralığı, ASYAP2 / ASYAKP2 saat şartsız). `kural_yukle` koduyla bulur; `tum_kurallar()` okumaz. Dondurulmuştur: eşik değişirse yeni deneme sayılır (`aday/BENIOKU.md`) |
+| `karabasan/stratejiler/aday/*.json` | Uzman panelinin aday kuralları (canlı değil): ZSD (+ ZSDF, ZSDT denemeleri, ZSDP plasebo), TRG14/28/56, TRGK14/28/56 (2. aşama) ASYA / ASYAK (tek deneme; plasebolar ASYAP1 / ASYAKP1 12:00-18:59 aralığı, ASYAP2 / ASYAKP2 saat şartsız) ve (3. aşama) FON / FONK fonlama sıkışması (tek deneme; plasebo FONP / FONKP fonlama şartsız). `kural_yukle` koduyla bulur; `tum_kurallar()` okumaz. Dondurulmuştur: eşik değişirse yeni deneme sayılır (`aday/BENIOKU.md`) |
 | `karabasan/sinama.py`, `araclar/panel_sinama.py`, `araclar/panel_sinama.sh` | Panel sınaması: 20 coin (`COINLER`, BTC referans), 4 yıl; ilk 3 yıl geliştirme, son yıl ayrılmış (`AYRILMIS_ACIK = False`; açmak bir karar ve ayrı bir işlem). Aday işlemler (`benzetim.aday_islemler`) → portföy geçişi (risk 1 USDT / stop, en çok 100 USDT; bot başına pozisyon ve giriş sınırları; günlük fren %2; coin ve seri stop kilidi; isteğe bağlı ortak portföy). Maliyet: komisyon + kayma (sinyal mumu aralığının %10'u, en az kuralınki) + fonlama; ayrıca maliyet iki katı. Ölçümler: gün bazında t, yıllar, en iyi 3 gün payı, BTC ilişkisi; rastgele giriş plasebosu ve kural plasebosu; önceden yazılmış karar (`karar`); fonlama aşırılığı sayımı (`fonlama_olaylari`, bot değil). Veri `panel_sinama.sh` indirir (15m / 1h 1500 gün, 1d 1700 gün, fonlama). `kur.sh`'ta tarama sonrası, `PANEL_SURUMU`. Çıktı `user_data/logs/panel_sinama.txt` (Telegram `/panel`). Hiçbir ayarı değiştirmez |
 | `karabasan/fonlama.py` | Fonlama oranı geçmişi: Binance'in herkese açık `fapi/v1/fundingRate` adresinden indirir (yalnız standart kütüphane, kaldığı yerden sürer; `user_data/data/fonlama/<COIN>.csv`), `oku` pandas tablosu verir (`date`, `oran_yuzde`) |
 | `karabasan/stratejiler/*.json` | 12 Ekim 2026'dan beri beş strateji: SM, SMD ve SNIPER (alım), SMK ve SMDK (açığa satış). Çıkarılan kurallar (S1–S7 ve ters yönlüleri, Sniper'ın ilk hali SNIPERG) `stratejiler/emekli/` altında durur; `tum_kurallar()` orayı okumaz ama `kural_yukle("S1")` koduyla bulur (eski raporlar ve testler için). Hangi botun çalıştığını yalnız `botlar.BOTLAR` belirler. Her birinin `ad` alanı ne yaptığını söyleyen düz addır; sayfada ve Telegram'da o görünür. SM / SMK'nın adı Ahmet'in isteğiyle "Smartmoney" diye başlar |
@@ -742,11 +742,23 @@ Ahmet iletti; geliştirme dönemi 13.10.2022–12.10.2025, 20 coin, eksik veri y
   neredeyse hiç sinyal vermiyor (300 günde 0-2); gerçek veride sayısı bilinmiyor, 100 ayrı günden
   azsa "HÜKÜM YOK" yazar.
 
+**Panel sınamasının ikinci sonucu (`PANEL_SURUMU=2`, 12 Ekim 2026 20:00 UTC, Ahmet iletti).**
+ZSD / TRG / TRGK aynı (kaldı). ASYA: 85 işlem (68 ayrı gün, hüküm için 100 gerekirdi), %30,6
+kazanma, −32,98 USDT, komisyon öncesi −%0,61, t −3,03 (belirgin kaybettiriyor; rastgele girişten
+kötü, t −1,77); saat şartsız plasebo ondan iyi (−%0,62'ye karşı −%0,715). ASYAK: 143 işlem, −31,35,
+t −2,31, kaldı; iki plasebo da ondan iyi. Seans likidite avı iddiası bu veride çürüdü. Panel
+portföyü 1.096 işlem, −96,30 USDT. Fonlama sayımı: 3 yılda kalabalık alımda 359, açığa satışta 212
+olay (BNB 59, BCH 39, TRX 35 satış tarafında); panelin "100'den çoksa bot" kuralıyla 3. aşama:
+FON / FONK (mikro yapı uzmanının FONLAMA-SIKIŞMA önerisi: fonlama ≥ %0,05 ve son 3 ort. ≥ %0,03,
+fiyat günlük EMA20'nin %8 ötesi, 1 s yapı dönüşü ya da 4 mumun ucunun kırılması; stop %4, iz %3 /
+%1,5, 72 saat, en çok 3 pozisyon; risk yöneticisinin "eşzamanlı sınır yok" itirazıyla 3 eklendi),
+tek deneme, fonlama şartsız plaseboyla. `PANEL_SURUMU=3`, deneme defteri 125.
+
 Sıradaki işler, öncelik sırasıyla:
 
-0. Panel sınaması raporu 2 (`/panel`, `PANEL_SURUMU=2`): ASYA / ASYAK kararı ve fonlama sayımı;
-   Ahmet'e açıkla. Bütün aileler kalırsa panelin önerileri tükendi: yeni fikir = yeni deneme,
-   önce Ahmet'le konuş. Geçen aile olursa ayrılmış yıl bütün adaylar için birlikte bir kez açılır
+0. Panel sınaması raporu 3 (`/panel`, `PANEL_SURUMU=3`): FON / FONK kararı; Ahmet'e açıkla.
+   Bütün aileler kalırsa panelin önerileri tükendi: yeni fikir = yeni deneme, önce Ahmet'le
+   konuş; şimdiki botlar (SM dahil) çalışmaya devam eder. Geçen aile olursa ayrılmış yıl bütün adaylar için birlikte bir kez açılır
    (`AYRILMIS_ACIK`); sonra 3. aşama: bağlantı katmanı (BTC informative pair, canlı fonlama,
    `custom_stake_amount`, `custom_stoploss` ve seviye stopu, R hedefi, protections, kayıtçının
    ortak fren dosyası) ve yeni sanal botlar; o zaman SMK, SMD, SMDK, Sniper durur, SM kalır.

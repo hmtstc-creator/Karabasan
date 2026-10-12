@@ -183,7 +183,7 @@ class PortfoyVeBilgi(unittest.TestCase):
 
 class AdayKurallar(unittest.TestCase):
     KODLAR = ["ZSD", "ZSDF", "ZSDT", "ZSDP", "TRG14", "TRG28", "TRG56", "TRGK14", "TRGK28", "TRGK56",
-              "ASYA", "ASYAP1", "ASYAP2", "ASYAK", "ASYAKP1", "ASYAKP2"]
+              "ASYA", "ASYAP1", "ASYAP2", "ASYAK", "ASYAKP1", "ASYAKP2", "FON", "FONK", "FONP", "FONKP"]
 
     def test_hepsi_gecerli_ve_canli_degil(self):
         from karabasan.botlar import BOTLAR
@@ -218,7 +218,7 @@ class AdayKurallar(unittest.TestCase):
     def test_sinyaller_gelecege_bakmaz(self):
         coin, btc = self._veri(300)
         kesim = 96 * 200
-        for kod in ("ZSD", "ZSDF", "ZSDT", "TRG28", "TRGK28", "ASYA", "ASYAK", "ASYAP2"):
+        for kod in ("ZSD", "ZSDF", "ZSDT", "TRG28", "TRGK28", "ASYA", "ASYAK", "ASYAP2", "FON", "FONK"):
             kural = k.kural_yukle(kod)
             veri = coin if kural["zaman_dilimi"] == "15m" else g.ust_dilime_cevir(coin, "15m", "1h")
             ref = btc
