@@ -182,7 +182,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 492 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 493 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -646,11 +646,37 @@ Ana ekrandaki halkanın ortası değişmedi. Not: halkanın ortası "toplam sana
 (ısınma / sınav başından beri); Ahmet onu son 24 saat sanıyor, ona söylendi. Sayfa
 yalnız buradaki Chromium'da (390 px ve 1280 px, betikli ve betiksiz) denendi.
 
+**On altıncı uyum denemesi geçti (iz süren stop; 11 Ekim 2026 20:38 UTC, Ahmet iletti).**
+Motor iz süren stopu aldı (`trailing_stop_positive` 0,003, `offset` 0,012,
+`trailing_only_offset_is_reached`). Limitli girişte açılış zamanı düzeltmesi tuttu: işlem
+sayıları birebir ya da ±2 (motor / benzetim / eşleşen, BTC hariç): SM 48 / 47 / 47, SMK
+25 / 25 / 24, SMD 41 / 40 / 40, SMDK 21 / 21 / 20, Sniper 44 / 42 / 41; çıkış nedeni
+sayıları iki tarafta aynı ya da bir eksik.
+- Motor son 30 gün (BTC hariç; işlem / kazanma / net USDT): SM 48 / %68,8 / −4,25; SMK
+  25 / %64,0 / −4,36; SMD 41 / %70,7 / −2,29; SMDK 21 / %66,7 / −2,43; Sniper 44 / %61,4 /
+  −10,59; toplam −23,92. İz süren stop çıkışları ortalama +%1,13–1,19, stoplar −%3,09–3,11.
+  Bu oranlarla başa baş için kazanma ~%73 olmalı (3,1 / (1,15 + 3,1)); hepsi altında.
+- Benzetim (BTC dahil): SM 56 / %67,9 / −3,16; SMK 24 / %54,2 / −9,23; SMD 48 / %68,8 /
+  −1,92; SMDK 21 / %57,1 / −6,47; Sniper 45 / %57,8 / −13,74; toplam −34,52. Aynı 30 günde
+  eski çıkışlarla (14. deneme) −20,16 idi: bu ayda iz süren stop daha kötü (tek ay; 12 aylık
+  taramada tersi çıkmıştı). İşlem sayısı azaldı (SM 86 → 56): işlemler uzun sürüyor
+  (motorda ortalama 12-16 saat, stoplar 18-37 saat).
+- Eşleşip aynı nedenle kapanan iz süren stopların neredeyse hepsi (SM 33'ün 31'i) iki
+  tarafta başka mumda kapanıyor. Neden: motor geçmiş testinde stopu mumun tepesiyle aynı
+  mumda taşıyıp aynı mumun dibine bakar (tepe önce geldi varsayımı, iyimser; çıkış hep
+  tetik civarı +%1,15); benzetim bir sonraki mumdan taşır (kötümser ama trend sürerse daha
+  geç ve yüksekten çıkar). Canlı bot fiyata birkaç saniyede bir bakar; ikisinin arasında
+  bir yerdedir. Farkın büyüklüğünü ölçmek için eşleştirmeye eşleşen işlemlerin net
+  toplamı ve iz süren stopta "benzetim daha geç / erken" sayısı eklendi (`UYUM_SURUMU=17`).
+  Benzetim kendiliğinden değiştirilmedi; 17. rapordaki fark büyükse (işlem başına
+  %0,2'den çok) benzetimi motora yaklaştırmak düşünülür, çünkü 12 aylık test ve tarama
+  benzetimle yapılıyor.
+
 Sıradaki işler, öncelik sırasıyla:
 
-0. On altıncı uyum denemesi: limitli girişte açılış zamanı düzeltmesi ve iz süren
-   stopun motorla benzetimde tutması (çıkış fiyatları, "iz_suren_stop" sayıları). Tarama
-   raporu geldi ve özetlendi (yukarıda); ayar değişikliği yalnız Ahmet isterse. Ahmet Sniper'daki limitli girişi izlemek istedi
+0. On yedinci uyum denemesi: eşleşen işlemlerde motor / benzetim net farkı ve iz süren
+   stopta benzetimin geç / erken kapattığı sayı (yukarıda). On altıncı geçti ve özetlendi.
+   Ayar değişikliği yalnız Ahmet isterse. Ahmet Sniper'daki limitli girişi izlemek istedi
    (geri alınmadı).
 
 1. Karabasan canlı ölçüm servisi: Binance mumları ve `kayitci` kaydından

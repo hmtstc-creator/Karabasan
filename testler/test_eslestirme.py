@@ -81,6 +81,29 @@ class EslestirmeTestleri(unittest.TestCase):
         self.assertEqual(len(satirlar), 3)
         self.assertIn("eşleşen 1", satirlar[0])
 
+    def test_eslesenlerin_net_sonucu_ve_iz_suren_stop_zamani(self):
+        # 16. uyum denemesi: motor iz süren stopu mumun tepesiyle aynı mumda taşır,
+        # benzetim bir sonraki mumdan; aynı işlem iki tarafta farklı net ile kapanır.
+        ham = [motor_islemi("ETH/USDT:USDT", "2026-10-01 00:05:00+00:00", "2026-10-01 00:30:00+00:00",
+                            "trailing_stop_loss", short=False),
+               motor_islemi("SOL/USDT:USDT", "2026-10-01 00:05:00+00:00", "2026-10-01 00:30:00+00:00",
+                            "stop_loss", short=False)]
+        ham[0]["profit_ratio"], ham[1]["profit_ratio"] = 0.0115, -0.031
+        motor = motor_islemleri(ham)
+        b1 = benz_islemi("2026-10-01 00:05", "2026-10-01 00:45", "iz_suren_stop")
+        b2 = benz_islemi("2026-10-01 00:05", "2026-10-01 00:35", "zarar_durdur")
+        b1["net_yuzde"], b2["net_yuzde"] = 1.4, -3.1
+        benz = (benzetim_islemleri([b1], "ETH", MUM) + benzetim_islemleri([b2], "SOL", MUM))
+        n = eslestir(motor, benz)["net"]
+        self.assertEqual((n["sayi"], n["iz_sayi"], n["iz_gec"], n["iz_erken"]), (2, 1, 1, 0))
+        self.assertAlmostEqual(n["motor"], -1.95)
+        self.assertAlmostEqual(n["benzetim"], -1.7)
+        metin = "\n".join(rapor_satirlari("sm-vadeli", motor, benz, tutar=50))
+        self.assertIn("eşleşen 2 işlemin net toplamı (komisyon dahil): motor %-1,95 = -0,98 USDT, "
+                      "benzetim %-1,70 = -0,85 USDT", metin)
+        self.assertIn("iz süren stopla kapanan 1: benzetim 1 tanesini daha geç, 0 tanesini daha erken", metin)
+        self.assertIn("ortalama net motor %+1,15, benzetim %+1,40", metin)
+
 
 if __name__ == "__main__":
     unittest.main()

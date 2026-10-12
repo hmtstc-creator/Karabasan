@@ -7,6 +7,10 @@ için işlemleri tek tek yan yana koymak gerekir. Bu modül bunu yapar:
 
 - Her iki taraftaki işlemleri (coin, giriş zamanı) ile eşleştirir.
 - Eşleşen işlemlerde çıkış nedeni ya da çıkış mumu farklıysa sayar.
+- Eşleşen işlemlerde iki tarafın komisyon dahil net sonucunu toplar; iz süren
+  stopla kapananlarda benzetimin kaç işlemi daha geç ya da erken kapattığını
+  sayar (motor stopu mumun tepesiyle aynı mumda taşır, benzetim bir sonraki
+  mumdan; 16. uyum denemesinde 33 iz süren stopun 31'i başka mumda kapandı).
 - Yalnız bir tarafta olan işlemlerin ilk birkaçını, o sırada öbür tarafta
   açık olan işlemle birlikte yazar. Fark çoğu zaman şöyle görünür: "motor
   bu işlemi açtı, çünkü benzetimdeki önceki işlem motorda daha erken kapandı".
@@ -107,6 +111,7 @@ def motor_islemleri(ham: list[dict]) -> list[dict]:
                 "cikis_mumu": _zaman(t["close_date"]),
                 "neden": MOTOR_NEDENLERI.get(neden_ham, neden_ham),
                 "aciga_satis": bool(t.get("is_short", False)),
+                "net": _yuzde(t.get("profit_ratio"), 100.0),
             }
         )
     return sonuc
@@ -131,9 +136,34 @@ def benzetim_islemleri(islemler: list[dict], coin: str, mum: pd.Timedelta) -> li
                 "cikis_mumu": _zaman(cikis),
                 "neden": i["neden"],
                 "aciga_satis": i.get("yon") == "aciga_satis",
+                "net": _yuzde(i.get("net_yuzde"), 1.0),
             }
         )
     return sonuc
+
+
+def _yuzde(deger, kat: float) -> float | None:
+    """İşlemin komisyon dahil net sonucu, yüzde; kayıtta yoksa None."""
+    try:
+        return None if deger is None else float(deger) * kat
+    except (TypeError, ValueError):
+        return None
+
+
+def _net_ozeti(ciftler: list[tuple[dict, dict]]) -> dict:
+    """Eşleşen işlemlerde iki tarafın net sonucu (yalnız ikisinde de net yazılıysa)."""
+    netli = [(m, b) for m, b in ciftler if m.get("net") is not None and b.get("net") is not None]
+    iz = [(m, b) for m, b in netli if m["neden"] == b["neden"] == "iz_suren_stop"]
+    return {
+        "sayi": len(netli),
+        "motor": sum(m["net"] for m, _ in netli),
+        "benzetim": sum(b["net"] for _, b in netli),
+        "iz_sayi": len(iz),
+        "iz_motor": sum(m["net"] for m, _ in iz),
+        "iz_benzetim": sum(b["net"] for _, b in iz),
+        "iz_gec": sum(1 for m, b in iz if b["cikis_mumu"] > m["cikis_mumu"]),
+        "iz_erken": sum(1 for m, b in iz if b["cikis_mumu"] < m["cikis_mumu"]),
+    }
 
 
 def _acik_olan(islemler: list[dict], coin: str, an: pd.Timestamp) -> dict | None:
@@ -174,6 +204,7 @@ def eslestir(motor: list[dict], benzetim: list[dict]) -> dict:
         "yalniz_benzetim": yalniz_benzetim,
         "motor_nedenleri": _say(motor),
         "benzetim_nedenleri": _say(benzetim),
+        "net": _net_ozeti([(m_anahtar[k], b_anahtar[k]) for k in ortak]),
     }
 
 
@@ -190,8 +221,13 @@ def _kisa(t: dict | None) -> str:
     return (f"{t['giris']:%m-%d %H:%M} → {t['cikis_mumu']:%m-%d %H:%M} {t['neden']}")
 
 
-def rapor_satirlari(bot: str, motor: list[dict], benzetim: list[dict], ornek: int = 4) -> list[str]:
-    """Bir bot için okunur rapor satırları üretir."""
+def _isaretli(x: float) -> str:
+    return f"{x:+.2f}".replace(".", ",")
+
+
+def rapor_satirlari(bot: str, motor: list[dict], benzetim: list[dict], ornek: int = 4,
+                    tutar: float | None = None) -> list[str]:
+    """Bir bot için okunur rapor satırları üretir. tutar: işlem başına USDT (verilirse USDT de yazılır)."""
     s = eslestir(motor, benzetim)
     satirlar = [
         f"{bot}: motor {s['motor']}, benzetim {s['benzetim']}, eşleşen {s['eslesen']}, "
@@ -204,6 +240,19 @@ def rapor_satirlari(bot: str, motor: list[dict], benzetim: list[dict], ornek: in
         satirlar.append(f"    eşleşip farklı nedenle kapanan: {farklar}")
     if s["cikis_mumu_farki"]:
         satirlar.append(f"    eşleşip aynı nedenle ama başka mumda kapanan: {s['cikis_mumu_farki']}")
+    n = s["net"]
+    if n["sayi"]:
+        def kac(toplam):
+            usdt = f" = {_isaretli(toplam * tutar / 100.0)} USDT" if tutar else ""
+            return f"%{_isaretli(toplam)}{usdt}"
+
+        satirlar.append(f"    eşleşen {n['sayi']} işlemin net toplamı (komisyon dahil): "
+                        f"motor {kac(n['motor'])}, benzetim {kac(n['benzetim'])}")
+    if n["iz_sayi"]:
+        satirlar.append(
+            f"    iki tarafta da iz süren stopla kapanan {n['iz_sayi']}: benzetim {n['iz_gec']} tanesini daha geç, "
+            f"{n['iz_erken']} tanesini daha erken kapattı; işlem başına ortalama net motor "
+            f"%{_isaretli(n['iz_motor'] / n['iz_sayi'])}, benzetim %{_isaretli(n['iz_benzetim'] / n['iz_sayi'])}")
     for t in s["yalniz_motor"][:ornek]:
         satirlar.append(
             f"    yalnız motor  {t['coin']:<5} {_kisa(t)}  | benzetimde o an: {_kisa(_acik_olan(benzetim, t['coin'], t['giris']))}"

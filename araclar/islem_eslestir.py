@@ -85,7 +85,7 @@ def main() -> int:
             return baslangic <= t["giris"] <= sinir
 
         for satir in rapor_satirlari(bot, [t for t in motor if pencerede(t)],
-                                     [t for t in benz if pencerede(t)]):
+                                     [t for t in benz if pencerede(t)], tutar=float(ayar["islem_tutari"])):
             print(satir)
     return 1 if eksik else 0
 
