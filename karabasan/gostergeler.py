@@ -26,14 +26,14 @@ TURKCE_SUTUN = {
 
 
 def dilim_dakika(dilim: str) -> int:
-    """'5m', '1h', '4h', '1d' gibi bir zaman dilimini dakikaya çevirir."""
+    """'5m', '1h', '4h', '1d', '1w' gibi bir zaman dilimini dakikaya çevirir."""
     dilim = dilim.strip().lower()
     birim = dilim[-1:]   # boş metinde de hata "anlaşılamadı" olsun
     try:
         sayi = int(dilim[:-1])
     except ValueError as hata:
         raise ValueError(f"Zaman dilimi anlaşılamadı: {dilim!r}") from hata
-    carpan = {"m": 1, "h": 60, "d": 1440}.get(birim)
+    carpan = {"m": 1, "h": 60, "d": 1440, "w": 10080}.get(birim)
     if carpan is None or sayi <= 0:
         raise ValueError(f"Zaman dilimi anlaşılamadı: {dilim!r}")
     return sayi * carpan
@@ -268,9 +268,12 @@ def ust_dilime_cevir(df: pd.DataFrame, taban_dilim: str, ust_dilim: str) -> pd.D
         )
     gecici = df[["date", "open", "high", "low", "close", "volume"]].copy()
     gecici["date"] = pd.to_datetime(gecici["date"], utc=True)
+    # Haftalık (ve katları) mumlar borsadaki gibi Pazartesi 00:00 UTC'de başlar; öbür dilimler
+    # günün başına hizalıdır. 1970-01-05 bir Pazartesidir.
+    baslangic = pd.Timestamp("1970-01-05", tz="UTC") if ust_dk % 10080 == 0 else "start_day"
     toplu = (
         gecici.set_index("date")
-        .resample(f"{ust_dk}min", label="left", closed="left")
+        .resample(f"{ust_dk}min", label="left", closed="left", origin=baslangic)
         .agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"})
         .dropna(subset=["close"])
         .reset_index()

@@ -369,5 +369,31 @@ class SeviyeStopuVeRHedef(unittest.TestCase):
             k.kural_dogrula(kural)
 
 
+class HaftalikDilim(unittest.TestCase):
+    def test_haftalik_mumlar_pazartesi_baslar_ve_gelecege_bakmaz(self):
+        self.assertEqual(g.dilim_dakika("1w"), 10080)
+        df = yapay_mumlar(120, dilim_dk=1440, tohum=8, baslangic="2026-01-01")
+        hafta = g.ust_dilime_cevir(df, "1d", "1w")
+        self.assertTrue((hafta["date"].dt.dayofweek == 0).all())
+        kural = temel(zaman_dilimi="1d", gostergeler={"h": {"tur": "sma", "kaynak": "kapanis", "periyot": 2,
+                                                             "dilim": "1w"}},
+                      giris={"sol": "kapanis", "islem": ">", "sag": "h"})
+        tam = k.gosterge_ekle(df, kural)["h"]
+        kesik = k.gosterge_ekle(df.iloc[:60], kural)["h"]
+        pd.testing.assert_series_equal(tam.iloc[:60], kesik, check_names=False)
+        # Pazartesi açılan haftanın değeri ancak hafta kapanınca (Pazar mumunda) görülür.
+        pazar = pd.to_datetime(df["date"], utc=True).dt.dayofweek == 6
+        degisim = tam.ne(tam.shift(1)) & tam.notna() & tam.shift(1).notna()
+        self.assertTrue(pazar[degisim].all())
+
+    def test_gunluk_kayma_orani(self):
+        from karabasan import sinama as s
+        tablo = pd.DataFrame({"high": [110.0], "low": [100.0], "close": [105.0]})
+        np.testing.assert_allclose(s.kayma_dizisi(tablo, 0.1, 0.0), [0.1])
+        k.kural_dogrula(temel(portfoy={"kayma_aralik_orani": 0.0}))
+        with self.assertRaises(k.KuralHatasi):
+            k.kural_dogrula(temel(portfoy={"kayma_aralik_orani": 2}))
+
+
 if __name__ == "__main__":
     unittest.main()

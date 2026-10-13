@@ -962,7 +962,7 @@ def stop_yuzdesi(df: pd.DataFrame, kural: dict, ek_veri: dict | None = None) -> 
 
 
 PORTFOY_ALANLARI = ("en_fazla_pozisyon", "giris_sinirlari", "seri_stop_muaf", "en_az_kayma_yuzde",
-                    "coin_gunde_en_fazla")
+                    "coin_gunde_en_fazla", "kayma_aralik_orani")
 
 
 def _portfoy_dogrula(portfoy) -> None:
@@ -991,6 +991,9 @@ def _portfoy_dogrula(portfoy) -> None:
         raise KuralHatasi("'portfoy' içinde 'coin_gunde_en_fazla' 1 ile 100 arasında tam sayı olmalı.")
     if not isinstance(portfoy.get("seri_stop_muaf", False), bool):
         raise KuralHatasi("'portfoy' içinde 'seri_stop_muaf' doğru / yanlış olmalı.")
+    oran = portfoy.get("kayma_aralik_orani", 0.10)
+    if isinstance(oran, bool) or not isinstance(oran, (int, float)) or not 0 <= oran <= 1:
+        raise KuralHatasi("'portfoy' içinde 'kayma_aralik_orani' 0 ile 1 arasında olmalı.")
     kayma = portfoy.get("en_az_kayma_yuzde", 0.05)
     if isinstance(kayma, bool) or not isinstance(kayma, (int, float)) or not 0 <= kayma <= 1:
         raise KuralHatasi("'portfoy' içinde 'en_az_kayma_yuzde' 0 ile 1 arasında olmalı.")

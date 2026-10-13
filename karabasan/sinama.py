@@ -153,10 +153,14 @@ def donemler(yukle: MumYukleyici) -> tuple[pd.Timestamp, pd.Timestamp, pd.Timest
     return ayrilmis - pd.Timedelta(days=365 * GELISTIRME_YIL), ayrilmis, son
 
 
-def kayma_dizisi(tablo: pd.DataFrame, en_az_yuzde: float) -> np.ndarray:
-    """Mum başına kayma (yüzde): en az 'en_az_yuzde', ya da mum aralığının KAYMA_ORANI kadarı."""
+def kayma_dizisi(tablo: pd.DataFrame, en_az_yuzde: float, oran: float = KAYMA_ORANI) -> np.ndarray:
+    """Mum başına kayma (yüzde): en az 'en_az_yuzde', ya da mum aralığının 'oran' kadarı.
+
+    Aralık payı kısa mumlar içindir (şok anında makas açılır). Günlük mumun 24 saatlik
+    aralığı açılıştaki makası anlatmaz; günlük kurallar oranı 0 yapar ('kayma_aralik_orani').
+    """
     aralik = ((tablo["high"] - tablo["low"]) / tablo["close"] * 100.0).to_numpy(dtype=float)
-    return np.maximum(en_az_yuzde, np.nan_to_num(aralik) * KAYMA_ORANI)
+    return np.maximum(en_az_yuzde, np.nan_to_num(aralik) * oran)
 
 
 def fonlama_maliyeti(fonlama: pd.DataFrame | None, giris, cikis, alim: bool) -> float:
@@ -213,6 +217,7 @@ def bot_adaylari(kural: dict, kaynak: Kaynak, bas: pd.Timestamp, son: pd.Timesta
     alim = kural["yon"] == "alim"
     taban = kural["zaman_dilimi"]
     en_az_kayma = float(kural.get("portfoy", {}).get("en_az_kayma_yuzde", 0.05))
+    kayma_orani = float(kural.get("portfoy", {}).get("kayma_aralik_orani", KAYMA_ORANI))
     adaylar = {1: [], 2: []}
     fiyatlar = {}
     eksik: list[str] = []
@@ -225,7 +230,7 @@ def bot_adaylari(kural: dict, kaynak: Kaynak, bas: pd.Timestamp, son: pd.Timesta
                                         lambda p, d: kaynak.mum(p, d), lambda c=coin: kaynak.fonlama(c))
         eksik += [f"{coin} {b}" for b in bulunamayan]
         tablo = sinyal_uret(df, kural, ek)
-        kayma = kayma_dizisi(tablo, en_az_kayma)
+        kayma = kayma_dizisi(tablo, en_az_kayma, kayma_orani)
         bilgi = {ad: seri.to_numpy() for ad, seri in bilgi_sinyalleri(tablo, kural).items()}
         fon = kaynak.fonlama(coin)
         for kat in (1, 2):
