@@ -847,6 +847,12 @@ Eşikler Claude'un (Ahmet yalnız "aşırı satış" dedi). Çıkış: hedef %1,
 (diğer botlarla aynı) / mesafe %0,3 + stop %3, süre yok; piyasa emri. `UYUM_SURUMU=18`,
 `YILLIK_SURUMU=6` (12 aylık test RSI dahil yeniden). Yapay veride kendiliğinden kâr yok (60 günde RSI
 59 işlem −%9, RSIK 99 işlem −%35; rastgele yürüyüşte beklenen). 7 bot ≈ 3,1 GB bellek.
+- **On sekizinci uyum denemesi geçti (13 Ekim 20:10 UTC; sunucudaki oturumdan okundu).** 7 sınıf yüklendi.
+  RSI motorla tutuyor: RSI motor 109 / benzetim 106 / eşleşen 105; RSIK 105 / 105 / 105. Son 30 gün motor:
+  RSI 118 işlem %67,8 kazanma −9,94 USDT; RSIK 106 / %66,0 / −12,59 (başa baş ~%71). Benzetim (BTC dahil):
+  RSI 130 / %70,0 / −5,56; RSIK 114 / %65,8 / −14,81. Eşleşen işlemlerde net fark küçük (RSI −12,67 /
+  −12,00). Motor, benzetimin hedefle kapattığı 8-9 işlemi iz süren stopla kapatıyor (aynı mumda hedef / iz
+  önceliği farkı olabilir; doğrulanmadı, sonuca etkisi küçük).
 
 **Kriter istekleri (13 Ekim 2026, Ahmet'in isteği).** Ahmet "kriterleri sitede göster, değiştirebileyim;
 olmaz dersen sana söylerim sen çalıştırırsın" dedi. Sunucudaki sayfa değiştirilemez (sunucu 5 dakikada
