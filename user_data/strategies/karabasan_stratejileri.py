@@ -279,3 +279,11 @@ class SMDKVadeli(KarabasanTaban):
 
 class SniperVadeli(KarabasanTaban):
     kural_kodu, piyasa = "SNIPER", "vadeli"
+
+
+class RSIVadeli(KarabasanTaban):
+    kural_kodu, piyasa = "RSI", "vadeli"
+
+
+class RSIKVadeli(KarabasanTaban):
+    kural_kodu, piyasa = "RSIK", "vadeli"

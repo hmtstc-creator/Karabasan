@@ -28,6 +28,10 @@ BOTLAR = [
     # kısa vuruş. İlk hali (günlük trend takibi, "sniper-vadeli") aynı gün çıkarıldı; eski
     # kaydı yenisine karışmasın diye bot adı değişti, kapı (8085) aynı.
     ("sniper5-vadeli", "SniperVadeli", "SNIPER", "vadeli"),
+    # 13 Ekim 2026 (Ahmet'in isteği): yalnız RSI (5 dk / 15 dk / 1 saat), aşırı bölgeden dönüşte;
+    # hedef %1,5, stop %3, iz süren stop %0,3, süre yok. 30 günlük ileriye dönük takip.
+    ("rsi-vadeli", "RSIVadeli", "RSI", "vadeli"),
+    ("rsik-vadeli", "RSIKVadeli", "RSIK", "vadeli"),
 ]
 
 ILK_PORT = 8081

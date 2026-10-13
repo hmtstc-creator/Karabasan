@@ -117,7 +117,8 @@ class StratejiSiniflari(unittest.TestCase):
             self.assertAlmostEqual(s.trailing_stop_positive_offset, 0.012)
             self.assertTrue(s.trailing_only_offset_is_reached)
             self.assertAlmostEqual(s.stoploss, -0.03)
-            self.assertGreaterEqual(s.minimal_roi["0"], 100.0)     # sabit hedef fiilen kapalı
+            if kural_yukle(_k)["cikis"].get("kar_hedefi_yuzde") is None:
+                self.assertGreaterEqual(s.minimal_roi["0"], 100.0)     # sabit hedef fiilen kapalı
         self.assertFalse(self.emekli("S1").trailing_stop)
 
     def test_sure_siniri_yoksa_suresiz(self):
@@ -617,7 +618,7 @@ class UyumDenemesiTesti(unittest.TestCase):
 
     SAHTE_DOCKER = r'''#!/bin/bash
 case "$*" in
-  *list-strategies*) echo "KarabasanTaban SMVadeli SMKVadeli SMDVadeli SMDKVadeli $SAHTE_SON_SINIF";;
+  *list-strategies*) echo "KarabasanTaban SMVadeli SMKVadeli SMDVadeli SMDKVadeli $SAHTE_SON_SINIF RSIVadeli RSIKVadeli";;
   *"--version"*) echo "freqtrade 2026.9";;
   *download-data*) echo "docker $*" >> "$SAHTE_KAYIT"
                    [ "$SAHTE_MOD" = "gunluk_inmez" ] && case "$*" in *"--timeframes 1d"*) echo "freqtrade - ERROR - veri yok"; exit 1;; esac

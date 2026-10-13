@@ -1,0 +1,72 @@
+{
+  "kod": "RSI",
+  "ad": "RSI: aşırı satıştan yukarı dönüşte alım",
+  "yon": "alim",
+  "aciklama": "Yalnız RSI(14) kullanır, üç dilimde. 5 dakikalık: önceki mumun RSI'ı 30 ya da altında (aşırı satış) ve RSI bu mumda yukarı dönmüş (önceki mumda düşüyordu, bu mumda yükseldi). 15 dakikalık RSI 40 ya da altında, 1 saatlik RSI 50 ya da altında (üst dilimler de satış tarafında; dipten dönüş aranır). Giriş sinyal mumundan sonraki mumun açılışında piyasa emriyle. Çıkış (Ahmet'in isteği, 13 Ekim 2026): kâr hedefi %1,5, stop %3, süre sınırı yok; kâr %1,2'ye ulaşınca iz süren stop devreye girer ve en iyi fiyatın %0,3 gerisinden izler (hedefe ulaşmadan dönerse yaklaşık %0,9 kârla kapanır). İleriye dönük 30 günlük sanal takip için eklendi.",
+  "zaman_dilimi": "5m",
+  "gostergeler": {
+    "rsi14": {
+      "tur": "rsi",
+      "periyot": 14
+    },
+    "rsi14_15": {
+      "tur": "rsi",
+      "periyot": 14,
+      "dilim": "15m"
+    },
+    "rsi14_1s": {
+      "tur": "rsi",
+      "periyot": 14,
+      "dilim": "1h"
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": {
+          "ad": "rsi14",
+          "kaydir": 1
+        },
+        "islem": "<=",
+        "sag": 30
+      },
+      {
+        "sol": "rsi14",
+        "islem": ">",
+        "sag": {
+          "ad": "rsi14",
+          "kaydir": 1
+        }
+      },
+      {
+        "sol": {
+          "ad": "rsi14",
+          "kaydir": 1
+        },
+        "islem": "<=",
+        "sag": {
+          "ad": "rsi14",
+          "kaydir": 2
+        }
+      },
+      {
+        "sol": "rsi14_15",
+        "islem": "<=",
+        "sag": 40
+      },
+      {
+        "sol": "rsi14_1s",
+        "islem": "<=",
+        "sag": 50
+      }
+    ]
+  },
+  "cikis": {
+    "kar_hedefi_yuzde": 1.5,
+    "zarar_durdur_yuzde": 3.0,
+    "iz_suren_stop": {
+      "tetik_yuzde": 1.2,
+      "mesafe_yuzde": 0.3
+    }
+  }
+}

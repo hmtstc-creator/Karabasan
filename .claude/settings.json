@@ -20,7 +20,14 @@
       "Bash(tailscale status:*)",
       "Bash(ufw status:*)",
       "Bash(ls:*)",
-      "Bash(python3 -m unittest:*)"
+      "Bash(python3 -m unittest:*)",
+      "Read(./user_data/logs/**)",
+      "Read(./user_data/arsiv/**)",
+      "Read(./user_data/kayit/**)",
+      "Bash(cat user_data/logs/:*)",
+      "Bash(head user_data/logs/:*)",
+      "Bash(tail user_data/logs/:*)",
+      "Bash(wc -l user_data/logs/:*)"
     ],
     "deny": [
       "Read(./.env)",

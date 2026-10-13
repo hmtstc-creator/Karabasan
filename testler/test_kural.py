@@ -24,7 +24,7 @@ class KuralDosyalari(unittest.TestCase):
     def test_tum_stratejiler_yuklenir(self):
         kurallar = k.tum_kurallar()
         self.assertEqual(sorted(kurallar),
-                         ["SM", "SMD", "SMDK", "SMK", "SNIPER"])
+                         ["RSI", "RSIK", "SM", "SMD", "SMDK", "SMK", "SNIPER"])
         for kod, kural in kurallar.items():
             with self.subTest(kod=kod):
                 self.assertEqual(kural["kod"], kod)
@@ -40,7 +40,10 @@ class KuralDosyalari(unittest.TestCase):
         adlar = set()
         for kod, kural in k.tum_kurallar().items():
             self.assertGreater(len(kural["ad"]), 10, kod)
-            self.assertNotIn(kod, kural["ad"])
+            # Kod yalnız göstergenin adıysa (RSI) adın içinde geçebilir; tek başına ad olamaz.
+            self.assertNotEqual(kural["ad"].strip(), kod)
+            if kod != "RSI" and kod != "RSIK":
+                self.assertNotIn(kod, kural["ad"])
             self.assertGreater(len(kural.get("aciklama", "")), 40, kod)
             adlar.add(kural["ad"])
         self.assertEqual(len(adlar), len(k.tum_kurallar()))   # adlar birbirinden farklı
@@ -68,8 +71,11 @@ class KuralDosyalari(unittest.TestCase):
         """Ahmet'in isteği (12 Ekim 2026): iz süren stop %1,2 kârda başlar, %0,3 geriden
         izler (ilk anda ~%0,9 kâr); stop %3; sabit kâr hedefi ve süre sınırı yok."""
         for kod, kural in k.tum_kurallar().items():
-            self.assertEqual(kural["cikis"], {"zarar_durdur_yuzde": 3.0,
-                                              "iz_suren_stop": {"tetik_yuzde": 1.2, "mesafe_yuzde": 0.3}}, kod)
+            beklenen = {"zarar_durdur_yuzde": 3.0, "iz_suren_stop": {"tetik_yuzde": 1.2, "mesafe_yuzde": 0.3}}
+            if kod in ("RSI", "RSIK"):
+                # 13 Ekim 2026 (Ahmet'in isteği): RSI botlarında ayrıca %1,5 sabit kâr hedefi var.
+                beklenen["kar_hedefi_yuzde"] = 1.5
+            self.assertEqual(kural["cikis"], beklenen, kod)
 
     def test_ters_yonlu_ciftler_ayni_cikisi_kullanir(self):
         kurallar = k.tum_kurallar()
@@ -81,8 +87,12 @@ class KuralDosyalari(unittest.TestCase):
         # Sabit hedefli kuralda: (stop + maliyet) / (hedef + stop). S1: (3 + 0,2) / (0,8 + 3) = %84,21.
         self.assertAlmostEqual(k.basabas_orani(k.kural_yukle("S1"), 0.20), 84.21, places=2)
         # 12 Ekim 2026'dan beri canlı kurallarda sabit hedef yok (iz süren stop): tanımsız.
+        # RSI botlarında hedef %1,5: (3 + 0,2) / (1,5 + 3) = %71,11.
         for kod, kural in k.tum_kurallar().items():
-            self.assertIsNone(k.basabas_orani(kural, 0.20), kod)
+            if kod in ("RSI", "RSIK"):
+                self.assertAlmostEqual(k.basabas_orani(kural, 0.20), 71.11, places=2)
+            else:
+                self.assertIsNone(k.basabas_orani(kural, 0.20), kod)
 
     def test_tum_stratejiler_yapay_veride_calisir(self):
         df5 = yapay_mumlar(6000, dilim_dk=5, tohum=3)

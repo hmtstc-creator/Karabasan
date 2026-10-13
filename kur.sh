@@ -254,7 +254,7 @@ PY
     adim "9/10 Uyum denemesi"
     # Uyum denemesinin içeriği değişince bu sayı artırılır; sunucu denemeyi bir
     # sonraki güncellemede kendiliğinden yeniden çalıştırır.
-    local UYUM_SURUMU=17 SURUM
+    local UYUM_SURUMU=18 SURUM
     SURUM="$(git rev-parse HEAD 2> /dev/null || echo bilinmiyor)"
     if [ "$(cat user_data/logs/uyum_gecti 2> /dev/null)" != "surum-$UYUM_SURUMU" ]; then
         if [ "$ILK" -eq 1 ]; then
@@ -352,7 +352,7 @@ print(' '.join(b[0] for b in BOTLAR))")"
     # Bir yıllık veriyi indirir (ilk seferde 10-20 dakika), her botu son 365 günde
     # çalıştırır, sonucu çeyreklere böler. Sonuç sınavın 7. ölçütüne de gider
     # (user_data/gecmis_test.json). Başarısız olursa botlar ve kurulum etkilenmez.
-    local YILLIK_SURUMU=5
+    local YILLIK_SURUMU=6
     if [ "$(cat user_data/logs/yillik_surumu 2> /dev/null)" != "surum-$YILLIK_SURUMU" ]; then
         bildir "12 aylık geçmiş testi başladı: her bot son bir yılın gerçek fiyatlarında ne yapardı? Bir yıllık veri indiriliyor; 15-30 dakika sürer, bitince raporu yollarım. Botlar bu sırada çalışmaya devam eder."
         if bash araclar/yillik_test.sh; then

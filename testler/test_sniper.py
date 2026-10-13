@@ -134,8 +134,8 @@ class SniperBotu(unittest.TestCase):
         cls.modul = strateji_modulu()
 
     def test_bot_listenin_sonunda_kapi_ayni(self):
-        self.assertEqual(botlar.BOTLAR[-1], ("sniper5-vadeli", "SniperVadeli", "SNIPER", "vadeli"))
-        self.assertEqual(botlar.ILK_PORT + len(botlar.BOTLAR) - 1, 8085)
+        sira = botlar.BOTLAR.index(("sniper5-vadeli", "SniperVadeli", "SNIPER", "vadeli"))
+        self.assertEqual(botlar.ILK_PORT + sira, 8085)
         self.assertNotIn("sniper-vadeli", [bot for bot, *_ in botlar.BOTLAR])  # eski kayıt karışmasın
 
     def test_yalniz_smartmoney_gunluk_veri_ister(self):
