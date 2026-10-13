@@ -2,32 +2,32 @@
   "kod": "AHMETOZEL3",
   "ad": "Ahmet Özel (alım, yapı dönünce çıkış)",
   "yon": "alim",
-  "aciklama": "Ahmet'in kendi stratejisi (13 Ekim 2026), beş uzmanlı komitenin çoğunluk yorumuyla. Günlük mumlar; haftalık göstergeler günlükten toplanır (hafta Pazartesi 00:00 UTC başlar, yalnız kapanmış hafta görülür). Alım: günlük yapı (salınım uzunluğu 5) yukarı ve son 10 günün hiçbirinde aşağı dönmemiş (CHoCH yok); EMA20 > EMA50 ve kapanış > SMA200. Destek: son onaylı haftalık salınım dibi (uzunluk 3) ya da açık haftalık boğa FVG'nin üst sınırı (en az %1,5, ömür 26 hafta); son 3 günden birinde fiyatın dibi desteğe 0,5 x ATR(14) kadar yaklaşmış ve bugün desteğin üstünde kapanmış. Teyit barı: kapanış önceki günün tepesinin üstünde. MACD(12,26,9) histogramı son 3 günde sıfırın üstüne geçmiş. Giriş ertesi günün açılışında piyasa emriyle. Stop son 5 günün dibinin 0,5 x ATR ötesi; en az 1 x ATR ve %3, en çok %10. Sabit hedef yok: günlük yapı ters yöne dönünce (CHoCH) ertesi açılışta çıkar; en çok 60 gün. Aynı anda en çok 4 pozisyon, 24 saatte en çok 3 giriş, coin başına günde 1.",
+  "aciklama": "Ahmet'in kendi stratejisi (13 Ekim 2026), beş uzmanlı komitenin çoğunluk yorumuyla. Günlük mumlar; haftalık göstergeler günlükten toplanır (hafta Pazartesi 00:00 UTC başlar, yalnız kapanmış hafta görülür). Alım: günlük yapı (salınım uzunluğu 2) yukarı ve son 2 günün hiçbirinde aşağı dönmemiş (CHoCH yok); EMA9 > EMA21 ve kapanış > SMA50. Destek: son onaylı haftalık salınım dibi (uzunluk 2) ya da açık haftalık boğa FVG'nin üst sınırı (en az %0,9, ömür 26 hafta); son 2 günden birinde fiyatın dibi desteğe 0,3 x ATR(14) kadar yaklaşmış ve bugün desteğin üstünde kapanmış. Teyit barı: kapanış önceki günün tepesinin üstünde. MACD(12,26,9) histogramı son 1 günde sıfırın üstüne geçmiş. Giriş ertesi günün açılışında piyasa emriyle. Stop son 2 günün dibinin 0,5 x ATR ötesi; en az 1 x ATR ve %2, en çok %10. Sabit hedef yok: günlük yapı ters yöne dönünce (CHoCH) ertesi açılışta çıkar; en çok 30 gün. Aynı anda en çok 10 pozisyon, 24 saatte en çok 50 giriş, coin başına günde 1. 2. sürüm (13 Ekim 2026): değerler Ahmet'in Bot Kriterleri sayfasındaki istekleri.",
   "zaman_dilimi": "1d",
   "gostergeler": {
     "yapi": {
       "tur": "yapi",
-      "periyot": 5
+      "periyot": 2
     },
-    "yon10": {
+    "yon_n": {
       "tur": "en_dusuk",
       "kaynak": "yapi_yon",
-      "periyot": 10
+      "periyot": 2
     },
-    "ema20": {
+    "ema_kisa": {
       "tur": "ema",
       "kaynak": "kapanis",
-      "periyot": 20
+      "periyot": 9
     },
-    "ema50": {
+    "ema_uzun": {
       "tur": "ema",
       "kaynak": "kapanis",
-      "periyot": 50
+      "periyot": 21
     },
-    "sma200": {
+    "sma_uzun": {
       "tur": "sma",
       "kaynak": "kapanis",
-      "periyot": 200
+      "periyot": 50
     },
     "macd": {
       "tur": "macd",
@@ -39,19 +39,19 @@
     },
     "hyapi": {
       "tur": "yapi",
-      "periyot": 3,
+      "periyot": 2,
       "dilim": "1w"
     },
     "hfvg": {
       "tur": "fvg",
       "omur": 26,
-      "en_az_yuzde": 1.5,
+      "en_az_yuzde": 0.9,
       "dilim": "1w"
     },
-    "dip5": {
+    "dip_n": {
       "tur": "en_dusuk",
       "kaynak": "dusuk",
-      "periyot": 5
+      "periyot": 2
     }
   },
   "giris": {
@@ -62,19 +62,19 @@
         "sag": 0
       },
       {
-        "sol": "yon10",
+        "sol": "yon_n",
         "islem": ">",
         "sag": 0
       },
       {
-        "sol": "ema20",
+        "sol": "ema_kisa",
         "islem": ">",
-        "sag": "ema50"
+        "sag": "ema_uzun"
       },
       {
         "sol": "kapanis",
         "islem": ">",
-        "sag": "sma200"
+        "sag": "sma_uzun"
       },
       {
         "herhangi": [
@@ -87,10 +87,10 @@
                   "ad": "hyapi_dip",
                   "ekle": {
                     "ad": "atr14",
-                    "carpan": 0.5
+                    "carpan": 0.3
                   }
                 },
-                "son_n_mumda": 3
+                "son_n_mumda": 2
               },
               {
                 "sol": "kapanis",
@@ -108,10 +108,10 @@
                   "ad": "hfvg_boga_ust",
                   "ekle": {
                     "ad": "atr14",
-                    "carpan": 0.5
+                    "carpan": 0.3
                   }
                 },
-                "son_n_mumda": 3
+                "son_n_mumda": 2
               },
               {
                 "sol": "kapanis",
@@ -134,7 +134,7 @@
         "sol": "macd_fark",
         "islem": "yukari_keser",
         "sag": 0,
-        "son_n_mumda": 3
+        "son_n_mumda": 1
       }
     ]
   },
@@ -143,8 +143,8 @@
     "stop_atr": {
       "kat": 1.0,
       "periyot": 14,
-      "en_az_yuzde": 3.0,
-      "seviye": "dip5",
+      "en_az_yuzde": 2.0,
+      "seviye": "dip_n",
       "pay": 0.5
     },
     "sinyal": {
@@ -152,14 +152,14 @@
       "islem": "<",
       "sag": 0
     },
-    "sure_asimi_dakika": 86400
+    "sure_asimi_dakika": 43200
   },
   "portfoy": {
-    "en_fazla_pozisyon": 4,
+    "en_fazla_pozisyon": 10,
     "giris_sinirlari": [
       {
         "saat": 24,
-        "sayi": 3
+        "sayi": 50
       }
     ],
     "coin_gunde_en_fazla": 1,

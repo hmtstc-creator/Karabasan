@@ -451,23 +451,27 @@ class AhmetOzel(unittest.TestCase):
     def test_sinyal_aninda_kosullar_saglanir(self):
         for kod in ("AHMETOZEL", "AHMETOZELK"):
             alim = kod == "AHMETOZEL"
+            kural = k.kural_yukle(kod)
+            gun = kural["gostergeler"]["yon_n"]["periyot"]          # "kırılmadı": son N günde ters CHoCH yok
+            en_az = kural["cikis"]["stop_atr"]["en_az_yuzde"]
+            en_cok = kural["cikis"]["zarar_durdur_yuzde"]
             for df in self.veri:
-                t = k.sinyal_uret(df, k.kural_yukle(kod))
+                t = k.sinyal_uret(df, kural)
                 s = t[t["sinyal"]]
                 with self.subTest(kod=kod):
                     if alim:
-                        self.assertTrue((s["yapi_yon"] > 0).all() and (s["ema20"] > s["ema50"]).all())
-                        self.assertTrue((s["close"] > s["sma200"]).all())
+                        self.assertTrue((s["yapi_yon"] > 0).all() and (s["ema_kisa"] > s["ema_uzun"]).all())
+                        self.assertTrue((s["close"] > s["sma_uzun"]).all())
                         self.assertTrue((s["close"] > t["high"].shift(1)[t["sinyal"]]).all())
                         # Son 10 günde aşağı dönüş (CHoCH) yok.
-                        donus = (t["yapi_donus"] < 0).astype(int).rolling(10, min_periods=1).max()
+                        donus = (t["yapi_donus"] < 0).astype(int).rolling(gun, min_periods=1).max()
                         self.assertTrue((donus[t["sinyal"]] == 0).all())
                     else:
-                        self.assertTrue((s["yapi_yon"] < 0).all() and (s["ema20"] < s["ema50"]).all())
-                        self.assertTrue((s["close"] < s["sma200"]).all())
-                        donus = (t["yapi_donus"] > 0).astype(int).rolling(10, min_periods=1).max()
+                        self.assertTrue((s["yapi_yon"] < 0).all() and (s["ema_kisa"] < s["ema_uzun"]).all())
+                        self.assertTrue((s["close"] < s["sma_uzun"]).all())
+                        donus = (t["yapi_donus"] > 0).astype(int).rolling(gun, min_periods=1).max()
                         self.assertTrue((donus[t["sinyal"]] == 0).all())
-                    self.assertTrue(s["stop_yuzde"].between(3.0, 10.0).all())
+                    self.assertTrue(s["stop_yuzde"].between(en_az, en_cok).all())
 
     def test_yapi_donunce_cikis(self):
         t = k.sinyal_uret(self.veri[1], k.kural_yukle("AHMETOZEL3"))

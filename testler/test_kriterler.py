@@ -17,7 +17,7 @@ class KriterListesi(unittest.TestCase):
     def test_degerler_kural_dosyalarindan_okunur(self):
         degerler = {k["kimlik"]: k for k in kr.liste()}
         alim = _kural("AHMETOZEL")
-        self.assertEqual(degerler["sma"]["alim"], alim["gostergeler"]["sma200"]["periyot"])
+        self.assertEqual(degerler["sma"]["alim"], alim["gostergeler"]["sma_uzun"]["periyot"])
         self.assertEqual(degerler["hedef_r"]["alim"], alim["cikis"]["kar_hedefi_r"])
         self.assertEqual(degerler["sure"]["alim"], alim["cikis"]["sure_asimi_dakika"] / 1440)
         self.assertEqual(degerler["coin_sayisi"]["alim"], len(sinama.COINLER))

@@ -813,6 +813,16 @@ farksız: KALDI. Panelin önerileri tükendi. Panel portföyü 1.376 işlem, −
 - Ahmet'e söylendi; sonraki adım onun kararı (kurallara dokunmadan daha fazla coin / daha eski yıllar
   ile sınamak ya da P1 benzeri yeni deneme).
 
+**Ahmet Özel 2. sürüm (13 Ekim 2026, Ahmet'in kriter sayfasındaki 17 isteği; `PANEL_SURUMU=5`).**
+Uygulanan: günlük salınım 5→2 ve haftalık salınım 3→2 (Ahmet 1 istedi; motor en az 2 kabul eder,
+tek mumluk salınım gürültü), "kırılmadı" 10→2 gün, EMA 20/50→9/21, SMA 200→50, FVG en az %1,5→0,9,
+yaklaşma 0,5→0,3 ATR ve 3→2 gün, MACD dönüşü 3→1 gün, stop son 5→2 günün dibi, stop en az %3→2,
+hedef 2→1,5R (deneme 2: 3R aynı), süre 30→15 gün (deneme 3: 60→30), pozisyon 4→10, 24 saatte giriş
+3→50. Reddedilen: "en az farklı gün" 40→2 (karar ölçütünü gevşetmek; 40 kaldı). Kural dosyaları yerinde
+değişti (1. sürüm git geçmişinde ve yukarıdaki sonuçta), gösterge adları değere bağlı olmaktan çıktı
+(`ema_kisa`, `ema_uzun`, `sma_uzun`, `yon_n`, `dip_n` / `tepe_n`). Deneme defteri: `ONCEKI_DENEME`
+118 (1. sürümün 6 denemesi eklendi), toplam 137. Yapay veride sinyal 1. sürümden de az (seri başına ~1).
+
 **Kriter istekleri (13 Ekim 2026, Ahmet'in isteği).** Ahmet "kriterleri sitede göster, değiştirebileyim;
 olmaz dersen sana söylerim sen çalıştırırsın" dedi. Sunucudaki sayfa değiştirilemez (sunucu 5 dakikada
 bir `main`'e eşitlenir; ayar değişikliği test ve deneme defteri ister), bu yüzden iki parça var:

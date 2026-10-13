@@ -69,7 +69,7 @@ T_ESIGI = 2.5             # gün bazında t-değeri çıtası
 PLASEBO_T_ESIGI = 2.0
 PLASEBO_TEKRAR = 20
 KURAL_PLASEBO_FARKI = 0.10  # asıl kural, şartı kaldırılmış halinden işlem başına en az bu kadar iyi olmalı
-ONCEKI_DENEME = 112
+ONCEKI_DENEME = 118  # 112 eski + Ahmet Özel 1. sürümün 6 denemesi (13 Ekim 2026)
 
 # Aday aileleri. 'denemeler' önceden yazılmıştır; 'canli' canlıya gidecek olandır (en iyisi değil).
 ADAYLAR = [
