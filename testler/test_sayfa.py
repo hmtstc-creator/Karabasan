@@ -91,6 +91,10 @@ class SayfaTesti(unittest.TestCase):
 
     def test_dis_kaynak_yok(self):
         html = sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI))
+        # Tek dış adres: Kriterler ekranındaki düzenleme sayfası bağlantısı (gezinme, kaynak yüklemez).
+        from karabasan.kriterler import DUZENLEME_ADRESI
+        self.assertEqual(html.count(DUZENLEME_ADRESI), html.count(f'<a href="{DUZENLEME_ADRESI}">'))
+        html = html.replace(DUZENLEME_ADRESI, "")
         for yasak in ("http://", "https://", "@import", "url(", " src=", "<link", "<iframe", "<object"):
             self.assertNotIn(yasak, html)
         # Tek bir satır içi betik vardır ve o da sayfa.betik()'in ürettiği metindir.
@@ -112,7 +116,7 @@ class SayfaTesti(unittest.TestCase):
     def test_dersler_ekrani_bosken_ne_bekledigini_soyler(self):
         ozet = sonuc.genel_ozet(self.klasor, SIMDI)
         html = sayfa.html_uret(ozet)
-        self.assertEqual([k for k, _ in sayfa.EKRANLAR], ["ana", "botlar", "islemler", "dersler", "rapor", "sinav"])
+        self.assertEqual([k for k, _ in sayfa.EKRANLAR], ["ana", "botlar", "islemler", "dersler", "rapor", "sinav", "kriterler"])
         self.assertIn("Henüz izlenmiş stop yok.", html)
         sirada = sum(b["nedenler"].get("stop", 0) for b in ozet["botlar"])
         self.assertIn(f"Şu an {sirada} stop sırada.", html)

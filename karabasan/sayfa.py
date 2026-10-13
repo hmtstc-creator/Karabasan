@@ -21,6 +21,8 @@ import math
 from datetime import datetime, timezone
 from html import escape
 
+from .kriterler import DUZENLEME_ADRESI, metin_degeri
+from .kriterler import liste as kriter_listesi
 from .stop_sonrasi import KARAR_ADI, carpan_metni
 
 OLCUT_ACIKLAMALARI = [
@@ -42,6 +44,7 @@ EKRANLAR = [
     ("dersler", "Dersler"),
     ("rapor", "Rapor"),
     ("sinav", "Sınav"),
+    ("kriterler", "Kriterler"),
 ]
 # Rapor ekranında seçilebilecek en çok bot sayısı (biçim kuralları bu kadarı için üretilir).
 RAPOR_EN_FAZLA = 16
@@ -884,6 +887,43 @@ def _olcut_cizelgesi(ozet: dict) -> str:
     )
 
 
+def _kriter_degeri(k: dict) -> str:
+    alim, satis = metin_degeri(k["alim"]), metin_degeri(k["satis"])
+    deger = alim if alim == satis else f"{alim} / {satis}"
+    birim = f' <span class="alt">{escape(k["birim"])}</span>' if k["birim"] else ""
+    return f"{escape(deger)}{birim}"
+
+
+def _kriterler_ekrani() -> str:
+    """Ahmet Özel stratejisinin kriterleri; değerler kural dosyalarından okunur (salt okunur)."""
+    try:
+        liste = kriter_listesi()
+    except (OSError, ValueError, KeyError, StopIteration):
+        liste = []
+    gruplar: dict[str, list] = {}
+    for k in liste:
+        gruplar.setdefault(k["grup"], []).append(k)
+    bolumler = []
+    for grup, ogeler in gruplar.items():
+        satirlar = "".join(
+            f'<li><span class="kriter-ad">{escape(k["ad"])}<span class="alt">{escape(k["aciklama"])}</span></span>'
+            f'<span class="kriter-deger">{_kriter_degeri(k)}</span></li>'
+            for k in ogeler
+        )
+        bolumler.append(f'<h3>{escape(grup)}</h3><ul class="kriter-listesi">{satirlar}</ul>')
+    icerik = "".join(bolumler) or '<p class="not">Kriterler okunamadı.</p>'
+    return f"""<section id="kriterler" class="ekran">
+<h2 class="ekran-baslik">Bot kriterleri</h2>
+<p class="not">Ahmet Özel stratejisinin (alım ve açığa satış) bütün sayıları. Değerler sunucudaki kural
+dosyalarından okunur; burada gördüğün, sınamanın gerçekte kullandığıdır. İki değer yazıyorsa ilki alım,
+ikincisi açığa satış içindir. Bu strateji henüz canlı bot değil; panel sınamasında sınanıyor.</p>
+<p class="not">Bir değeri değiştirmek için <a href="{escape(DUZENLEME_ADRESI)}">Bot Kriterleri düzenleme
+sayfasında</a> isteğini kaydet ya da Claude'a yaz. Bu sayfa yalnız gösterir; buradan değişiklik yapılmaz.
+Her değişiklik yeni bir deneme sayılır.</p>
+{icerik}
+</section>"""
+
+
 def _sinav_ekrani(ozet: dict, yenileme_notu: str) -> str:
     baslik, aciklama = _durum_cumlesi(ozet)
     olcutler = "".join(f"<li>{escape(a)}</li>" for a in OLCUT_ACIKLAMALARI)
@@ -1133,11 +1173,19 @@ RAPOR_GOSTER{display:block}
 .cizelge.gunluk td .alt{font-family:var(--govde);font-weight:400}
 .cizelge.gunluk th[scope=row]{font-weight:600;white-space:nowrap}
 
-.gezinti{position:fixed;left:0;right:0;bottom:0;z-index:4;display:grid;grid-template-columns:repeat(EKRAN_SAYISI,1fr);
+.kriter-listesi{list-style:none;margin:0;padding:0;border-top:1px solid var(--cizgi);max-width:760px}
+.kriter-listesi li{display:flex;gap:16px;justify-content:space-between;align-items:baseline;padding:12px 0;
+border-bottom:1px solid var(--cizgi)}
+.kriter-ad{min-width:0;font-weight:600}
+.kriter-ad .alt{display:block;font-weight:400;color:var(--soluk);font-size:.875rem;margin-top:2px}
+.kriter-deger{font:700 1.125rem/1.2 var(--rakam);white-space:nowrap;font-variant-numeric:tabular-nums}
+.kriter-deger .alt{display:inline;font-size:.8125rem;color:var(--soluk);font-weight:600}
+#kriterler a{color:var(--holo)}
+.gezinti{position:fixed;left:0;right:0;bottom:0;z-index:4;display:flex;overflow-x:auto;scrollbar-width:none;
 background:rgba(4,9,17,.9);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
 border-top:1px solid var(--cizgi);padding-bottom:env(safe-area-inset-bottom)}
-.gezinti a{display:flex;align-items:center;justify-content:center;min-height:54px;padding:6px 4px;
-color:var(--soluk);text-decoration:none;font-size:.8125rem;font-weight:600;border-top:2px solid transparent;margin-top:-1px;
+.gezinti a{flex:1 0 auto;display:flex;align-items:center;justify-content:center;min-height:54px;padding:6px 4px;
+color:var(--soluk);text-decoration:none;font-size:.75rem;font-weight:600;border-top:2px solid transparent;margin-top:-1px;
 white-space:nowrap}
 .gezinti a:focus-visible{outline-offset:-4px}
 EKRAN_SECILI{
@@ -1276,6 +1324,7 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
 {_dersler_ekrani(ozet, saat_dilimi)}
 {_rapor_ekrani(ozet, saat_dilimi)}
 {_sinav_ekrani(ozet, yenileme_notu)}
+{_kriterler_ekrani()}
 </main>
 </div>
 <nav class="gezinti" aria-label="Ekranlar">{gezinti}</nav>
