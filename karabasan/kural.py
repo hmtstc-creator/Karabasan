@@ -42,6 +42,7 @@ GOSTERGE_TURLERI = (
     "hacim_ortanca",
     "fonlama",
     "zaman_araligi",
+    "atr",
 )
 # Bir gösterge başka bir paritenin mumlarında hesaplanabilir ("parite": "BTC"); o mumlar
 # ek_veri içinde "<PARİTE>@<dilim>" anahtarıyla gelir (bkz. referans_istekleri).
@@ -466,6 +467,12 @@ def _islenen_dogrula(islenen, bilinen: set, yer: str) -> None:
         carpan = islenen.get("carpan", 1.0)
         if isinstance(carpan, bool) or not isinstance(carpan, (int, float)):
             raise KuralHatasi(f"{yer}: 'carpan' sayı olmalı.")
+        ekle = islenen.get("ekle")
+        if ekle is not None:
+            # Seviye + k x başka sütun (örnek: destek + 0,5 x ATR). Aynı mumun değerleri; geleceğe bakmaz.
+            if not isinstance(ekle, dict) or ekle.get("ad") not in bilinen or isinstance(
+                    ekle.get("carpan", 1.0), bool) or not isinstance(ekle.get("carpan", 1.0), (int, float)):
+                raise KuralHatasi(f"{yer}: 'ekle' {{\"ad\": tanımlı sütun, \"carpan\": sayı}} olmalı.")
         return
     raise KuralHatasi(f"{yer}: işlenen anlaşılamadı: {islenen!r}")
 
@@ -526,7 +533,7 @@ def _mum_ihtiyaclari(kural: dict) -> tuple[int, dict[str, int]]:
             continue          # mum değil, fonlama geçmişi ister
         periyot = int(tanim.get("periyot", 0))
         # Üstel ortalamalar yaklaşık üç periyotta oturur.
-        kat = 3 if tanim["tur"] in ("ema", "rsi", "atr_yuzde") else 1
+        kat = 3 if tanim["tur"] in ("ema", "rsi", "atr_yuzde", "atr") else 1
         ihtiyac = periyot * kat
         if tanim["tur"] == "vwap":
             ihtiyac = 1440 // taban_dk
@@ -610,6 +617,8 @@ def _tek_gosterge(cerceve: pd.DataFrame, ad: str, tanim: dict) -> dict:
         return {ad: g.vwap_gunluk(cerceve)}
     if tur == "atr_yuzde":
         return {ad: g.atr_yuzde(cerceve, periyot)}
+    if tur == "atr":
+        return {ad: g.atr(cerceve, periyot)}
     if tur == "hacim_ort":
         return {ad: g.sma(cerceve["volume"], periyot)}
     if tur == "zaman_araligi":
@@ -771,7 +780,12 @@ def _islenen(df: pd.DataFrame, islenen) -> pd.Series:
     kaydir = int(islenen.get("kaydir", 0))
     if kaydir:
         seri = seri.shift(kaydir)
-    return seri * float(islenen.get("carpan", 1.0))
+    seri = seri * float(islenen.get("carpan", 1.0))
+    ekle = islenen.get("ekle")
+    if ekle:
+        ek = df[_sutun_adi(ekle["ad"])].astype(float)
+        seri = seri + (ek.shift(kaydir) if kaydir else ek) * float(ekle.get("carpan", 1.0))
+    return seri
 
 
 def _son_n(dogru: pd.Series, kosul: dict) -> pd.Series:

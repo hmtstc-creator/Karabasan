@@ -127,6 +127,28 @@ ADAYLAR = [
         "en_az_gun": 0, "en_az_islem": 60, "esik_net_yuzde": 0.20, "esik_brut_yuzde": None,
         "en_iyi_3_gun": True, "btc_iliskisi": True, "trend": False,
     },
+    # Ahmet'in kendi stratejisi (13 Ekim 2026; komitenin çoğunluk yorumu): günlük yapı ve ortalamalar,
+    # haftalık destek / direnç ya da FVG'den dönüş, teyit barı, MACD dönüşü. Üç deneme (2R, 3R, yapı
+    # dönünce çıkış), kural plasebosu (destek / direnç şartsız), bilgi için MACD şartsız hal.
+    # Ölçüler R cinsinden (risk 1 USDT): işlem başına en az 0,15R ve plasebodan en az 0,15R iyi.
+    {
+        "ad": "AHMETOZEL", "baslik": "Ahmet Özel (alım, günlük)",
+        "denemeler": ["AHMETOZEL", "AHMETOZEL2", "AHMETOZEL3"], "canli": "AHMETOZEL",
+        "kural_plasebolari": {"AHMETOZELP1": "aynı kural destek / FVG şartı olmadan"},
+        "bilgi_plasebolari": {"AHMETOZELP2": "aynı kural MACD şartı olmadan"},
+        "en_az_gun": 40, "en_az_islem": 60, "esik_net_yuzde": 0.0, "esik_brut_yuzde": None,
+        "esik_net_r": 0.15, "kural_plasebo_r": 0.15, "en_az_kazanc_kayip": 1.5, "en_fazla_dusus": 15,
+        "en_iyi_3_gun": True, "btc_iliskisi": True, "trend": False,
+    },
+    {
+        "ad": "AHMETOZELK", "baslik": "Ahmet Özel (açığa satış, günlük)",
+        "denemeler": ["AHMETOZELK", "AHMETOZELK2", "AHMETOZELK3"], "canli": "AHMETOZELK",
+        "kural_plasebolari": {"AHMETOZELKP1": "aynı kural direnç / FVG şartı olmadan"},
+        "bilgi_plasebolari": {"AHMETOZELKP2": "aynı kural MACD şartı olmadan"},
+        "en_az_gun": 40, "en_az_islem": 60, "esik_net_yuzde": 0.0, "esik_brut_yuzde": None,
+        "esik_net_r": 0.15, "kural_plasebo_r": 0.15, "en_az_kazanc_kayip": 1.5, "en_fazla_dusus": 15,
+        "en_iyi_3_gun": True, "btc_iliskisi": False, "trend": False,
+    },
 ]
 # Fonlama aşırılığı sayımı (panelin 4. aday oylaması, oybirliğiyle): bot değil, yalnız sayım.
 FONLAMA_ASIRI = 0.05          # 8 saate çevrilmiş tek ödeme, yüzde (olağan %0,01)
@@ -424,7 +446,19 @@ def olcumler(islemler: list[dict], bas: pd.Timestamp, son: pd.Timestamp,
         "btc_iliski": btc_iliski,
         "nedenler": nedenler,
         "ort_sure_saat": float(np.mean([i["sure_dakika"] for i in islemler]) / 60.0) if n else 0.0,
+        # İşlem başına risk 1 USDT olduğundan net USDT ortalaması R cinsindendir.
+        "ort_r": (net / n / ISLEM_RISKI) if n else 0.0,
+        "kazanc_kayip": _kazanc_kayip(islemler),
     }
+
+
+def _kazanc_kayip(islemler: list[dict]) -> float | None:
+    """Ortalama kazanç / ortalama kayıp (USDT)."""
+    kazanc = [i["net_usdt"] for i in islemler if i["net_usdt"] > 0]
+    kayip = [-i["net_usdt"] for i in islemler if i["net_usdt"] < 0]
+    if not kazanc or not kayip:
+        return None
+    return float(np.mean(kazanc) / np.mean(kayip))
 
 
 def rastgele_plasebo(islemler: list[dict], fiyatlar: dict, bas, son, tohum: int = 7) -> float | None:
@@ -497,9 +531,21 @@ def karar(aile: dict, canli: dict, maliyet2: dict, plasebo_t_degeri, kural_plase
     if plasebo_t_degeri is None or plasebo_t_degeri < PLASEBO_T_ESIGI:
         nedenler.append("rastgele giriş plasebosunu geçemedi"
                         + (f" (t {_s(plasebo_t_degeri, 2, False)})" if plasebo_t_degeri is not None else ""))
+    esik_r = aile.get("kural_plasebo_r")
     for ad, fark in kural_plasebo_farklari.items():
-        if fark is None or fark < KURAL_PLASEBO_FARKI:
+        if esik_r is not None:
+            if fark is None or fark < esik_r:
+                nedenler.append(f"{ad} plasebosundan işlem başına en az {_s(esik_r, 2, False)}R iyi değil")
+        elif fark is None or fark < KURAL_PLASEBO_FARKI:
             nedenler.append(f"{ad} plasebosundan işlem başına en az %{_s(KURAL_PLASEBO_FARKI, 2, False)} iyi değil")
+    if aile.get("esik_net_r") is not None and canli["ort_r"] < aile["esik_net_r"]:
+        nedenler.append(f"işlem başına ortalama {_s(canli['ort_r'], 2)}R < {_s(aile['esik_net_r'], 2, False)}R")
+    if aile.get("en_az_kazanc_kayip") is not None and (
+            canli["kazanc_kayip"] is None or canli["kazanc_kayip"] < aile["en_az_kazanc_kayip"]):
+        nedenler.append(f"ortalama kazanç / kayıp {_s(canli['kazanc_kayip'], 2, False)} < "
+                        f"{_s(aile['en_az_kazanc_kayip'], 1, False)}")
+    if aile.get("en_fazla_dusus") is not None and canli["dusus"] > aile["en_fazla_dusus"]:
+        nedenler.append(f"en büyük düşüş {_s(canli['dusus'], 1, False)} USDT > {_s(aile['en_fazla_dusus'], 0, False)}")
     if aile["en_iyi_3_gun"] and canli["en_iyi_3_gun_payi"] is not None and canli["en_iyi_3_gun_payi"] > 0.5:
         nedenler.append("kârın yarısından fazlası en iyi 3 günden")
     if aile["trend"]:
@@ -601,7 +647,7 @@ def sina(yukle: MumYukleyici, fonlama_yukle: FonlamaYukleyici, adaylar: list[dic
         canli = canli2 = plasebo_t_degeri = None
         canli_kural = None
         kural_plasebo_farklari = {}
-        for kod in aile["denemeler"] + list(aile["kural_plasebolari"]):
+        for kod in aile["denemeler"] + list(aile["kural_plasebolari"]) + list(aile.get("bilgi_plasebolari", {})):
             kural = kural_yukle(kod)
             canli_mi = kod == aile["canli"]
             uretim = bot_adaylari(kural, kaynak, bas, bitis, plasebo_icin=canli_mi)
@@ -609,7 +655,7 @@ def sina(yukle: MumYukleyici, fonlama_yukle: FonlamaYukleyici, adaylar: list[dic
             kabul = portfoy_gecisi([(kod, kural, uretim["adaylar"][1])])[kod]
             o = olcumler(kabul, bas, bitis, btc)
             sonuclar["denemeler"][kod] = o
-            if kod in aile["kural_plasebolari"]:
+            if kod in aile["kural_plasebolari"] or kod in aile.get("bilgi_plasebolari", {}):
                 continue
             deneme_netleri[kod] = o["net"]
             ozet = _ozet(kural_dosyasi(kod))
@@ -619,7 +665,8 @@ def sina(yukle: MumYukleyici, fonlama_yukle: FonlamaYukleyici, adaylar: list[dic
                 f"işlem başına net %{_s(o['net_yuzde'], 3)} (komisyon öncesi %{_s(o['brut_yuzde'], 3)}, "
                 f"fonlama %{_s(o['fonlama_yuzde'], 3)})")
             yaz(f"    Gün bazında t {_s(o['t'], 2, False)}, en büyük düşüş {_s(o['dusus'], 2, False)} USDT, "
-                f"ayrı gün {o['gun_sayisi']}, ort. süre {_s(o['ort_sure_saat'], 1, False)} saat")
+                f"ayrı gün {o['gun_sayisi']}, ort. süre {_s(o['ort_sure_saat'], 1, False)} saat, "
+                f"işlem başına {_s(o['ort_r'], 2)}R, ort. kazanç / kayıp {_s(o['kazanc_kayip'], 2, False)}")
             yaz("    Yıllar (net USDT): " + " | ".join(_s(v) for v in o["yillar"])
                 + f"; artıda coin {o['artida_coin']}")
             yaz("    Çıkışlar: " + ", ".join(f"{k} {v}" for k, v in sorted(o["nedenler"].items())))
@@ -641,12 +688,20 @@ def sina(yukle: MumYukleyici, fonlama_yukle: FonlamaYukleyici, adaylar: list[dic
                         yaz(f"    Bilgi ({ad} = {'evet' if deger else 'hayır'}): {len(alt)} işlem, "
                             f"işlem başına %{_s(ort, 3)}")
                 del uretim
-        for kod, aciklama in aile["kural_plasebolari"].items():
+        r_ile = aile.get("kural_plasebo_r") is not None
+        for kod, aciklama in list(aile["kural_plasebolari"].items()) + list(aile.get("bilgi_plasebolari", {}).items()):
             p = sonuclar["denemeler"][kod]
-            fark = (canli["net_yuzde"] - p["net_yuzde"]) if p["islem"] else None
-            kural_plasebo_farklari[kod] = fark
-            yaz(f"  Kural plasebosu {kod} ({aciklama}): {p['islem']} işlem, işlem başına "
-                f"%{_s(p['net_yuzde'], 3)}; asıl kural farkı %{_s(fark, 3)}")
+            bilgi = kod not in aile["kural_plasebolari"]
+            if r_ile:
+                fark = (canli["ort_r"] - p["ort_r"]) if p["islem"] else None
+                yaz(f"  {'Bilgi için plasebo' if bilgi else 'Kural plasebosu'} {kod} ({aciklama}): {p['islem']} işlem, "
+                    f"işlem başına {_s(p['ort_r'], 2)}R, net {_s(p['net'])} USDT; asıl kural farkı {_s(fark, 2)}R")
+            else:
+                fark = (canli["net_yuzde"] - p["net_yuzde"]) if p["islem"] else None
+                yaz(f"  {'Bilgi için plasebo' if bilgi else 'Kural plasebosu'} {kod} ({aciklama}): {p['islem']} işlem, "
+                    f"işlem başına %{_s(p['net_yuzde'], 3)}; asıl kural farkı %{_s(fark, 3)}")
+            if not bilgi:
+                kural_plasebo_farklari[kod] = fark
         hukum, nedenler = karar(aile, canli, canli2, plasebo_t_degeri, kural_plasebo_farklari, deneme_netleri)
         yaz(f"  KARAR ({aile['canli']}): {hukum}")
         for n in nedenler:

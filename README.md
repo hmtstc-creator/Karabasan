@@ -384,6 +384,12 @@ vuruş" komisyon yüzünden en zor yol.
   yığılıp fonlama ücreti aşırılaşınca (açığa satışta son ödeme >= %0,05, son 3 ortalaması >= %0,03),
   fiyat günlük 20 ortalamadan %8 uzaklaşmış ve 1 saatlik grafikte dönüş başlamışsa kalabalığın
   tersine girer. Stop %4, iz süren stop %3'te başlar %1,5 geride, en çok 72 saat.
+- **AHMETOZEL / AHMETOZELK, Ahmet Özel** (alım / açığa satış, günlük; 13 Ekim 2026, Ahmet'in kendi
+  stratejisi, komitenin yorumuyla): günlük yapı yukarı ve son 10 günde ters dönmemiş, EMA20 > EMA50,
+  kapanış > SMA200; fiyat son 3 günde haftalık destek (salınım dibi ya da haftalık boğa FVG) yakınına
+  inip üstünde kapanmış; kapanış önceki günün tepesinin üstünde (teyit barı); MACD histogramı son 3
+  günde 0'ı yukarı kesmiş. Açığa satış aynası. Stop son 5 günün dibinin 0,5 x ATR ötesi (%3-10), hedef
+  stopun 2 katı, 30 gün. Plasebolar: destek şartsız ve MACD şartsız haller.
 
 İlk sınama (12 Ekim 2026): ZSD, TRG ve TRGK kaldı. İkinci sınamada ASYA ve ASYAK da kaldı
 (belirgin kaybettirdi); fonlama sayımı 3 yılda 571 olay buldu, bu yüzden FON / FONK sınanıyor. Hiçbiri komisyon ve kaymayı karşılamadı;

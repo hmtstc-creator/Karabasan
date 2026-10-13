@@ -126,6 +126,8 @@ class MaliyetVeOlcum(unittest.TestCase):
         self.assertAlmostEqual(o["en_iyi_3_islem_haric"], -2.0)
         self.assertAlmostEqual(o["dusus"], 1.0)
         self.assertGreater(o["t"], 0)
+        self.assertAlmostEqual(o["ort_r"], 0.8)                 # risk 1 USDT: 4 USDT / 5 işlem
+        self.assertAlmostEqual(o["kazanc_kayip"], 2.0)          # ort. kazanç 2 / ort. kayıp 1
 
     def test_karar(self):
         aile = s.ADAYLAR[0]
@@ -140,6 +142,19 @@ class MaliyetVeOlcum(unittest.TestCase):
         trend = s.ADAYLAR[1]
         hukum, nedenler = s.karar(trend, {**iyi, "islem": 150}, {"net": 1.0}, 3.0, {}, {"a": 5, "b": -1, "c": -2})
         self.assertIn("kanal uzunluklarının yalnız 1 / 3 tanesi artıda", nedenler)
+
+    def test_karar_r_olculeri(self):
+        aile = next(a for a in s.ADAYLAR if a["ad"] == "AHMETOZEL")
+        iyi = {"islem": 80, "gun_sayisi": 70, "net": 24.0, "net_yuzde": 1.2, "brut_yuzde": 1.4, "t": 3.0,
+               "yillar": [8, 8, 8], "artida_yil": 3, "en_iyi_3_gun_payi": 0.2, "artida_coin": 10,
+               "en_iyi_3_islem_haric": 18.0, "btc_iliski": 0.1, "ort_r": 0.3, "kazanc_kayip": 1.9, "dusus": 6.0}
+        self.assertEqual(s.karar(aile, iyi, {"net": 10.0}, 3.0, {"AHMETOZELP1": 0.2}, {})[0], "GEÇTİ")
+        hukum, nedenler = s.karar(aile, {**iyi, "ort_r": 0.1, "kazanc_kayip": 1.2, "dusus": 20.0}, {"net": 1.0},
+                                  3.0, {"AHMETOZELP1": 0.05}, {})
+        self.assertEqual(hukum, "KALDI")
+        self.assertEqual(len(nedenler), 4)
+        self.assertTrue(any("0,15R" in n for n in nedenler))
+        self.assertEqual(s.karar(aile, {**iyi, "islem": 40}, {"net": 1}, 3, {}, {})[0], "HÜKÜM YOK")
 
 
 class Plasebo(unittest.TestCase):
@@ -198,7 +213,7 @@ class UcTanUca(unittest.TestCase):
     def test_rapor_bolumleri(self):
         for parca in ("PANEL SINAMASI", "=== ZSD", "=== TRG", "=== TRGK", "KARAR (ZSD)", "KARAR (TRG28)",
                       "Kural plasebosu ZSDP", "Rastgele giriş plasebosu", "PANEL PORTFÖYÜ", "ÖZET",
-                      "ayrılmış, KAPALI", "Deneme defteri: önceki 112 + bu sınamada 13 = 125", "=== FONK", "Kural plasebosu FONP", "=== ASYA", "KARAR (ASYAK)",
+                      "ayrılmış, KAPALI", "Deneme defteri: önceki 112 + bu sınamada 19 = 131", "=== FONK", "Kural plasebosu FONP", "=== ASYA", "KARAR (ASYAK)",
                       "Kural plasebosu ASYAP2", "FONLAMA AŞIRILIĞI SAYIMI",
                       "Bilgi (onceki_gun_dibi_delindi = evet)", "dosya özeti"):
             self.assertIn(parca, self.metin)
@@ -216,6 +231,41 @@ class UcTanUca(unittest.TestCase):
 
     def test_makul_surede(self):
         self.assertLess(self.sure, 240)
+
+
+def gunluk_kaynak(gun=2400):
+    """Yalnız günlük mumlu, trendli yapay piyasa (Ahmet Özel ailesi için)."""
+    veri = {}
+    for n, coin in enumerate(["BTC"] + s.COINLER[:3]):
+        veri[coin] = yapay_mumlar(gun, dilim_dk=1440, tohum=40 + n, oynaklik=0.035, baslangic="2020-01-06")
+
+    def yukle(coin, dilim):
+        # Dönem sınırı 1 saatlik referanstan okunur; burada günlük tablo aynı sonu verir.
+        return veri.get(coin) if dilim in ("1d", "1h") else None
+
+    return yukle, (lambda coin: None)
+
+
+class AhmetOzelUcTanUca(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        yukle, fon = gunluk_kaynak()
+        aileler = [a for a in s.ADAYLAR if a["ad"].startswith("AHMETOZEL")]
+        with mock.patch.object(s, "COINLER", s.COINLER[:3]), mock.patch.object(s, "PLASEBO_TEKRAR", 3):
+            cls.metin, cls.sonuc = s.sina(yukle, fon, aileler)
+
+    def test_rapor_ve_karar(self):
+        for parca in ("=== AHMETOZEL:", "=== AHMETOZELK:", "KARAR (AHMETOZEL)", "KARAR (AHMETOZELK)",
+                      "Kural plasebosu AHMETOZELP1", "Bilgi için plasebo AHMETOZELP2", "Bilgi için plasebo AHMETOZELKP2",
+                      "işlem başına", "R, net", "ort. kazanç / kayıp", "bu sınamada 6"):
+            self.assertIn(parca, self.metin)
+        for aile in ("AHMETOZEL", "AHMETOZELK"):
+            self.assertIn(self.sonuc["aileler"][aile]["karar"], ("GEÇTİ", "KALDI", "HÜKÜM YOK"))
+
+    def test_islem_var_ve_stop_sinirlarda(self):
+        o = self.sonuc["denemeler"]
+        self.assertGreater(o["AHMETOZELP1"]["islem"] + o["AHMETOZELKP1"]["islem"], 0)
+        self.assertGreaterEqual(o["AHMETOZELP1"]["islem"], o["AHMETOZEL"]["islem"])
 
 
 class FonlamaIndirme(unittest.TestCase):

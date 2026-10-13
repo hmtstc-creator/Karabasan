@@ -183,7 +183,9 @@ class PortfoyVeBilgi(unittest.TestCase):
 
 class AdayKurallar(unittest.TestCase):
     KODLAR = ["ZSD", "ZSDF", "ZSDT", "ZSDP", "TRG14", "TRG28", "TRG56", "TRGK14", "TRGK28", "TRGK56",
-              "ASYA", "ASYAP1", "ASYAP2", "ASYAK", "ASYAKP1", "ASYAKP2", "FON", "FONK", "FONP", "FONKP"]
+              "ASYA", "ASYAP1", "ASYAP2", "ASYAK", "ASYAKP1", "ASYAKP2", "FON", "FONK", "FONP", "FONKP",
+              "AHMETOZEL", "AHMETOZEL2", "AHMETOZEL3", "AHMETOZELP1", "AHMETOZELP2",
+              "AHMETOZELK", "AHMETOZELK2", "AHMETOZELK3", "AHMETOZELKP1", "AHMETOZELKP2"]
 
     def test_hepsi_gecerli_ve_canli_degil(self):
         from karabasan.botlar import BOTLAR
@@ -197,6 +199,8 @@ class AdayKurallar(unittest.TestCase):
                 c = kural["cikis"]
                 if c.get("kar_hedefi_r"):
                     self.assertGreaterEqual(c["kar_hedefi_r"], 1 / 1.5)        # hedef = r x stop
+                elif c.get("sinyal") and not c.get("iz_suren_stop"):
+                    self.assertIn("sure_asimi_dakika", c)                       # yapı dönünce çıkış
                 else:
                     tavan = c.get("kar_hedefi_yuzde") or c["iz_suren_stop"]["tetik_yuzde"]
                     self.assertLessEqual(c["zarar_durdur_yuzde"], 1.5 * tavan)   # panel: stop <= 1,5 x hedef
@@ -393,6 +397,81 @@ class HaftalikDilim(unittest.TestCase):
         k.kural_dogrula(temel(portfoy={"kayma_aralik_orani": 0.0}))
         with self.assertRaises(k.KuralHatasi):
             k.kural_dogrula(temel(portfoy={"kayma_aralik_orani": 2}))
+
+
+class AhmetOzel(unittest.TestCase):
+    """Ahmet'in kendi stratejisi: günlük taban, haftalık destek / direnç ve FVG."""
+
+    ALIM = ["AHMETOZEL", "AHMETOZEL2", "AHMETOZEL3", "AHMETOZELP1", "AHMETOZELP2"]
+    SATIS = ["AHMETOZELK", "AHMETOZELK2", "AHMETOZELK3", "AHMETOZELKP1", "AHMETOZELKP2"]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.veri = [yapay_mumlar(1500, dilim_dk=1440, tohum=30 + t, oynaklik=0.035, baslangic="2021-01-04")
+                    for t in range(3)]
+
+    def test_atr_ve_ekle_dogrulama(self):
+        kural = temel(gostergeler={"a": {"tur": "atr", "periyot": 14}, "d": {"tur": "en_dusuk", "periyot": 5}},
+                      giris={"sol": "dusuk", "islem": "<=", "sag": {"ad": "d", "ekle": {"ad": "a", "carpan": 0.5}}})
+        k.kural_dogrula(kural)
+        df = yapay_mumlar(200, dilim_dk=15, tohum=2)
+        t = k.gosterge_ekle(df, kural)
+        np.testing.assert_allclose(k._islenen(t, kural["giris"]["sag"]).dropna(),
+                                   (t["d"] + 0.5 * t["a"]).dropna())
+        for bozuk in ({"ad": "yok"}, {"ad": "a", "carpan": "x"}, "a"):
+            kural["giris"]["sag"] = {"ad": "d", "ekle": bozuk}
+            with self.subTest(bozuk=bozuk), self.assertRaises(k.KuralHatasi):
+                k.kural_dogrula(kural)
+
+    def test_sinyaller_gelecege_bakmaz(self):
+        df = self.veri[0]
+        kesim = 1100
+        for kod in self.ALIM + self.SATIS:
+            kural = k.kural_yukle(kod)
+            tam = k.sinyal_uret(df, kural)
+            kesik = k.sinyal_uret(df.iloc[:kesim], kural)
+            with self.subTest(kod=kod):
+                for sutun in ("sinyal", "cikis_sinyal", "stop_yuzde"):
+                    pd.testing.assert_series_equal(tam[sutun].iloc[:kesim], kesik[sutun], check_names=False)
+
+    def test_plasebolar_asil_kuralin_ust_kumesi_ve_sinyal_var(self):
+        for asil, plasebolar in (("AHMETOZEL", ("AHMETOZELP1", "AHMETOZELP2")),
+                                 ("AHMETOZELK", ("AHMETOZELKP1", "AHMETOZELKP2"))):
+            toplam = 0
+            for df in self.veri:
+                s = k.sinyal_uret(df, k.kural_yukle(asil))["sinyal"]
+                toplam += int(s.sum())
+                for p in plasebolar:
+                    ps = k.sinyal_uret(df, k.kural_yukle(p))["sinyal"]
+                    with self.subTest(asil=asil, plasebo=p):
+                        self.assertFalse((s & ~ps).any())   # şart kaldırınca sinyal yalnız artar
+            with self.subTest(asil=asil):
+                self.assertGreater(toplam, 0)
+
+    def test_sinyal_aninda_kosullar_saglanir(self):
+        for kod in ("AHMETOZEL", "AHMETOZELK"):
+            alim = kod == "AHMETOZEL"
+            for df in self.veri:
+                t = k.sinyal_uret(df, k.kural_yukle(kod))
+                s = t[t["sinyal"]]
+                with self.subTest(kod=kod):
+                    if alim:
+                        self.assertTrue((s["yapi_yon"] > 0).all() and (s["ema20"] > s["ema50"]).all())
+                        self.assertTrue((s["close"] > s["sma200"]).all())
+                        self.assertTrue((s["close"] > t["high"].shift(1)[t["sinyal"]]).all())
+                        # Son 10 günde aşağı dönüş (CHoCH) yok.
+                        donus = (t["yapi_donus"] < 0).astype(int).rolling(10, min_periods=1).max()
+                        self.assertTrue((donus[t["sinyal"]] == 0).all())
+                    else:
+                        self.assertTrue((s["yapi_yon"] < 0).all() and (s["ema20"] < s["ema50"]).all())
+                        self.assertTrue((s["close"] < s["sma200"]).all())
+                        donus = (t["yapi_donus"] > 0).astype(int).rolling(10, min_periods=1).max()
+                        self.assertTrue((donus[t["sinyal"]] == 0).all())
+                    self.assertTrue(s["stop_yuzde"].between(3.0, 10.0).all())
+
+    def test_yapi_donunce_cikis(self):
+        t = k.sinyal_uret(self.veri[1], k.kural_yukle("AHMETOZEL3"))
+        pd.testing.assert_series_equal(t["cikis_sinyal"], t["yapi_donus"] < 0, check_names=False)
 
 
 if __name__ == "__main__":

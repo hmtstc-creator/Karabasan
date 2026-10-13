@@ -392,9 +392,9 @@ print(' '.join(b[0] for b in BOTLAR))")"
     # Uzman panelinin (12 Ekim 2026) aday botları 4 yıllık veride, önceden yazılmış kurallarla
     # sınanır; son yıl ayrılmıştır, kullanılmaz. İlk seferde 4 yıllık veri iner (uzun sürebilir).
     # Hiçbir ayarı değiştirmez; başarısız olursa botlar ve kurulum etkilenmez.
-    local PANEL_SURUMU=3
+    local PANEL_SURUMU=4
     if [ "$(cat user_data/logs/panel_surumu 2> /dev/null)" != "surum-$PANEL_SURUMU" ]; then
-        bildir "Panel sınaması başladı: uzman panelinin önerdiği aday botlar (zorla satış dönüşü, günlük trend, Asya seansı likidite avı, fonlama sıkışması) 20 coinin 4 yıllık verisinde sınanıyor; fonlama aşırılıkları da sayılıyor. Veri eksikse önce o iner; 10-90 dakika sürebilir, bitince raporu yollarım. Botlar bu sırada çalışmaya devam eder."
+        bildir "Panel sınaması başladı: aday botlar (zorla satış dönüşü, günlük trend, Asya seansı likidite avı, fonlama sıkışması ve senin stratejin Ahmet Özel) 20 coinin 4 yıllık verisinde sınanıyor; fonlama aşırılıkları da sayılıyor. Veri eksikse önce o iner; 10-90 dakika sürebilir, bitince raporu yollarım. Botlar bu sırada çalışmaya devam eder."
         if bash araclar/panel_sinama.sh; then
             belge "$KLASOR/user_data/logs/panel_sinama.txt" "Panel sınaması. Bu dosyayı Claude'a ilet. Sonra da /panel yazarak yeniden alabilirsin."
         else

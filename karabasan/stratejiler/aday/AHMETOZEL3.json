@@ -1,0 +1,170 @@
+{
+  "kod": "AHMETOZEL3",
+  "ad": "Ahmet Özel (alım, yapı dönünce çıkış)",
+  "yon": "alim",
+  "aciklama": "Ahmet'in kendi stratejisi (13 Ekim 2026), beş uzmanlı komitenin çoğunluk yorumuyla. Günlük mumlar; haftalık göstergeler günlükten toplanır (hafta Pazartesi 00:00 UTC başlar, yalnız kapanmış hafta görülür). Alım: günlük yapı (salınım uzunluğu 5) yukarı ve son 10 günün hiçbirinde aşağı dönmemiş (CHoCH yok); EMA20 > EMA50 ve kapanış > SMA200. Destek: son onaylı haftalık salınım dibi (uzunluk 3) ya da açık haftalık boğa FVG'nin üst sınırı (en az %1,5, ömür 26 hafta); son 3 günden birinde fiyatın dibi desteğe 0,5 x ATR(14) kadar yaklaşmış ve bugün desteğin üstünde kapanmış. Teyit barı: kapanış önceki günün tepesinin üstünde. MACD(12,26,9) histogramı son 3 günde sıfırın üstüne geçmiş. Giriş ertesi günün açılışında piyasa emriyle. Stop son 5 günün dibinin 0,5 x ATR ötesi; en az 1 x ATR ve %3, en çok %10. Sabit hedef yok: günlük yapı ters yöne dönünce (CHoCH) ertesi açılışta çıkar; en çok 60 gün. Aynı anda en çok 4 pozisyon, 24 saatte en çok 3 giriş, coin başına günde 1.",
+  "zaman_dilimi": "1d",
+  "gostergeler": {
+    "yapi": {
+      "tur": "yapi",
+      "periyot": 5
+    },
+    "yon10": {
+      "tur": "en_dusuk",
+      "kaynak": "yapi_yon",
+      "periyot": 10
+    },
+    "ema20": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 20
+    },
+    "ema50": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 50
+    },
+    "sma200": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 200
+    },
+    "macd": {
+      "tur": "macd",
+      "kaynak": "kapanis"
+    },
+    "atr14": {
+      "tur": "atr",
+      "periyot": 14
+    },
+    "hyapi": {
+      "tur": "yapi",
+      "periyot": 3,
+      "dilim": "1w"
+    },
+    "hfvg": {
+      "tur": "fvg",
+      "omur": 26,
+      "en_az_yuzde": 1.5,
+      "dilim": "1w"
+    },
+    "dip5": {
+      "tur": "en_dusuk",
+      "kaynak": "dusuk",
+      "periyot": 5
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "yapi_yon",
+        "islem": ">",
+        "sag": 0
+      },
+      {
+        "sol": "yon10",
+        "islem": ">",
+        "sag": 0
+      },
+      {
+        "sol": "ema20",
+        "islem": ">",
+        "sag": "ema50"
+      },
+      {
+        "sol": "kapanis",
+        "islem": ">",
+        "sag": "sma200"
+      },
+      {
+        "herhangi": [
+          {
+            "hepsi": [
+              {
+                "sol": "dusuk",
+                "islem": "<=",
+                "sag": {
+                  "ad": "hyapi_dip",
+                  "ekle": {
+                    "ad": "atr14",
+                    "carpan": 0.5
+                  }
+                },
+                "son_n_mumda": 3
+              },
+              {
+                "sol": "kapanis",
+                "islem": ">",
+                "sag": "hyapi_dip"
+              }
+            ]
+          },
+          {
+            "hepsi": [
+              {
+                "sol": "dusuk",
+                "islem": "<=",
+                "sag": {
+                  "ad": "hfvg_boga_ust",
+                  "ekle": {
+                    "ad": "atr14",
+                    "carpan": 0.5
+                  }
+                },
+                "son_n_mumda": 3
+              },
+              {
+                "sol": "kapanis",
+                "islem": ">",
+                "sag": "hfvg_boga_ust"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "sol": "kapanis",
+        "islem": ">",
+        "sag": {
+          "ad": "yuksek",
+          "kaydir": 1
+        }
+      },
+      {
+        "sol": "macd_fark",
+        "islem": "yukari_keser",
+        "sag": 0,
+        "son_n_mumda": 3
+      }
+    ]
+  },
+  "cikis": {
+    "zarar_durdur_yuzde": 10.0,
+    "stop_atr": {
+      "kat": 1.0,
+      "periyot": 14,
+      "en_az_yuzde": 3.0,
+      "seviye": "dip5",
+      "pay": 0.5
+    },
+    "sinyal": {
+      "sol": "yapi_donus",
+      "islem": "<",
+      "sag": 0
+    },
+    "sure_asimi_dakika": 86400
+  },
+  "portfoy": {
+    "en_fazla_pozisyon": 4,
+    "giris_sinirlari": [
+      {
+        "saat": 24,
+        "sayi": 3
+      }
+    ],
+    "coin_gunde_en_fazla": 1,
+    "seri_stop_muaf": true,
+    "en_az_kayma_yuzde": 0.1,
+    "kayma_aralik_orani": 0.0
+  }
+}
