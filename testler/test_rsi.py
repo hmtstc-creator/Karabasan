@@ -19,7 +19,9 @@ class RsiKurallari(unittest.TestCase):
                 self.assertEqual(c["zarar_durdur_yuzde"], 3.0)
                 self.assertEqual(c["iz_suren_stop"], {"tetik_yuzde": 1.2, "mesafe_yuzde": 0.3})
                 self.assertNotIn("sure_asimi_dakika", c)
-                self.assertIsNone(k.kural_yukle(kod).get("giris_limiti"))     # piyasa emri
+                # 13 Ekim 2026 akşamı (Ahmet): sinyal fiyatının %1 ötesine limit emir, 60 dk bekler.
+                self.assertEqual(k.kural_yukle(kod)["giris_limiti"],
+                                 {"atr_kat": 0.0, "en_az_yuzde": 1.0, "en_fazla_yuzde": 1.0, "sure_dakika": 60})
 
     def test_yalniz_rsi_kullanir(self):
         for kod in ("RSI", "RSIK"):
@@ -53,6 +55,14 @@ class RsiKurallari(unittest.TestCase):
             n = kesim - 12
             with self.subTest(kod=kod):
                 self.assertEqual(tam.iloc[:n].tolist(), kesik.iloc[:n].tolist())
+
+    def test_limit_uzakligi_her_mumda_yuzde_bir(self):
+        df = yapay_mumlar(3000, tohum=14, oynaklik=0.004)
+        for kod in ("RSI", "RSIK"):
+            t = k.sinyal_uret(df, k.kural_yukle(kod))
+            self.assertTrue((t["giris_limit_yuzde"] == 1.0).all())
+        self.assertAlmostEqual(k.limit_fiyati(100.0, 1.0, True), 99.0)
+        self.assertAlmostEqual(k.limit_fiyati(100.0, 1.0, False), 101.0)
 
     def test_benzetim_hedef_ve_iz_suren_stopla_kapatir(self):
         df = yapay_mumlar(20000, tohum=13, oynaklik=0.004)

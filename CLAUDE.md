@@ -197,7 +197,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 574 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 575 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -853,6 +853,12 @@ Eşikler Claude'un (Ahmet yalnız "aşırı satış" dedi). Çıkış: hedef %1,
   RSI 130 / %70,0 / −5,56; RSIK 114 / %65,8 / −14,81. Eşleşen işlemlerde net fark küçük (RSI −12,67 /
   −12,00). Motor, benzetimin hedefle kapattığı 8-9 işlemi iz süren stopla kapatıyor (aynı mumda hedef / iz
   önceliği farkı olabilir; doğrulanmadı, sonuca etkisi küçük).
+- **Limitli giriş (13 Ekim 2026 akşamı, Ahmet'in isteği: "sinyal anındaki fiyatın long için %1 altına,
+  short için %1 üstüne emir").** RSI / RSIK'ta `giris_limiti` {atr_kat 0, en_az = en_fazla %1,
+  sure_dakika 60}: uzaklık her zaman %1, emir 60 dk (12 mum) bekler, dolmazsa iptal. Bekleme süresini
+  Ahmet söylemedi, Claude seçti (Ahmet'e söylendi). 30 günlük takip bu ayarla yeniden başlar (rapor
+  hatırlatmaları 20 Ekim ve 12 Kasım'da duruyor; ilk saatin piyasa emirli birkaç işlemi kayıtta kalır).
+  Yapay veride işlem sayısı ~yarıya iner. `UYUM_SURUMU=19`, `YILLIK_SURUMU=7`.
 
 **Kriter istekleri (13 Ekim 2026, Ahmet'in isteği).** Ahmet "kriterleri sitede göster, değiştirebileyim;
 olmaz dersen sana söylerim sen çalıştırırsın" dedi. Sunucudaki sayfa değiştirilemez (sunucu 5 dakikada

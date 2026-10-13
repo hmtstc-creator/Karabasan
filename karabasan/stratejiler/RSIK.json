@@ -2,7 +2,7 @@
   "kod": "RSIK",
   "ad": "RSI: aşırı alımdan aşağı dönüşte açığa satış",
   "yon": "aciga_satis",
-  "aciklama": "Yalnız RSI(14) kullanır, üç dilimde. 5 dakikalık: önceki mumun RSI'ı 70 ya da üstünde (aşırı alım) ve RSI bu mumda aşağı dönmüş (önceki mumda yükseliyordu, bu mumda düştü). 15 dakikalık RSI 60 ya da üstünde, 1 saatlik RSI 50 ya da üstünde. Giriş sinyal mumundan sonraki mumun açılışında piyasa emriyle. Çıkış (Ahmet'in isteği, 13 Ekim 2026): kâr hedefi %1,5, stop %3, süre sınırı yok; kâr %1,2'ye ulaşınca iz süren stop devreye girer ve en iyi fiyatın %0,3 gerisinden izler (hedefe ulaşmadan dönerse yaklaşık %0,9 kârla kapanır). İleriye dönük 30 günlük sanal takip için eklendi.",
+  "aciklama": "Yalnız RSI(14) kullanır, üç dilimde. 5 dakikalık: önceki mumun RSI'ı 70 ya da üstünde (aşırı alım) ve RSI bu mumda aşağı dönmüş (önceki mumda yükseliyordu, bu mumda düştü). 15 dakikalık RSI 60 ya da üstünde, 1 saatlik RSI 50 ya da üstünde. Giriş (Ahmet'in isteği, 13 Ekim 2026 akşamı): sinyal anındaki fiyatın %1 üstüne (açığa satış) limit emir; 60 dakika içinde dolmazsa iptal edilir. Çıkış (Ahmet'in isteği, 13 Ekim 2026): kâr hedefi %1,5, stop %3, süre sınırı yok; kâr %1,2'ye ulaşınca iz süren stop devreye girer ve en iyi fiyatın %0,3 gerisinden izler (hedefe ulaşmadan dönerse yaklaşık %0,9 kârla kapanır). İleriye dönük 30 günlük sanal takip için eklendi.",
   "zaman_dilimi": "5m",
   "gostergeler": {
     "rsi14": {
@@ -60,6 +60,12 @@
         "sag": 50
       }
     ]
+  },
+  "giris_limiti": {
+    "atr_kat": 0.0,
+    "en_az_yuzde": 1.0,
+    "en_fazla_yuzde": 1.0,
+    "sure_dakika": 60
   },
   "cikis": {
     "kar_hedefi_yuzde": 1.5,
