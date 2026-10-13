@@ -195,7 +195,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 556 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 566 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -621,8 +621,14 @@ farklı varyasyonla bir senelik test yapıp en kazançlıyı bul." Yapılan:
   Limitli girişte dolduğu mumun tepesi en iyi fiyata katılmaz. Motorun geçmiş testi
   mum içinde daha iyimser olabilir; 16. uyum denemesinde eşleştirmede görülür
   (`trailing_stop_loss` → `iz_suren_stop`, `exit_signal` → `cikis_sinyali`).
-- Stop sonrası izleme ve 12 aylık testin "stop = hedef" sütunu sabit hedef / süre
-  olmayan kuralları atlar (yani şu an bütün botları); Dersler ekranı boş kalır.
+- 12 aylık testin "stop = hedef" sütunu sabit hedef / süre olmayan kuralları atlar. Stop sonrası
+  izleme 13 Ekim 2026'dan beri (Ahmet "stop dersi bütün botlarda görülmeli" dedi) iz süren stoplu,
+  süresiz botları da izler: geniş stoplu hal botun kendi iz süren stop kuralıyla (benzetimdeki gibi,
+  tepe stopu sonraki mumdan taşır) yeniden oynatılır; izleme girişten 72 saat, stoptan en az 24 saat
+  sürer (`IZLEME_SURESIZ`, `IZLEME_STOP_SONRASI`), o anda açık kalan seçenek son fiyattan "açık"
+  sayılır; "hedefi gördü" yerine "tetiğe ulaştı" (`esik` = "iz"). Dersler ekranı her bota kart
+  gösterir. Yalnız çıkış sinyalli ya da işlem başına stoplu (ATR / R) kurallar atlanır (canlıda yok).
+  Gerçek Binance mumlarıyla sunucuda ilk kez çalışacak (5 dakikalık mum, 72 saat ≈ 864 mum).
 - Tarama: `karabasan/tarama.py` (Yapı tablosunda). Varyasyonlar: iz süren stop tetik
   {0,8; 1,2; 2} × mesafe {0,3; 0,6} × stop {1,5; 3} süresiz (12), V01 ile aynı iz /
   stop + 4 s ve 24 s süre (2), sabit hedef: 0,8/3/4 s (eski SM), 1,2/1,5/3 s (eski

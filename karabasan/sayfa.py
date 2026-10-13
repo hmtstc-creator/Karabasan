@@ -23,7 +23,7 @@ from html import escape
 
 from .kriterler import DUZENLEME_ADRESI, metin_degeri
 from .kriterler import liste as kriter_listesi
-from .stop_sonrasi import KARAR_ADI, carpan_metni
+from .stop_sonrasi import KARAR_ADI, carpan_metni, esik_metni, secenek_metni
 
 OLCUT_ACIKLAMALARI = [
     "En az 100 sanal işlem yapmış olmak.",
@@ -571,7 +571,8 @@ def _bot_karti(bot: dict) -> str:
     if izleme.get("stop_sayisi"):
         notlar.append(
             f'Stop sonrası: izlenen {izleme["stop_sayisi"]} stopun {izleme["hedefi_goren"]} tanesinde fiyat '
-            f'süre dolmadan hedefi gördü. {KARAR_ADI[izleme["karar"]["kod"]]}. <a href="#dersler">Ayrıntı</a>'
+            f'{esik_metni(izleme.get("esik", "hedef"))}. {KARAR_ADI[izleme["karar"]["kod"]]}. '
+            '<a href="#dersler">Ayrıntı</a>'
         )
     isaretler = _olcut_isaretleri(bot)
     return (
@@ -741,10 +742,10 @@ def _ders_karti(bot: dict) -> str:
     adet = izleme["stop_sayisi"]
     karar = izleme["karar"]
     bekleyen = izleme.get("izlenmeyi_bekleyen") or 0
-    cumle = (
-        f'{adet} stop izlendi; {izleme["hedefi_goren"]} tanesinde fiyat, işlemin süresi dolmadan '
-        "kâr hedefini gördü."
-    )
+    if adet:
+        cumle = f'{adet} stop izlendi; {izleme["hedefi_goren"]} tanesinde fiyat {esik_metni(izleme.get("esik", "hedef"))}.'
+    else:
+        cumle = "Henüz izlenmiş stop yok."
     if bekleyen:
         cumle += f" {bekleyen} stop daha izlenmeyi bekliyor."
     if izleme.get("izlenemeyen"):
@@ -758,8 +759,7 @@ def _ders_karti(bot: dict) -> str:
         if s.get("stop_yuzde") is not None:
             etiket += f' ({kisa_yuzde(s["stop_yuzde"])})'
         secenekler.append(
-            f'<li><span>{etiket}<span class="alt">{s["hedef"]} tanesi hedefe ulaşır, {s["stop"]} tanesi '
-            f'yine stop olur, {s["sure"]} tanesinde süre dolardı</span></span>'
+            f'<li><span>{etiket}<span class="alt">{escape(secenek_metni(s))}</span></span>'
             f'<span class="secenek-net {_isaret_sinifi(s["fark_tutar"]) if yeterli else "erken"}">'
             f'{isaretli(s["fark_tutar"])}'
             '<span class="alt">USDT fark</span></span></li>'
@@ -767,26 +767,32 @@ def _ders_karti(bot: dict) -> str:
     return (
         f'<article class="ders-kart kose"><div class="kart-ust"><span class="kod">{escape(bot["kod"])}</span>'
         f'<h4>{escape(bot["ad"])}</h4><span class="karar {karar["kod"]}">{KARAR_ADI[karar["kod"]]}</span></div>'
-        f'<p class="ders-cumle">{cumle}</p><ul class="secenekler">{"".join(secenekler)}</ul>'
-        f'<p class="alt">{escape(karar["metin"])}</p></article>'
+        f'<p class="ders-cumle">{cumle}</p>'
+        + (f'<ul class="secenekler">{"".join(secenekler)}</ul>' if secenekler else "")
+        + f'<p class="alt">{escape(karar["metin"])}</p></article>'
     )
 
 
 def _dersler_ekrani(ozet: dict, saat_dilimi: str) -> str:
-    izlenen = [b for b in ozet["botlar"] if b.get("stop_sonrasi", {}).get("stop_sayisi")]
     izleme = ozet.get("stop_izleme") or {}
     en_az = izleme.get("en_az_stop", 30)
-    if izlenen:
-        bos_botlar = [b["kod"] for b in ozet["botlar"] if b not in izlenen]
-        kartlar = f'<div class="ders-kartlar">{"".join(_ders_karti(b) for b in izlenen)}</div>'
-        if bos_botlar:
-            kartlar += f'<p class="not">Henüz izlenmiş stopu olmayan botlar: {escape(", ".join(bos_botlar))}.</p>'
+    # Her bot bir kart: izlenmiş stopu olmayan bot da görünür, kaç stopunun sırada olduğuyla.
+    botlar = [b for b in ozet["botlar"] if b.get("stop_sonrasi")]
+    bekleyen = sum((b.get("stop_sonrasi") or {}).get("izlenmeyi_bekleyen") or 0 for b in ozet["botlar"])
+    ek = f" Şu an {bekleyen} stop sırada." if bekleyen else ""
+    zamanlama = (
+        '<p class="not">Stop olan işlem, kendi süresi dolunca izlenir. Süre sınırı olmayan botlarda '
+        "(iz süren stoplu, bugünkü botların hepsi) girişten 3 gün sonra, stoptan en az 1 gün sonra "
+        f"sonuç görünür; o anda hâlâ açık olacak seçenek son fiyattan sayılır.{ek}</p>"
+    )
+    if any((b["stop_sonrasi"].get("stop_sayisi") or 0) for b in botlar):
+        kartlar = f'<div class="ders-kartlar">{"".join(_ders_karti(b) for b in botlar)}</div>' + zamanlama
     else:
-        bekleyen = sum((b.get("stop_sonrasi") or {}).get("izlenmeyi_bekleyen") or 0 for b in ozet["botlar"])
-        ek = f" Şu an {bekleyen} stop sırada." if bekleyen else ""
         kartlar = (
             '<p class="bos">Henüz izlenmiş stop yok. Bir işlem stop olduktan sonra, o işlemin süresi '
-            f"dolunca (stratejiye göre 1 ile 6 saat) sonucu burada görünür.{ek}</p>"
+            f"dolunca sonucu burada görünür.{ek}</p>"
+            + (f'<div class="ders-kartlar">{"".join(_ders_karti(b) for b in botlar)}</div>' if botlar else "")
+            + zamanlama.replace(ek, "")
         )
 
     dersler = ozet.get("dersler") or []
@@ -810,8 +816,9 @@ def _dersler_ekrani(ozet: dict, saat_dilimi: str) -> str:
     )
     return f"""<section id="dersler" class="ekran">
 <h2 class="ekran-baslik">Dersler</h2>
-<p class="sinav-durum">Stop olan her işlem, kendi süresi dolana kadar izleniyor. Soru şu: stop daha geniş
-olsaydı sonuç daha mı iyi olurdu, yoksa zarar mı büyürdü?</p>
+<p class="sinav-durum">Her botun stop olan işlemleri izleniyor. Soru şu: stop daha geniş olsaydı sonuç
+daha mı iyi olurdu, yoksa zarar mı büyürdü? Geniş stoplu hal botun kendi çıkış kuralıyla (iz süren stop
+dahil) yeniden oynatılır.</p>
 <h3>Stop dar mı?</h3>
 {kartlar}
 <h3>Ders kaydı</h3>
@@ -917,8 +924,9 @@ def _kriterler_ekrani() -> str:
 <p class="not">Ahmet Özel stratejisinin (alım ve açığa satış) bütün sayıları. Değerler sunucudaki kural
 dosyalarından okunur; burada gördüğün, sınamanın gerçekte kullandığıdır. İki değer yazıyorsa ilki alım,
 ikincisi açığa satış içindir. Bu strateji henüz canlı bot değil; panel sınamasında sınanıyor.</p>
-<p class="not">Bir değeri değiştirmek için <a href="{escape(DUZENLEME_ADRESI)}">Bot Kriterleri düzenleme
-sayfasında</a> isteğini kaydet ya da Claude'a yaz. Bu sayfa yalnız gösterir; buradan değişiklik yapılmaz.
+<p><a class="kriter-dugme" href="{escape(DUZENLEME_ADRESI)}">Değerleri değiştir</a></p>
+<p class="not">Düğme claude.ai'deki Bot Kriterleri sayfasını açar: satıra dokun, yeni değeri yaz, İsteği kaydet'e
+bas, sonra Claude'a "kriterleri değiştirdim" yaz. Bu ekran yalnız gösterir; buradan değişiklik yapılmaz.
 Her değişiklik yeni bir deneme sayılır.</p>
 {icerik}
 </section>"""
@@ -1181,6 +1189,8 @@ border-bottom:1px solid var(--cizgi)}
 .kriter-deger{font:700 1.125rem/1.2 var(--rakam);white-space:nowrap;font-variant-numeric:tabular-nums}
 .kriter-deger .alt{display:inline;font-size:.8125rem;color:var(--soluk);font-weight:600}
 #kriterler a{color:var(--holo)}
+.kriter-dugme{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border:1px solid var(--holo);
+font:700 1rem/1 var(--rakam);letter-spacing:.04em;text-decoration:none;background:rgba(95,212,255,.10)}
 .gezinti{position:fixed;left:0;right:0;bottom:0;z-index:4;display:flex;overflow-x:auto;scrollbar-width:none;
 background:rgba(4,9,17,.9);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
 border-top:1px solid var(--cizgi);padding-bottom:env(safe-area-inset-bottom)}

@@ -310,17 +310,20 @@ def botlar_metni(ozet: dict) -> str:
 
 def dersler_metni(ozet: dict) -> str:
     """Stop sonrası izlemenin özeti: stop daha geniş olsaydı ne olurdu?"""
-    from .stop_sonrasi import carpan_metni
+    from .stop_sonrasi import carpan_metni, esik_metni
 
     satirlar = ["Dersler: stop daha geniş olsaydı ne olurdu?", ""]
     izlenen = [b for b in ozet["botlar"] if (b.get("stop_sonrasi") or {}).get("stop_sayisi")]
     if not izlenen:
-        satirlar.append("Henüz izlenmiş stop yok. Bir işlem stop olduktan sonra, süresi dolunca izlenir.")
+        satirlar.append(
+            "Henüz izlenmiş stop yok. Bir işlem stop olduktan sonra, süresi dolunca izlenir; süre sınırı "
+            "olmayan botlarda girişten 3 gün sonra (stoptan en az 1 gün sonra)."
+        )
     for b in izlenen:
         s = b["stop_sonrasi"]
         satirlar.append(
             f"{b['ad']} [{b['kod']}]: {s['stop_sayisi']} stop izlendi, {s['hedefi_goren']} tanesinde "
-            "fiyat süre dolmadan hedefi gördü."
+            f"fiyat {esik_metni(s.get('esik', 'hedef'))}."
         )
         satirlar.append("  Fark: " + ", ".join(
             f"{carpan_metni(c['carpan'])} kat {_sayi(c['fark_tutar'])} USDT" for c in s["carpanlar"]

@@ -10,11 +10,19 @@ Mantık:
 
 1. Stop olan işlem, kendi süresi dolana kadar (giriş anı + stratejinin en uzun
    süresi) izlenir. Daha uzun izlenmez; işlem zaten o süreden sonra açık
-   kalamazdı.
+   kalamazdı. Süre sınırı olmayan stratejilerde (iz süren stoplu botlar)
+   giriş anından en az IZLEME_SURESIZ kadar, stoptan sonra en az
+   IZLEME_STOP_SONRASI kadar izlenir; o anda hâlâ açık olan seçenek son
+   fiyattan değerlenir ("açık kalırdı").
 2. Aynı işlem, stop 1,5 / 2 / 3 kat geniş olsaydı ne olurdu diye yeniden
    oynatılır: geniş stop da olur muydu, kâr hedefine ulaşır mıydı, yoksa süre
    mi dolardı. Aynı mumda hem geniş stop hem hedef görülürse stop sayılır
-   (kötümser).
+   (kötümser). İz süren stoplu stratejide stratejinin kendi kuralı uygulanır
+   (benzetimdeki gibi): kâr, komisyon düşülünce tetiğe ulaşınca stop en iyi
+   fiyatın mesafe kadar gerisine çekilir; bir mumun tepesi stopu ancak sonraki
+   mumdan itibaren taşır. Stop olan işlemde iz süren stop o ana kadar hiç devreye
+   girmemiştir (girseydi işlem iz süren stopla kapanırdı), yani stoptan önceki
+   en iyi fiyat tetiğin altındadır ve hesabı değiştirmez.
 3. Bot başına toplanır: gerçek sonuç ile her seçeneğin farkı, dönemin iki
    yarısında ayrı ayrı.
 4. Karar çıkarılır: "veri yetersiz", "stop dar görünüyor", "stop yerinde" ya
@@ -58,6 +66,8 @@ DERS_ARASI = timedelta(hours=24)   # aynı bot için iki ders arasındaki en kı
 DENEME_SINIRI = 3           # mum alınamayan işlem kaç kez yeniden denenir
 TUR_SINIRI = 25             # bir turda en fazla kaç işlem izlenir
 BEKLEME = timedelta(minutes=3)     # süre dolduktan sonra son mumun kapanması için pay
+IZLEME_SURESIZ = timedelta(hours=72)        # süre sınırı olmayan stratejide girişten itibaren izleme
+IZLEME_STOP_SONRASI = timedelta(hours=24)   # ... ve stoptan sonra en az bu kadar
 
 SPOT_ADRESI = "https://api.binance.com/api/v3/klines"
 VADELI_ADRESI = "https://fapi.binance.com/fapi/v1/klines"
@@ -95,27 +105,36 @@ def izle(
     giris_zamani: datetime,
     stop_zamani: datetime,
     mumlar: list[tuple],
-    hedef_yuzde: float,
+    hedef_yuzde: float | None,
     stop_yuzde: float,
-    sure_dakika: float,
+    sure_dakika: float | None,
     komisyon_yuzde: float,
     mum_dakika: int = 1,
     carpanlar: tuple = CARPANLAR,
+    iz: dict | None = None,
+    bitis: datetime | None = None,
 ) -> dict | None:
     """Stop olan bir işlemi süresi dolana kadar izler.
 
     mumlar: (açılış zamanı, açılış, yüksek, düşük, kapanış) demetleri, eskiden yeniye.
+    hedef_yuzde None ise sabit kâr hedefi yoktur. iz: {"tetik_yuzde", "mesafe_yuzde"}
+    (iz süren stop). sure_dakika None ise süre sınırı yoktur; izleme 'bitis'te biter.
     Dönen sözlük:
-        hedefi_gordu   fiyat, süre dolmadan kâr hedefi fiyatına ulaştı mı
+        hedefi_gordu   fiyat, pencere içinde kâr hedefine (hedef yoksa iz süren stopun
+                       tetiğine) ulaştı mı
+        esik           "hedef" ya da "iz": hedefi_gordu neye bakıyor
         en_kotu_yuzde  stop sonrasında girişe göre en kötü nokta (eksi sayı)
-        alternatif     {"1.5": {"sonuc": "hedef"|"stop"|"sure", "net_yuzde": ...}, ...}
+        alternatif     {"1.5": {"sonuc": "hedef"|"iz"|"stop"|"sure"|"acik", "net_yuzde": ...}, ...}
     Pencerede hiç mum yoksa ya da veri pencerenin sonuna yetişmiyorsa None döner.
     """
     if not giris_fiyati or giris_fiyati <= 0:
         return None
     alim = yon != "aciga_satis"
     mum = timedelta(minutes=mum_dakika)
-    bitis = giris_zamani + timedelta(minutes=float(sure_dakika))
+    if sure_dakika is not None:
+        bitis = giris_zamani + timedelta(minutes=float(sure_dakika))
+    if bitis is None:
+        raise ValueError("Süre sınırı yoksa izlemenin bitişi verilmeli.")
     pencere = [m for m in mumlar if m[0] + mum > stop_zamani and m[0] < bitis]
     if not pencere:
         return None
@@ -123,10 +142,13 @@ def izle(
     if bitis - (pencere[-1][0] + mum) > 2 * mum:
         return None
 
-    hedef = hedef_yuzde / 100.0
     stop = stop_yuzde / 100.0
     maliyet = 2.0 * komisyon_yuzde
-    hedef_fiyat = giris_fiyati * (1 + hedef if alim else 1 - hedef)
+    hedef_fiyat = None
+    if hedef_yuzde is not None:
+        hedef_fiyat = giris_fiyati * (1 + hedef_yuzde / 100.0 if alim else 1 - hedef_yuzde / 100.0)
+    tetik = float(iz["tetik_yuzde"]) if iz else None
+    mesafe = float(iz["mesafe_yuzde"]) / 100.0 if iz else None
 
     def lehe(fiyat: float) -> float:
         """Girişe göre yüzde sonuç (artı = kâr), komisyon hariç."""
@@ -134,26 +156,67 @@ def izle(
         return (oran if alim else -oran) * 100.0
 
     def hedefe_degdi(m: tuple) -> bool:
+        if hedef_fiyat is None:
+            return False
         return m[2] >= hedef_fiyat if alim else m[3] <= hedef_fiyat
 
+    def tetige_degdi(m: tuple) -> bool:
+        return tetik is not None and lehe(m[2] if alim else m[3]) - maliyet >= tetik
+
     en_kotu = min(lehe(m[3] if alim else m[2]) for m in pencere)
+    son_sonuc = "sure" if sure_dakika is not None else "acik"
     alternatif = {}
     for carpan in carpanlar:
         genis = giris_fiyati * (1 - carpan * stop if alim else 1 + carpan * stop)
-        sonuc, net = "sure", lehe(pencere[-1][4]) - maliyet
+        sonuc, net = son_sonuc, lehe(pencere[-1][4]) - maliyet
+        en_iyi = giris_fiyati
         for m in pencere:
-            if (m[3] <= genis) if alim else (m[2] >= genis):
-                sonuc, net = "stop", -carpan * stop_yuzde - maliyet
+            # Etkin stop: geniş stop ya da (devredeyse) iz süren stop, hangisi yakınsa.
+            etkin, iz_devrede = genis, False
+            if tetik is not None and lehe(en_iyi) - maliyet >= tetik:
+                seviye = en_iyi * (1 - mesafe) if alim else en_iyi * (1 + mesafe)
+                if (seviye > etkin) if alim else (seviye < etkin):
+                    etkin, iz_devrede = seviye, True
+            if (m[3] <= etkin) if alim else (m[2] >= etkin):
+                if iz_devrede:
+                    # Mum stopun ötesinde açıldıysa açılıştan kapanır.
+                    fiyat = min(m[1], etkin) if alim else max(m[1], etkin)
+                    sonuc, net = "iz", lehe(fiyat) - maliyet
+                else:
+                    sonuc, net = "stop", -carpan * stop_yuzde - maliyet
                 break
             if hedefe_degdi(m):
                 sonuc, net = "hedef", hedef_yuzde - maliyet
                 break
+            en_iyi = max(en_iyi, m[2]) if alim else min(en_iyi, m[3])
         alternatif[f"{carpan:g}"] = {"sonuc": sonuc, "net_yuzde": round(net, 4)}
+    esik = "hedef" if hedef_fiyat is not None else "iz"
     return {
-        "hedefi_gordu": any(hedefe_degdi(m) for m in pencere),
+        "hedefi_gordu": any((hedefe_degdi(m) if esik == "hedef" else tetige_degdi(m)) for m in pencere),
+        "esik": esik,
         "en_kotu_yuzde": round(en_kotu, 4),
         "alternatif": alternatif,
     }
+
+
+def esik_metni(esik: str) -> str:
+    """Özetteki 'hedefi gördü' sayısının neyi saydığı, cümle içinde."""
+    if esik == "iz":
+        return "iz süren stopun devreye girdiği kâra ulaştı"
+    return "süre dolmadan kâr hedefini gördü"
+
+
+def secenek_metni(satir: dict) -> str:
+    """Bir seçeneğin sonuç dağılımı: '3 tanesi hedefe ulaşır, 5 tanesi yine stop olur, ...'."""
+    parcalar = [
+        (satir.get("hedef", 0), "hedefe ulaşır"),
+        (satir.get("iz", 0), "iz süren stopla kârla kapanır"),
+        (satir.get("stop", 0), "yine stop olur"),
+        (satir.get("sure", 0), "süre dolunca kapanır"),
+        (satir.get("acik", 0), "izleme bitince hâlâ açık olur"),
+    ]
+    metin = ", ".join(f"{adet} tanesi {ne}" for adet, ne in parcalar if adet)
+    return metin or "sonuç yok"
 
 
 def islem_cumlesi(kayit: dict) -> str:
@@ -161,9 +224,13 @@ def islem_cumlesi(kayit: dict) -> str:
     for carpan in sorted(kayit["alternatif"], key=float):
         if kayit["alternatif"][carpan]["sonuc"] == "hedef":
             return f"stop {carpan_metni(float(carpan))} kat geniş olsaydı hedefe ulaşırdı"
+        if kayit["alternatif"][carpan]["sonuc"] == "iz":
+            return f"stop {carpan_metni(float(carpan))} kat geniş olsaydı iz süren stopla kârla kapanırdı"
     en_genis = max(kayit["alternatif"], key=float)
     if kayit["alternatif"][en_genis]["sonuc"] == "stop":
         return f"{carpan_metni(float(en_genis))} kat geniş stop da olurdu"
+    if kayit.get("esik") == "iz":
+        return "geniş stopla da kârla kapanmazdı"
     return "geniş stopla da hedefe ulaşmazdı"
 
 
@@ -199,7 +266,7 @@ def ozetle(kayitlar: list[dict], stop_yuzde: float | None, islem_tutari: float) 
     satirlar = []
     carpanlar = sorted({c for k in kayitlar for c in k["alternatif"]}, key=float)
     for carpan in carpanlar:
-        sayim = {"hedef": 0, "stop": 0, "sure": 0}
+        sayim = {"hedef": 0, "iz": 0, "stop": 0, "sure": 0, "acik": 0}
         farklar = []
         for k in kayitlar:
             secenek = k["alternatif"].get(carpan)
@@ -213,8 +280,10 @@ def ozetle(kayitlar: list[dict], stop_yuzde: float | None, islem_tutari: float) 
                 "carpan": float(carpan),
                 "stop_yuzde": None if stop_yuzde is None else round(stop_yuzde * float(carpan), 4),
                 "hedef": sayim["hedef"],
+                "iz": sayim["iz"],
                 "stop": sayim["stop"],
                 "sure": sayim["sure"],
+                "acik": sayim["acik"],
                 "fark_yuzde": round(sum(farklar), 4),
                 "fark_tutar": round(sum(farklar) / 100.0 * islem_tutari, 4),
                 "fark_tutar_ilk_yari": round(sum(farklar[:yari]) / 100.0 * islem_tutari, 4),
@@ -225,6 +294,8 @@ def ozetle(kayitlar: list[dict], stop_yuzde: float | None, islem_tutari: float) 
     return {
         "stop_sayisi": adet,
         "hedefi_goren": sum(1 for k in kayitlar if k["hedefi_gordu"]),
+        # Eski kayıtlarda alan yok: hepsi sabit hedefliydi.
+        "esik": next((k.get("esik", "hedef") for k in reversed(kayitlar)), "hedef"),
         "en_kotu_yuzde": min((k["en_kotu_yuzde"] for k in kayitlar), default=None),
         "carpanlar": satirlar,
         "karar": karar_ver(adet, satirlar),
@@ -372,7 +443,12 @@ def sembol(parite: str) -> str:
 def mum_getir(parite: str, piyasa: str, baslangic: datetime, bitis: datetime, zaman_asimi: int = 20) -> tuple[list, int]:
     """Verilen aralığın mumlarını indirir. Dönen ikili: (mumlar, mum uzunluğu dakika)."""
     dakika = (bitis - baslangic) / timedelta(minutes=1)
-    aralik, uzunluk = ("1m", 1) if dakika <= 990 else ("5m", 5)
+    if dakika <= 990:
+        aralik, uzunluk = "1m", 1
+    elif dakika <= 4950:
+        aralik, uzunluk = "5m", 5
+    else:
+        aralik, uzunluk = "15m", 15
     if piyasa == "vadeli":
         taban = os.environ.get("KARABASAN_BINANCE_VADELI", VADELI_ADRESI)
     else:
@@ -429,13 +505,16 @@ def bir_tur(veri_klasoru: Path, simdi: datetime | None = None, getir=mum_getir, 
     for bot, _sinif, kural_kodu, piyasa in BOTLAR:
         kural = kural_yukle(kural_kodu)
         cikis = kural["cikis"]
-        if ("sinyal" in cikis or cikis.get("iz_suren_stop") or cikis.get("kar_hedefi_yuzde") is None
-                or cikis.get("sure_asimi_dakika") is None):
-            # "Stop geniş olsaydı" sorusu sabit hedef ve süreye göre kurulu. Çıkış sinyali,
-            # iz süren stop ya da süresiz işlemde (12 Ekim 2026'dan beri bütün botlar) anlamı yok.
+        if "sinyal" in cikis or cikis.get("stop_atr") or cikis.get("kar_hedefi_r"):
+            # Çıkış sinyali yalnız göstergelerle hesaplanır, işlem başına stop da kayıtta yok;
+            # ham mumlardan yeniden oynatılamaz. (Bugünkü canlı botların hiçbiri böyle değil.)
             continue
-        hedef, stop = float(cikis["kar_hedefi_yuzde"]), float(cikis["zarar_durdur_yuzde"])
-        sure = float(cikis["sure_asimi_dakika"])
+        hedef = cikis.get("kar_hedefi_yuzde")
+        hedef = None if hedef is None else float(hedef)
+        stop = float(cikis["zarar_durdur_yuzde"])
+        sure = cikis.get("sure_asimi_dakika")
+        sure = None if sure is None else float(sure)
+        iz = cikis.get("iz_suren_stop")
         komisyon = float(ayar["komisyon_yuzde"][piyasa])
         kayit = sonuc.islemleri_oku(veri_klasoru / "db" / f"{bot}.sqlite")
         for i in kayit["kapali"]:
@@ -444,7 +523,10 @@ def bir_tur(veri_klasoru: Path, simdi: datetime | None = None, getir=mum_getir, 
             a = anahtar(bot, i["kimlik"])
             if a in veri["islemler"] or veri["basarisiz"].get(a, 0) >= DENEME_SINIRI:
                 continue
-            pencere_sonu = i["giris_zamani"] + timedelta(minutes=sure)
+            if sure is not None:
+                pencere_sonu = i["giris_zamani"] + timedelta(minutes=sure)
+            else:
+                pencere_sonu = max(i["giris_zamani"] + IZLEME_SURESIZ, i["cikis_zamani"] + IZLEME_STOP_SONRASI)
             if simdi < pencere_sonu + BEKLEME or sayim["izlenen"] + sayim["basarisiz"] >= TUR_SINIRI:
                 sayim["bekleyen"] += 1
                 continue
@@ -454,7 +536,7 @@ def bir_tur(veri_klasoru: Path, simdi: datetime | None = None, getir=mum_getir, 
                 mumlar, uzunluk = getir(i["parite"], piyasa, bas - timedelta(minutes=5), pencere_sonu)
                 sonuc_kaydi = izle(
                     i["yon"], float(i["giris_fiyati"] or 0), i["giris_zamani"], i["cikis_zamani"],
-                    mumlar, hedef, stop, sure, komisyon, mum_dakika=uzunluk,
+                    mumlar, hedef, stop, sure, komisyon, mum_dakika=uzunluk, iz=iz, bitis=pencere_sonu,
                 )
             except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError, TypeError) as hata:
                 gunluk.warning("%s için mum alınamadı: %s", a, hata)

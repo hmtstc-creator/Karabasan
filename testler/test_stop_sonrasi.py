@@ -223,6 +223,137 @@ class OzetVeKararTesti(unittest.TestCase):
         self.assertTrue(ss.ders_gerekli_mi(dersler, "s1-vadeli", kararsiz, T0 + timedelta(hours=25)))
 
 
+IZ = {"tetik_yuzde": 1.2, "mesafe_yuzde": 0.3}
+
+
+def iz_izle(fiyatlar, yon="alim", carpanlar=(1.5, 2.0, 3.0), acilislar=None):
+    """Canlı botların çıkışı: stop %3, iz süren stop 1,2 / 0,3, hedef ve süre yok.
+
+    Giriş 100, komisyon taraf başına %0,05 (gidiş-dönüş %0,1); stop ilk mumda oldu.
+    İzleme mum sayısı kadar sürer. acilislar verilirse mumların açılış fiyatı onlardır.
+    """
+    liste = mumlar(fiyatlar)
+    if acilislar:
+        liste = [(m[0], a if a is not None else m[1], m[2], m[3], m[4]) for m, a in zip(liste, acilislar)]
+    return ss.izle(yon, 100.0, T0, T0 + timedelta(seconds=20), liste, None, 3.0, None, 0.05,
+                   carpanlar=carpanlar, iz=IZ, bitis=T0 + timedelta(minutes=len(fiyatlar)))
+
+
+class IzSurenStopTesti(unittest.TestCase):
+    """Hedefi ve süresi olmayan, iz süren stoplu botlar (12 Ekim 2026'dan beri hepsi)."""
+
+    def test_toparlanan_islem_iz_suren_stopla_karla_kapanir(self):
+        # Stop %3'te oldu (97); fiyat 96,5'e iner (1,5 kat stop 95,5 olmaz), 102'ye çıkar, sonra düşer.
+        s = iz_izle([(96.9, 97.5), (96.5, 98.0), (98.0, 101.0), (101.0, 102.0), (101.8, 101.95), (100.0, 101.0)],
+                    acilislar=[None] * 5 + [101.8])
+        self.assertEqual(s["esik"], "iz")
+        self.assertTrue(s["hedefi_gordu"])
+        a = s["alternatif"]["1.5"]
+        self.assertEqual(a["sonuc"], "iz")
+        # En iyi fiyat 102; seviye 102 × 0,997 = 101,694. Önceki mumun tepesiyle taşınır:
+        # 101,8 / 101,95 mumu seviyenin üstünde kalır, sonraki mum keser.
+        self.assertAlmostEqual(a["net_yuzde"], 1.694 - 0.1, places=4)
+        self.assertEqual(ss.islem_cumlesi(s), "stop 1,5 kat geniş olsaydı iz süren stopla kârla kapanırdı")
+
+    def test_derine_inen_islemde_dar_secenek_stop_olur(self):
+        s = iz_izle([(96.9, 97.5), (95.0, 97.0), (95.0, 102.0), (100.0, 101.0)])
+        self.assertEqual(s["alternatif"]["1.5"]["sonuc"], "stop")
+        self.assertAlmostEqual(s["alternatif"]["1.5"]["net_yuzde"], -4.5 - 0.1)
+        self.assertEqual(s["alternatif"]["2"]["sonuc"], "iz")
+
+    def test_tetige_ulasmazsa_izleme_bitince_acik_sayilir(self):
+        s = iz_izle([(96.9, 97.5)] + [(98.0, 99.0)] * 5)
+        self.assertFalse(s["hedefi_gordu"])
+        for c in ("1.5", "2", "3"):
+            self.assertEqual(s["alternatif"][c]["sonuc"], "acik")
+            self.assertAlmostEqual(s["alternatif"][c]["net_yuzde"], -1.5 - 0.1)
+        self.assertEqual(ss.islem_cumlesi(s), "geniş stopla da kârla kapanmazdı")
+
+    def test_tetik_komisyon_dusulmus_karla_olculur(self):
+        # 101,25: kâr %1,25, komisyon sonrası %1,15 < 1,2: iz süren stop devreye girmez.
+        s = iz_izle([(96.9, 97.5), (100.0, 101.25), (99.0, 100.0)])
+        self.assertEqual(s["alternatif"]["1.5"]["sonuc"], "acik")
+        self.assertFalse(s["hedefi_gordu"])
+
+    def test_ayni_mumun_tepesi_stopu_o_mumda_tasimaz_ve_bosluktan_acilista_kapanir(self):
+        # 102'yi gören mumun dibi 100: o mumda iz süren stop yok (kötümser). Sonraki mum 100,5'ten
+        # açılıp düşer: seviye 101,694'ün altında açıldığı için açılıştan kapanır.
+        s = iz_izle([(96.9, 97.5), (100.0, 102.0), (99.0, 100.6)], acilislar=[None, None, 100.5])
+        self.assertEqual(s["alternatif"]["1.5"]["sonuc"], "iz")
+        self.assertAlmostEqual(s["alternatif"]["1.5"]["net_yuzde"], 0.5 - 0.1, places=4)
+
+    def test_aciga_satis_ters_yonde(self):
+        s = iz_izle([(102.5, 103.1), (101.0, 103.5), (98.0, 99.0), (98.5, 99.2)], yon="aciga_satis",
+                    acilislar=[None, None, None, 98.2])
+        a = s["alternatif"]["1.5"]
+        self.assertEqual(a["sonuc"], "iz")
+        # En iyi 98; seviye 98 × 1,003 = 98,294; çıkış kârı %1,706.
+        self.assertAlmostEqual(a["net_yuzde"], 1.706 - 0.1, places=4)
+
+    def test_bitis_verilmeden_suresiz_izleme_olmaz(self):
+        with self.assertRaises(ValueError):
+            ss.izle("alim", 100.0, T0, T0, mumlar([(99, 100)] * 3), None, 3.0, None, 0.05, iz=IZ)
+
+    def test_ozet_ve_metinler(self):
+        kayitlar = [dict(iz_izle([(96.9, 97.5), (96.5, 98.0), (98.0, 102.0), (100.0, 101.0)]),
+                         gercek_net_yuzde=-3.1, cikis_zamani=f"2026-10-12T1{k}:00:00Z") for k in range(3)]
+        ozet = ss.ozetle(kayitlar, 3.0, 50.0)
+        self.assertEqual(ozet["esik"], "iz")
+        satir = ozet["carpanlar"][0]
+        self.assertEqual((satir["iz"], satir["stop"], satir["acik"]), (3, 0, 0))
+        self.assertEqual(ss.secenek_metni(satir), "3 tanesi iz süren stopla kârla kapanır")
+        self.assertEqual(ss.esik_metni("iz"), "iz süren stopun devreye girdiği kâra ulaştı")
+
+
+class CanliBotTurTesti(unittest.TestCase):
+    """bir_tur bugünkü canlı botların (iz süren stop, süre sınırı yok) stoplarını da izler."""
+
+    def setUp(self):
+        self.gecici = tempfile.TemporaryDirectory()
+        self.klasor = Path(self.gecici.name)
+        (self.klasor / "isinma_baslangici.txt").write_text((T0 - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+        sahte_islem_db(self.klasor / "db" / "sm-vadeli.sqlite", [
+            ("SOL/USDT", T0, T0 + timedelta(hours=5), -3.1, "stop_loss", False),
+            ("XRP/USDT", T0, T0 + timedelta(hours=2), 0.9, "trailing_stop_loss", False),   # stop değil
+        ])
+        self.istekler = []
+        self.yama = mock.patch("karabasan.botlar.BOTLAR", [("sm-vadeli", "SMVadeli", "SM", "vadeli")])
+        self.yama.start()
+
+    def tearDown(self):
+        self.yama.stop()
+        self.gecici.cleanup()
+
+    def getir(self, parite, piyasa, baslangic, bitis):
+        self.istekler.append((parite, baslangic, bitis))
+        adet = int((bitis - baslangic) / timedelta(minutes=5))
+        # Stoptan sonra 96,5'e iner, 102'ye çıkar, sonra 100 civarına döner (5 dakikalık mumlar).
+        fiyatlar = [(96.9, 97.5), (96.5, 98.0), (98.0, 102.0)] + [(100.0, 101.0)] * (adet - 3)
+        return mumlar(fiyatlar, baslangic, dakika=5), 5
+
+    def test_stoptan_uc_gun_sonra_izlenir(self):
+        sayim = ss.bir_tur(self.klasor, T0 + timedelta(hours=60), getir=self.getir, ara=0)
+        self.assertEqual((sayim["izlenen"], sayim["bekleyen"]), (0, 1))     # henüz 72 saat dolmadı
+        sayim = ss.bir_tur(self.klasor, T0 + timedelta(hours=72, minutes=10), getir=self.getir, ara=0)
+        self.assertEqual(sayim["izlenen"], 1)
+        parite, bas, bitis = self.istekler[0]
+        self.assertEqual((parite, bitis), ("SOL/USDT", T0 + timedelta(hours=72)))
+        self.assertLessEqual(bas, T0 + timedelta(hours=5))
+        k = ss.dosya_oku(ss.dosya_yolu(self.klasor))["islemler"]["sm-vadeli#1"]
+        self.assertEqual(k["esik"], "iz")
+        self.assertEqual(k["alternatif"]["1.5"]["sonuc"], "iz")
+        # 102'den sonraki mum 100,5'ten açılır (seviye 101,694'ün altı): açılıştan kapanır.
+        self.assertAlmostEqual(k["alternatif"]["1.5"]["net_yuzde"], 0.5 - 0.1, places=4)
+
+    def test_gec_kapanan_stop_ardindan_bir_gun_izlenir(self):
+        (self.klasor / "db" / "sm-vadeli.sqlite").unlink()
+        sahte_islem_db(self.klasor / "db" / "sm-vadeli.sqlite", [
+            ("ADA/USDT", T0, T0 + timedelta(hours=60), -3.1, "stop_loss", False),
+        ])
+        ss.bir_tur(self.klasor, T0 + timedelta(hours=84, minutes=10), getir=self.getir, ara=0)
+        self.assertEqual(self.istekler[-1][2], T0 + timedelta(hours=84))
+
+
 class TurTesti(unittest.TestCase):
     """bir_tur: botların kayıtlarından stopları bulur, mumları ister, sonucu dosyaya yazar."""
 

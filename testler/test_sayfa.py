@@ -93,7 +93,7 @@ class SayfaTesti(unittest.TestCase):
         html = sayfa.html_uret(sonuc.genel_ozet(self.klasor, SIMDI))
         # Tek dış adres: Kriterler ekranındaki düzenleme sayfası bağlantısı (gezinme, kaynak yüklemez).
         from karabasan.kriterler import DUZENLEME_ADRESI
-        self.assertEqual(html.count(DUZENLEME_ADRESI), html.count(f'<a href="{DUZENLEME_ADRESI}">'))
+        self.assertEqual(html.count(DUZENLEME_ADRESI), html.count(f'<a class="kriter-dugme" href="{DUZENLEME_ADRESI}">'))
         html = html.replace(DUZENLEME_ADRESI, "")
         for yasak in ("http://", "https://", "@import", "url(", " src=", "<link", "<iframe", "<object"):
             self.assertNotIn(yasak, html)
@@ -146,10 +146,10 @@ class SayfaTesti(unittest.TestCase):
             })
             html = sayfa.html_uret(sonuc.genel_ozet(klasor, SIMDI))
         duz = " ".join(html.split())
-        self.assertIn("12 stop izlendi; 8 tanesinde fiyat, işlemin süresi dolmadan kâr hedefini gördü.", duz)
+        self.assertIn("12 stop izlendi; 8 tanesinde fiyat süre dolmadan kâr hedefini gördü.", duz)
         self.assertIn("1 stop için fiyat verisi alınamadı; hesaba girmiyor.", duz)
         self.assertIn("Stop 1,5 kat geniş olsaydı (%4,5)", duz)
-        self.assertIn("8 tanesi hedefe ulaşır, 4 tanesi yine stop olur, 0 tanesinde süre dolardı", duz)
+        self.assertIn("8 tanesi hedefe ulaşır, 4 tanesi yine stop olur<", duz)
         # 12 stop karar için az: fark soluk yazılır, artı diye renklendirilmez.
         self.assertIn('<span class="secenek-net erken">+9,80', duz)        # (8×2,7 − 4×0,5) × 50 / 100
         self.assertIn('<span class="karar yetersiz">Veri yetersiz</span>', duz)
