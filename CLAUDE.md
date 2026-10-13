@@ -823,6 +823,19 @@ değişti (1. sürüm git geçmişinde ve yukarıdaki sonuçta), gösterge adlar
 (`ema_kisa`, `ema_uzun`, `sma_uzun`, `yon_n`, `dip_n` / `tepe_n`). Deneme defteri: `ONCEKI_DENEME`
 118 (1. sürümün 6 denemesi eklendi), toplam 137. Yapay veride sinyal 1. sürümden de az (seri başına ~1).
 
+**Ahmet Özel 2. sürümün sonucu (`PANEL_SURUMU=5`, 13 Ekim 2026 17:55 UTC; sunucudaki oturumdan okundu).**
+Alım: 10 işlem (9 gün), %40 kazanma, −0,27 USDT, −0,03R / işlem; 3R denemesi +0,69, yapı dönünce çık −4,35.
+Açığa satış: 11 işlem, %27, −5,52; üç deneme de ekside. İkisi de HÜKÜM YOK; 1. sürümden kötü ve daha az
+işlem. Destek / FVG şartsız P1: alım 124 işlem −0,01R (şart yine katkı göstermiyor). MACD şartsız P2:
+alım −0,25R (MACD dönüşü iki sürümde de +0,2-0,3R fark; tek tutarlı ipucu, az örnek). Diğer aileler aynı.
+- **On yedinci uyum denemesi (12 Ekim 13:31 UTC) geçti.** Eşleşen işlemlerin net toplamı motor / benzetim:
+  SM 47 işlem −4,76 / −2,94, SMK 21: −7,01 / −8,66, SMD 40: −2,80 / −0,84, SMDK 18: −4,50 / −5,89, Sniper 39:
+  −12,34 / −11,04. İz süren stopta benzetim neredeyse hep daha geç kapatıyor; işlem başına alımda benzetim
+  ~%0,1 iyimser, açığa satışta ~%0,25 kötümser. Fark işlem başına %0,2 eşiğinin çoğunlukla altında:
+  benzetim değiştirilmedi.
+- **Stop sonrası izleme gerçek veride çalışıyor (13 Ekim 19:12 UTC):** `stop_sonrasi.json`'da 145 işlem,
+  2 başarısız, henüz ders yok (bot başına 30 stop gerekir).
+
 **Kriter istekleri (13 Ekim 2026, Ahmet'in isteği).** Ahmet "kriterleri sitede göster, değiştirebileyim;
 olmaz dersen sana söylerim sen çalıştırırsın" dedi. Sunucudaki sayfa değiştirilemez (sunucu 5 dakikada
 bir `main`'e eşitlenir; ayar değişikliği test ve deneme defteri ister), bu yüzden iki parça var:
@@ -843,8 +856,7 @@ bir `main`'e eşitlenir; ayar değişikliği test ve deneme defteri ister), bu y
 
 Sıradaki işler, öncelik sırasıyla:
 
-0. Panel sınaması raporu 4 okundu (yukarıda): hepsi KALDI ya da HÜKÜM YOK. Ahmet'in kararını bekle:
-   Ahmet Özel'i kurallara dokunmadan daha geniş veride (daha çok coin, 2019-2022) sınamak mı, yeni deneme mi.
+0. Panel raporu 5 okundu: Ahmet Özel 2. sürüm de HÜKÜM YOK (alım 10 işlem). Ahmet'in kararını bekle.
    Bütün aileler kalırsa panelin önerileri tükendi: yeni fikir = yeni deneme, önce Ahmet'le
    konuş; şimdiki botlar (SM dahil) çalışmaya devam eder. Geçen aile olursa ayrılmış yıl bütün adaylar için birlikte bir kez açılır
    (`AYRILMIS_ACIK`); sonra 3. aşama: bağlantı katmanı (BTC informative pair, canlı fonlama,
