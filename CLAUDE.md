@@ -199,7 +199,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 575 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 576 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -880,6 +880,13 @@ Eşikler Claude'un (Ahmet yalnız "aşırı satış" dedi). Çıkış: hedef %1,
   emirlerin nedeni RSI periyodu değil, %1 uzaklık ve 60 dk beklemedir; Ahmet'e söylendi. Limit giriş ve
   çıkış aynı. Yapay veride (60 gün) sinyal ~%35-55, işlem ~%65-85 arttı. 30 günlük takip yine baştan.
   `UYUM_SURUMU=20`, `YILLIK_SURUMU=8`.
+- **RSI 7 + momentum 14'ün ilk sonucu (uyum 20, 14 Ekim 12:29 UTC; 12 aylık test 8, 12:39 UTC; sunucudaki
+  oturumdan okundu).** Eşleşme birebir: RSI 36 / 36 / 36, RSIK 54 / 54 / 54 (eşleşen net motor / benzetim
+  RSI −8,68 / −8,16, RSIK −8,85 / −8,47). Son 30 gün motor (RSI 14 limitli → RSI 7 + momentum): RSI 32 / %71,9
+  / −0,24 → 36 / %61,1 / −8,66; RSIK 31 / %71,0 / −0,60 → 55 / %65,5 / −8,24. 12 ay (14.10.2025–14.10.2026,
+  benzetim): RSI 507 / −5,40 / 2 çeyrek → 715 / %72,2 / −0,14 / 1 çeyrek (işlem başına %0,000); RSIK
+  387 / −69,22 / 1 → 562 / %63,7 / −99,85 / 1 (işlem başına −%0,355). Kenar yok: RSI sıfır, RSIK iki
+  sürümde de belirgin kaybettiriyor. Ahmet'e söylendi; ayar değişmedi.
 
 **Kriter istekleri (13 Ekim 2026, Ahmet'in isteği).** Ahmet "kriterleri sitede göster, değiştirebileyim;
 olmaz dersen sana söylerim sen çalıştırırsın" dedi. Sunucudaki sayfa değiştirilemez (sunucu 5 dakikada
