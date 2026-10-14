@@ -861,6 +861,16 @@ Eşikler Claude'un (Ahmet yalnız "aşırı satış" dedi). Çıkış: hedef %1,
   Ahmet söylemedi, Claude seçti (Ahmet'e söylendi). 30 günlük takip bu ayarla yeniden başlar (rapor
   hatırlatmaları 20 Ekim ve 12 Kasım'da duruyor; ilk saatin piyasa emirli birkaç işlemi kayıtta kalır).
   Yapay veride işlem sayısı ~yarıya iner. `UYUM_SURUMU=19`, `YILLIK_SURUMU=7`.
+- **Limitli girişin ilk sonucu (uyum 19, 13 Ekim 20:28 UTC; 12 aylık test 7, 20:37 UTC; sunucudaki
+  oturumdan okundu).** Son 30 gün motor (BTC hariç; piyasa emri → %1 limit): RSI 118 / %67,8 / −9,94 →
+  32 / %71,9 / −0,24; RSIK 106 / %66,0 / −12,59 → 31 / %71,0 / −0,60. Benzetim (BTC dahil): RSI +0,51
+  (32 işlem), RSIK −2,54 (34). Eşleşme: RSI 28 / 28 / 27, RSIK 31 / 31 / 31. İşlem dörtte bire indi,
+  kayıp neredeyse sıfıra (tek ay). 12 aylık test (13.10.2025–13.10.2026, benzetim): RSI 507 işlem %71,6
+  (başa baş %68,9) −5,40 USDT, işlem başına −%0,021, çeyrekler +10,75 / −21,46 / −6,50 / +11,81 (2 / 4);
+  RSIK 387 / %63,3 / −69,22, işlem başına −%0,358, 1 / 4 çeyrek. Yani RSI sıfıra yakın (kenar yok),
+  RSIK belirgin kaybettiriyor. Motor bazı işlemleri benzetimin hedefle kapattığı yerde iz süren stopla
+  kapatıyor (RSI 2, RSIK 5); RSIK'ta eşleşen netin işaretini çeviriyor (motor −0,67, benzetim +0,05):
+  benzetim RSIK'ı biraz iyimser gösterebilir. Ahmet'e söylendi; ayar değişmedi, canlı 30 gün sürüyor.
 
 **Kriter istekleri (13 Ekim 2026, Ahmet'in isteği).** Ahmet "kriterleri sitede göster, değiştirebileyim;
 olmaz dersen sana söylerim sen çalıştırırsın" dedi. Sunucudaki sayfa değiştirilemez (sunucu 5 dakikada
