@@ -1,63 +1,94 @@
 {
   "kod": "RSIK",
-  "ad": "RSI: aşırı alımdan aşağı dönüşte açığa satış",
+  "ad": "RSI: aşırı alımdan aşağı dönüşte açığa satış (RSI 7 + momentum 14)",
   "yon": "aciga_satis",
-  "aciklama": "Yalnız RSI(14) kullanır, üç dilimde. 5 dakikalık: önceki mumun RSI'ı 70 ya da üstünde (aşırı alım) ve RSI bu mumda aşağı dönmüş (önceki mumda yükseliyordu, bu mumda düştü). 15 dakikalık RSI 60 ya da üstünde, 1 saatlik RSI 50 ya da üstünde. Giriş (Ahmet'in isteği, 13 Ekim 2026 akşamı): sinyal anındaki fiyatın %1 üstüne (açığa satış) limit emir; 60 dakika içinde dolmazsa iptal edilir. Çıkış (Ahmet'in isteği, 13 Ekim 2026): kâr hedefi %1,5, stop %3, süre sınırı yok; kâr %1,2'ye ulaşınca iz süren stop devreye girer ve en iyi fiyatın %0,3 gerisinden izler (hedefe ulaşmadan dönerse yaklaşık %0,9 kârla kapanır). İleriye dönük 30 günlük sanal takip için eklendi.",
+  "aciklama": "RSI(7) üç dilimde ve 14 mumluk momentum. 5 dakikalık: önceki mumun RSI'ı 70 ya da üstünde (aşırı alım) ve RSI bu mumda aşağı dönmüş (önceki mumda yükseliyordu, bu mumda düştü). 15 dakikalık RSI 60 ya da üstünde, 1 saatlik RSI 50 ya da üstünde. Momentum (5 dakikalık, kapanışın 14 mum öncesine göre yüzde değişimi): önceki mumda sıfırın üstünde (fiyat 14 mum öncesinden yukarıda) ve bu mumda aşağı dönmüş (önceki mumda yükseliyordu, bu mumda düştü). RSI 14'ten 7'ye indi ve momentum eklendi: Ahmet'in isteği, 14 Ekim 2026. Giriş (Ahmet'in isteği, 13 Ekim 2026 akşamı): sinyal anındaki fiyatın %1 üstüne (açığa satış) limit emir; 60 dakika içinde dolmazsa iptal edilir. Çıkış (Ahmet'in isteği, 13 Ekim 2026): kâr hedefi %1,5, stop %3, süre sınırı yok; kâr %1,2'ye ulaşınca iz süren stop devreye girer ve en iyi fiyatın %0,3 gerisinden izler (hedefe ulaşmadan dönerse yaklaşık %0,9 kârla kapanır). İleriye dönük 30 günlük sanal takip için eklendi.",
   "zaman_dilimi": "5m",
   "gostergeler": {
-    "rsi14": {
+    "rsi7": {
       "tur": "rsi",
-      "periyot": 14
+      "periyot": 7
     },
-    "rsi14_15": {
+    "rsi7_15": {
       "tur": "rsi",
-      "periyot": 14,
+      "periyot": 7,
       "dilim": "15m"
     },
-    "rsi14_1s": {
+    "rsi7_1s": {
       "tur": "rsi",
-      "periyot": 14,
+      "periyot": 7,
       "dilim": "1h"
+    },
+    "mom14": {
+      "tur": "degisim_yuzde",
+      "periyot": 14
     }
   },
   "giris": {
     "hepsi": [
       {
         "sol": {
-          "ad": "rsi14",
+          "ad": "rsi7",
           "kaydir": 1
         },
         "islem": ">=",
         "sag": 70
       },
       {
-        "sol": "rsi14",
+        "sol": "rsi7",
         "islem": "<",
         "sag": {
-          "ad": "rsi14",
+          "ad": "rsi7",
           "kaydir": 1
         }
       },
       {
         "sol": {
-          "ad": "rsi14",
+          "ad": "rsi7",
           "kaydir": 1
         },
         "islem": ">=",
         "sag": {
-          "ad": "rsi14",
+          "ad": "rsi7",
           "kaydir": 2
         }
       },
       {
-        "sol": "rsi14_15",
+        "sol": "rsi7_15",
         "islem": ">=",
         "sag": 60
       },
       {
-        "sol": "rsi14_1s",
+        "sol": "rsi7_1s",
         "islem": ">=",
         "sag": 50
+      },
+      {
+        "sol": {
+          "ad": "mom14",
+          "kaydir": 1
+        },
+        "islem": ">",
+        "sag": 0
+      },
+      {
+        "sol": "mom14",
+        "islem": "<",
+        "sag": {
+          "ad": "mom14",
+          "kaydir": 1
+        }
+      },
+      {
+        "sol": {
+          "ad": "mom14",
+          "kaydir": 1
+        },
+        "islem": ">=",
+        "sag": {
+          "ad": "mom14",
+          "kaydir": 2
+        }
       }
     ]
   },

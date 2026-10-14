@@ -871,6 +871,15 @@ Eşikler Claude'un (Ahmet yalnız "aşırı satış" dedi). Çıkış: hedef %1,
   RSIK belirgin kaybettiriyor. Motor bazı işlemleri benzetimin hedefle kapattığı yerde iz süren stopla
   kapatıyor (RSI 2, RSIK 5); RSIK'ta eşleşen netin işaretini çeviriyor (motor −0,67, benzetim +0,05):
   benzetim RSIK'ı biraz iyimser gösterebilir. Ahmet'e söylendi; ayar değişmedi, canlı 30 gün sürüyor.
+- **RSI 7 + momentum 14 (14 Ekim 2026, Ahmet'in isteği: "14 gün süremiz uzun, RSI 7'ye düşür; momentum
+  kriteri ekle, 14 günlük bak").** Aynı iki botta yerinde değişti (yeni bot yok): üç dilimde RSI(14) →
+  RSI(7) (göstergeler `rsi7`, `rsi7_15`, `rsi7_1s`; eşikler aynı); yeni `mom14` = 5 dk kapanışın 14 mum
+  öncesine göre yüzde değişimi (`degisim_yuzde`). Alım: önceki mumda momentum < 0, önceki mumda düşüyordu,
+  bu mumda yükseldi (RSI ile aynı "dönüş" mantığı); açığa satış aynası. Momentum şartının biçimi Claude'un
+  (Ahmet yalnız "momentum, 14" dedi). Not: periyotlar gün değil mumdur (5 dk RSI 14 = 70 dk); dolmayan
+  emirlerin nedeni RSI periyodu değil, %1 uzaklık ve 60 dk beklemedir; Ahmet'e söylendi. Limit giriş ve
+  çıkış aynı. Yapay veride (60 gün) sinyal ~%35-55, işlem ~%65-85 arttı. 30 günlük takip yine baştan.
+  `UYUM_SURUMU=20`, `YILLIK_SURUMU=8`.
 
 **Kriter istekleri (13 Ekim 2026, Ahmet'in isteği).** Ahmet "kriterleri sitede göster, değiştirebileyim;
 olmaz dersen sana söylerim sen çalıştırırsın" dedi. Sunucudaki sayfa değiştirilemez (sunucu 5 dakikada
