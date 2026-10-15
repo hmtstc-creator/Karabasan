@@ -14,7 +14,7 @@ import pandas as pd
 from karabasan import benzetim as b
 from karabasan import gostergeler as g
 from karabasan import kural as k
-from testler.test_motor_baglantisi import strateji_modulu
+from testler.test_motor_baglantisi import emekli_sinifi, strateji_modulu
 from testler.veri import duz_mumlar, yapay_mumlar
 
 CANLI = ("SM", "SMK", "SMD", "SMDK", "SNIPER")
@@ -176,7 +176,7 @@ class MotorLimitFiyati(unittest.TestCase):
         return pd.DataFrame({"date": tarih, "giris_limit_yuzde": [0.2, 0.3, 0.4, 0.5]})
 
     def fiyat(self, sinif, saglayici, zaman, side="long"):
-        s = getattr(self.modul, sinif)()
+        s = (getattr(self.modul, sinif) if isinstance(sinif, str) else sinif)()
         s.dp = saglayici
         return s.custom_entry_price("ETH/USDT:USDT", None, zaman, 100.0, None, side)
 
@@ -189,13 +189,13 @@ class MotorLimitFiyati(unittest.TestCase):
     def test_tablo_yoksa_en_kucuk_uzaklik(self):
         zaman = datetime(2026, 10, 12, 10, 15, tzinfo=timezone.utc)
         with self.assertLogs(level="WARNING"):
-            self.assertAlmostEqual(self.fiyat("SniperVadeli", SahteSaglayici(hata=True), zaman), 99.9)
+            self.assertAlmostEqual(self.fiyat(emekli_sinifi(self.modul, "SNIPER"), SahteSaglayici(hata=True), zaman), 99.9)
         bos = SahteSaglayici(self.tablo())
-        self.assertAlmostEqual(self.fiyat("SniperVadeli", bos, datetime(2026, 10, 12, 9, 0, tzinfo=timezone.utc)), 99.9)
+        self.assertAlmostEqual(self.fiyat(emekli_sinifi(self.modul, "SNIPER"), bos, datetime(2026, 10, 12, 9, 0, tzinfo=timezone.utc)), 99.9)
 
     def test_motor_tablosu_uzakligi_tasir(self):
         df = yapay_mumlar(3000, tohum=4, oynaklik=0.003)
-        s = self.modul.SniperVadeli()
+        s = emekli_sinifi(self.modul, "SNIPER")()
         tablo = s.populate_indicators(df.copy(), {"pair": "ETH/USDT:USDT"})
         tablo = s.populate_entry_trend(tablo, {"pair": "ETH/USDT:USDT"})
         np.testing.assert_allclose(tablo["giris_limit_yuzde"].to_numpy(),

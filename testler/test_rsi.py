@@ -7,7 +7,7 @@ from karabasan import benzetim as b
 from karabasan import botlar
 from karabasan import gostergeler as g
 from karabasan import kural as k
-from testler.test_motor_baglantisi import strateji_modulu
+from testler.test_motor_baglantisi import emekli_sinifi, strateji_modulu
 from testler.veri import yapay_mumlar
 
 
@@ -98,14 +98,18 @@ class RsiBotlari(unittest.TestCase):
     def setUpClass(cls):
         cls.modul = strateji_modulu()
 
-    def test_listenin_sonunda_yeni_kapilarla(self):
-        self.assertEqual(botlar.BOTLAR[-2:], [("rsi-vadeli", "RSIVadeli", "RSI", "vadeli"),
-                                              ("rsik-vadeli", "RSIKVadeli", "RSIK", "vadeli")])
-        self.assertEqual(botlar.ILK_PORT + len(botlar.BOTLAR) - 1, 8087)
+    def test_emekli_botlarda_yok(self):
+        # 15 Ekim 2026 (Ahmet'in isteği): RSI ve RSIK durduruldu; kural dosyaları emekli/ altında.
+        kodlar = [kod for _b, _s, kod, _p in botlar.BOTLAR]
+        for kod, sinif in (("RSI", "RSIVadeli"), ("RSIK", "RSIKVadeli")):
+            self.assertNotIn(kod, kodlar)
+            self.assertFalse(hasattr(self.modul, sinif))
+            self.assertNotIn(kod, k.tum_kurallar())
+            self.assertEqual(k.kural_yukle(kod)["kod"], kod)
 
     def test_motor_sinifi(self):
-        for ad, kisa in (("RSIVadeli", False), ("RSIKVadeli", True)):
-            sinif = getattr(self.modul, ad)
+        for ad, kisa in (("RSI", False), ("RSIK", True)):
+            sinif = emekli_sinifi(self.modul, ad)
             with self.subTest(ad=ad):
                 self.assertEqual(sinif.timeframe, "5m")
                 self.assertEqual(sinif.can_short, kisa)
@@ -120,7 +124,7 @@ class RsiBotlari(unittest.TestCase):
     def test_motor_sinyali_cekirdekle_ayni(self):
         df = yapay_mumlar(12000, tohum=4, oynaklik=0.004)
         for ad, kod, sutun in (("RSIVadeli", "RSI", "enter_long"), ("RSIKVadeli", "RSIK", "enter_short")):
-            s = getattr(self.modul, ad)()
+            s = emekli_sinifi(self.modul, kod)()
             tablo = s.populate_indicators(df.copy(), {"pair": "ETH/USDT:USDT"})
             tablo = s.populate_entry_trend(tablo, {"pair": "ETH/USDT:USDT"})
             beklenen = k.sinyal_uret(df, k.kural_yukle(kod))["sinyal"]

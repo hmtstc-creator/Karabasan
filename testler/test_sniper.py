@@ -9,7 +9,7 @@ from karabasan import benzetim as b
 from karabasan import botlar
 from karabasan import gostergeler as g
 from karabasan import kural as k
-from testler.test_motor_baglantisi import strateji_modulu
+from testler.test_motor_baglantisi import emekli_sinifi, strateji_modulu
 from testler.veri import duz_mumlar, yapay_mumlar
 
 
@@ -133,16 +133,18 @@ class SniperBotu(unittest.TestCase):
     def setUpClass(cls):
         cls.modul = strateji_modulu()
 
-    def test_bot_listenin_sonunda_kapi_ayni(self):
-        sira = botlar.BOTLAR.index(("sniper5-vadeli", "SniperVadeli", "SNIPER", "vadeli"))
-        self.assertEqual(botlar.ILK_PORT + sira, 8085)
-        self.assertNotIn("sniper-vadeli", [bot for bot, *_ in botlar.BOTLAR])  # eski kayıt karışmasın
+    def test_emekli_botlarda_yok(self):
+        # 15 Ekim 2026 (Ahmet'in isteği): Sniper durduruldu; kural dosyası emekli/ altında.
+        self.assertNotIn("SNIPER", [kod for _b, _s, kod, _p in botlar.BOTLAR])
+        self.assertFalse(hasattr(self.modul, "SniperVadeli"))
+        self.assertNotIn("SNIPER", k.tum_kurallar())
+        self.assertEqual(k.kural_yukle("SNIPER")["kod"], "SNIPER")
 
     def test_yalniz_smartmoney_gunluk_veri_ister(self):
         self.assertEqual(botlar.ek_dilimler("vadeli"), ["1d"])
 
     def test_motor_sinifi(self):
-        sinif = self.modul.SniperVadeli
+        sinif = emekli_sinifi(self.modul, "SNIPER")
         self.assertEqual(sinif.timeframe, "5m")
         self.assertFalse(sinif.can_short)
         self.assertEqual(sinif.startup_candle_count, k.gereken_mum(k.kural_yukle("SNIPER")))
@@ -151,7 +153,7 @@ class SniperBotu(unittest.TestCase):
 
     def test_motor_sinyali_cekirdekle_ayni(self):
         df = yapay_mumlar(5000, tohum=4, oynaklik=0.003)
-        s = self.modul.SniperVadeli()
+        s = emekli_sinifi(self.modul, "SNIPER")()
         tablo = s.populate_indicators(df.copy(), {"pair": "ETH/USDT:USDT"})
         tablo = s.populate_entry_trend(tablo, {"pair": "ETH/USDT:USDT"})
         tablo = s.populate_exit_trend(tablo, {"pair": "ETH/USDT:USDT"})

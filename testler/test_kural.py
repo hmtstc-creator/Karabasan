@@ -24,7 +24,7 @@ class KuralDosyalari(unittest.TestCase):
     def test_tum_stratejiler_yuklenir(self):
         kurallar = k.tum_kurallar()
         self.assertEqual(sorted(kurallar),
-                         ["RSI", "RSIK", "SM", "SMD", "SMDK", "SMK", "SNIPER"])
+                         ["SM", "SMD", "SMDK", "SMK"])
         for kod, kural in kurallar.items():
             with self.subTest(kod=kod):
                 self.assertEqual(kural["kod"], kod)

@@ -18,20 +18,15 @@ from pathlib import Path
 # gösterdi; Ahmet'in isteğiyle yalnız Smartmoney kaldı (öbür kural dosyaları
 # karabasan/stratejiler/emekli/ altında). Yeni bot listenin sonuna eklenir ki
 # öncekilerin kapısı ve açılış sırası değişmesin.
+#
+# 15 Ekim 2026 (Ahmet'in isteği): Sniper (sniper5-vadeli, 8085), RSI (rsi-vadeli, 8086) ve
+# RSIK (rsik-vadeli, 8087) çıkarıldı; kural dosyaları emekli/ altında. Dört bot kaldı.
 BOTLAR = [
     ("sm-vadeli", "SMVadeli", "SM", "vadeli"),
     ("smk-vadeli", "SMKVadeli", "SMK", "vadeli"),
     # 12 Ekim 2026 (Ahmet'in isteği): Smartmoney + uyumsuzluk + girişte emir defteri onayı.
     ("smd-vadeli", "SMDVadeli", "SMD", "vadeli"),
     ("smdk-vadeli", "SMDKVadeli", "SMDK", "vadeli"),
-    # 12 Ekim 2026 (Ahmet'in isteği, adı "sniper"): 5 dakikalıkta dip sonrası CHoCH + FVG ile
-    # kısa vuruş. İlk hali (günlük trend takibi, "sniper-vadeli") aynı gün çıkarıldı; eski
-    # kaydı yenisine karışmasın diye bot adı değişti, kapı (8085) aynı.
-    ("sniper5-vadeli", "SniperVadeli", "SNIPER", "vadeli"),
-    # 13 Ekim 2026 (Ahmet'in isteği): yalnız RSI (5 dk / 15 dk / 1 saat), aşırı bölgeden dönüşte;
-    # hedef %1,5, stop %3, iz süren stop %0,3, süre yok. 30 günlük ileriye dönük takip.
-    ("rsi-vadeli", "RSIVadeli", "RSI", "vadeli"),
-    ("rsik-vadeli", "RSIKVadeli", "RSIK", "vadeli"),
 ]
 
 ILK_PORT = 8081

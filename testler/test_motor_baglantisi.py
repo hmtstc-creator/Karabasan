@@ -35,6 +35,14 @@ def strateji_modulu():
     return modul
 
 
+def emekli_sinifi(modul, kod, piyasa="vadeli"):
+    """Emekli bir kural dosyasından motor sınıfı (artık hiçbir bot çalıştırmıyor)."""
+    from karabasan.kural import STRATEJI_KLASORU
+
+    yol = str(STRATEJI_KLASORU / "emekli" / f"{kod}.json")
+    return type(f"{kod}Deneme", (modul.KarabasanTaban,), {"kural_kodu": yol, "piyasa": piyasa})
+
+
 class SahteSaglayici:
     """Hazır motorun veri sağlayıcısının (DataProvider) burada kullanılan iki işi."""
 
@@ -65,10 +73,7 @@ class StratejiSiniflari(unittest.TestCase):
         12 Ekim 2026'dan beri yalnız Smartmoney çalışıyor; tek dilimli basit kurallar
         (S1, S3 ...) emekli klasöründen dosya yoluyla yüklenir.
         """
-        from karabasan.kural import STRATEJI_KLASORU
-
-        yol = str(STRATEJI_KLASORU / "emekli" / f"{kod}.json")
-        return type(f"{kod}Deneme", (self.modul.KarabasanTaban,), {"kural_kodu": yol, "piyasa": piyasa})
+        return emekli_sinifi(self.modul, kod, piyasa)
 
     def test_her_bot_icin_sinif_var(self):
         for bot, sinif, kural_kodu, piyasa in botlar.BOTLAR:
@@ -618,7 +623,7 @@ class UyumDenemesiTesti(unittest.TestCase):
 
     SAHTE_DOCKER = r'''#!/bin/bash
 case "$*" in
-  *list-strategies*) echo "KarabasanTaban SMVadeli SMKVadeli SMDVadeli SMDKVadeli $SAHTE_SON_SINIF RSIVadeli RSIKVadeli";;
+  *list-strategies*) echo "KarabasanTaban SMVadeli SMKVadeli SMDVadeli $SAHTE_SON_SINIF";;
   *"--version"*) echo "freqtrade 2026.9";;
   *download-data*) echo "docker $*" >> "$SAHTE_KAYIT"
                    [ "$SAHTE_MOD" = "gunluk_inmez" ] && case "$*" in *"--timeframes 1d"*) echo "freqtrade - ERROR - veri yok"; exit 1;; esac
@@ -661,7 +666,7 @@ exit 0
             docker.chmod(0o755)
             ortam = {**os.environ, "PATH": f"{kok / 'bin'}:{os.environ['PATH']}", "SAHTE_MOD": mod,
                      "SAHTE_KAYIT": str(kok / "cagrilar.txt"),
-                     "SAHTE_SON_SINIF": "" if mod == "sinif_eksik" else "SniperVadeli"}
+                     "SAHTE_SON_SINIF": "" if mod == "sinif_eksik" else "SMDKVadeli"}
             sonuc = subprocess.run(["bash", str(kok / "araclar" / "uyum_denemesi.sh")],
                                    capture_output=True, text=True, env=ortam)
             rapor = (kok / "user_data" / "logs" / "uyum_denemesi.txt").read_text(encoding="utf-8")
@@ -717,7 +722,7 @@ exit 0
         # "SMDVadeli" çıktıda var ama "SMDKVadeli" yok: biri diğerinin yerine sayılmamalı.
         kod, rapor = self._calistir("sinif_eksik")
         self.assertEqual(kod, 1)
-        self.assertIn("Bulunamayan sınıflar: SniperVadeli", rapor)
+        self.assertIn("Bulunamayan sınıflar: SMDKVadeli", rapor)
 
     def test_ayar_hatasi_cikis_kodu_temiz_olsa_da_kalir(self):
         kod, rapor = self._calistir("ayar_hatasi")
