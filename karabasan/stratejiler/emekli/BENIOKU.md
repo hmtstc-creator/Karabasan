@@ -13,5 +13,6 @@ için saklanır; `kural.tum_kurallar()` bu klasörü okumaz.
 | SNIPERG | Sniper (ilk hali): günlük kanal kırılımıyla trend takibi | 12 Ekim 2026 (Ahmet'in isteği): Ahmet günlük, haftalarca açık kalan trend takibini istemedi; amacı 5 / 15 dakikalık grafiklerde dip sonrası %1–1,5'lik kısa vuruşlar. "Sniper" adı ve botu yeni kurala (SNIPER, 5 dk) geçti. Canlıda hiç sonuç vermeden çıkarıldı. |
 
 | SNIPER, RSI, RSIK | Sniper (5 dk dip sonrası CHoCH + FVG), RSI (7 + momentum 14, alım) ve açığa satış aynası | 15 Ekim 2026 (Ahmet'in isteği): botlar durduruldu. 12 aylık testte (14.10.2025–14.10.2026) Sniper −20,46, RSI −0,14 (işlem başına sıfır), RSIK −99,85 USDT; hiçbiri dört çeyreğin üçünde artıda değil. Dört bot kaldı: SM, SMK, SMD, SMDK. |
+| SM, SMD | Smartmoney alım ve Smartmoney + uyumsuzluk + emir defteri alım | 15 Ekim 2026 (Ahmet'in isteği): alım botları da durduruldu, yalnız iki açığa satış botu (SMK, SMDK) kaldı. 12 aylık testte SM −9,88, SMD −0,37 USDT. |
 
 Dosyalar çıkarıldıkları andaki ayarlarıyla durur (hedef ve stop o günkü değerler).

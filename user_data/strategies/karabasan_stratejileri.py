@@ -3,7 +3,7 @@
 Burada işlem mantığı YOKTUR. Mantık karabasan/ paketindedir ve orada
 test edilir; bu dosya yalnız o mantığı motorun beklediği biçime çevirir.
 
-Her sanal bot için bir sınıf vardır (SMVadeli, SMKVadeli, SMDVadeli ...).
+Her sanal bot için bir sınıf vardır (SMKVadeli, SMDKVadeli).
 Sınıfın kâr hedefi, stopu, zaman dilimi ve yönü kural dosyasından gelir:
 karabasan/stratejiler/<kod>.json
 
@@ -261,16 +261,8 @@ class KarabasanTaban(IStrategy):
         return 1.0
 
 
-class SMVadeli(KarabasanTaban):
-    kural_kodu, piyasa = "SM", "vadeli"
-
-
 class SMKVadeli(KarabasanTaban):
     kural_kodu, piyasa = "SMK", "vadeli"
-
-
-class SMDVadeli(KarabasanTaban):
-    kural_kodu, piyasa = "SMD", "vadeli"
 
 
 class SMDKVadeli(KarabasanTaban):

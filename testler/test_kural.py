@@ -24,7 +24,7 @@ class KuralDosyalari(unittest.TestCase):
     def test_tum_stratejiler_yuklenir(self):
         kurallar = k.tum_kurallar()
         self.assertEqual(sorted(kurallar),
-                         ["SM", "SMD", "SMDK", "SMK"])
+                         ["SMDK", "SMK"])
         for kod, kural in kurallar.items():
             with self.subTest(kod=kod):
                 self.assertEqual(kural["kod"], kod)
@@ -50,7 +50,7 @@ class KuralDosyalari(unittest.TestCase):
 
     def test_smartmoney_adi_gorunur(self):
         """Ahmet bu stratejiye "smartmoney" adını verdi; sayfada ve Telegram'da ad böyle başlar."""
-        kurallar = k.tum_kurallar()
+        kurallar = {kod: k.kural_yukle(kod) for kod in ("SM", "SMK")}   # SM 15 Ekim 2026'dan beri emekli
         for kod in ("SM", "SMK"):
             self.assertTrue(kurallar[kod]["ad"].startswith("Smartmoney: "), kod)
             self.assertEqual(kurallar[kod]["borsa_dilimleri"], ["1d"])
@@ -78,7 +78,7 @@ class KuralDosyalari(unittest.TestCase):
             self.assertEqual(kural["cikis"], beklenen, kod)
 
     def test_ters_yonlu_ciftler_ayni_cikisi_kullanir(self):
-        kurallar = k.tum_kurallar()
+        kurallar = {kod: k.kural_yukle(kod) for kod in ("SM", "SMK", "SMD", "SMDK")}
         for kod in ("SM", "SMD"):
             self.assertEqual(kurallar[kod]["cikis"], kurallar[kod + "K"]["cikis"], kod)
             self.assertEqual(kurallar[kod]["gostergeler"], kurallar[kod + "K"]["gostergeler"], kod)
@@ -212,7 +212,7 @@ class SmartmoneyMantigi(unittest.TestCase):
     def setUpClass(cls):
         cls.df = yapay_mumlar(60 * 288, tohum=11, oynaklik=0.003)
         cls.gunluk = g.ust_dilime_cevir(cls.df, "5m", "1d")
-        cls.kurallar = k.tum_kurallar()
+        cls.kurallar = {kod: k.kural_yukle(kod) for kod in ("SM", "SMK")}   # SM 15 Ekim 2026'dan beri emekli
         cls.tablo = {
             kod: k.sinyal_uret(cls.df, cls.kurallar[kod], {"1d": cls.gunluk}) for kod in ("SM", "SMK")
         }

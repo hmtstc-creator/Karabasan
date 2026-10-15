@@ -183,7 +183,7 @@ class MotorLimitFiyati(unittest.TestCase):
     def test_sinyal_mumunun_uzakligi_kullanilir(self):
         # Giriş 10:15 mumunun içinde: sinyal mumu 10:10 (0,4), 10:15 satırı kullanılmaz.
         zaman = datetime(2026, 10, 12, 10, 15, 3, tzinfo=timezone.utc)
-        self.assertAlmostEqual(self.fiyat("SMVadeli", SahteSaglayici(self.tablo()), zaman), 99.6)
+        self.assertAlmostEqual(self.fiyat(emekli_sinifi(self.modul, "SM"), SahteSaglayici(self.tablo()), zaman), 99.6)
         self.assertAlmostEqual(self.fiyat("SMKVadeli", SahteSaglayici(self.tablo()), zaman, "short"), 100.4)
 
     def test_tablo_yoksa_en_kucuk_uzaklik(self):

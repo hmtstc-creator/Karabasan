@@ -20,12 +20,12 @@ from pathlib import Path
 # öncekilerin kapısı ve açılış sırası değişmesin.
 #
 # 15 Ekim 2026 (Ahmet'in isteği): Sniper (sniper5-vadeli, 8085), RSI (rsi-vadeli, 8086) ve
-# RSIK (rsik-vadeli, 8087) çıkarıldı; kural dosyaları emekli/ altında. Dört bot kaldı.
+# RSIK (rsik-vadeli, 8087) çıkarıldı; kural dosyaları emekli/ altında.
+# Aynı gün SM (sm-vadeli) ve SMD (smd-vadeli) de çıkarıldı; yalnız iki açığa satış botu
+# kaldı. Kapılar sıraya göre verilir: smk-vadeli 8081, smdk-vadeli 8082.
 BOTLAR = [
-    ("sm-vadeli", "SMVadeli", "SM", "vadeli"),
     ("smk-vadeli", "SMKVadeli", "SMK", "vadeli"),
     # 12 Ekim 2026 (Ahmet'in isteği): Smartmoney + uyumsuzluk + girişte emir defteri onayı.
-    ("smd-vadeli", "SMDVadeli", "SMD", "vadeli"),
     ("smdk-vadeli", "SMDKVadeli", "SMDK", "vadeli"),
 ]
 

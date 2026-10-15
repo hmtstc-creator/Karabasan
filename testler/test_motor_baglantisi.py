@@ -91,10 +91,10 @@ class StratejiSiniflari(unittest.TestCase):
         self.assertFalse(s.can_short)
         self.assertEqual(s.startup_candle_count, 1870)
         self.assertEqual(self.emekli("S3").timeframe, "15m")
-        self.assertAlmostEqual(self.modul.SMVadeli.stoploss, -0.03)
+        self.assertAlmostEqual(self.emekli("SM").stoploss, -0.03)
         self.assertAlmostEqual(self.modul.SMKVadeli.stoploss, -0.03)
         self.assertTrue(self.modul.SMKVadeli.can_short)
-        self.assertFalse(self.modul.SMVadeli.can_short)
+        self.assertFalse(self.emekli("SM").can_short)
 
     def test_yalniz_ters_yonluler_aciga_satar(self):
         for _bot, sinif, kural_kodu, _piyasa in botlar.BOTLAR:
@@ -128,7 +128,7 @@ class StratejiSiniflari(unittest.TestCase):
 
     def test_sure_siniri_yoksa_suresiz(self):
         from types import SimpleNamespace
-        s = self.modul.SMVadeli()
+        s = self.emekli("SM")()
         islem = SimpleNamespace(open_date_utc=datetime(2026, 1, 1, tzinfo=timezone.utc))
         self.assertIsNone(s.custom_exit("ETH/USDT:USDT", islem, datetime(2026, 3, 1, tzinfo=timezone.utc), 1.0, 0.0))
         e = self.emekli("S1")()
@@ -174,11 +174,11 @@ class StratejiSiniflari(unittest.TestCase):
     def test_gunluk_mumlar_motordan_istenir(self):
         """Smartmoney günlük trendi borsadan ayrıca ister; diğer botlar bir şey istemez."""
         pariteler = ["ETH/USDT:USDT", "SOL/USDT:USDT"]
-        s = self.modul.SMVadeli()
+        s = self.emekli("SM")()
         self.assertEqual(s.informative_pairs(), [])           # veri sağlayıcı henüz yokken
         s.dp = SahteSaglayici(pariteler, {})
         self.assertEqual(s.informative_pairs(), [(p, "1d") for p in pariteler])
-        self.assertEqual(self.modul.SMVadeli.startup_candle_count, 1810)
+        self.assertEqual(self.emekli("SM").startup_candle_count, 1810)
         self.assertTrue(self.modul.SMKVadeli.can_short)
         for sinif in ("S1", "S3", "S5", "S6K", "S7"):
             eski = self.emekli(sinif)()
@@ -189,9 +189,9 @@ class StratejiSiniflari(unittest.TestCase):
         df = yapay_mumlar(60 * 288, dilim_dk=5, tohum=11, oynaklik=0.003)
         gunluk = g.ust_dilime_cevir(df, "5m", "1d")
         parite = "ETH/USDT:USDT"
-        for sinif, kural_kodu, sutun in (("SMVadeli", "SM", "enter_long"), ("SMKVadeli", "SMK", "enter_short")):
-            with self.subTest(sinif=sinif):
-                s = getattr(self.modul, sinif)()
+        for sinif, kural_kodu, sutun in ((self.emekli("SM"), "SM", "enter_long"), (self.modul.SMKVadeli, "SMK", "enter_short")):
+            with self.subTest(kod=kural_kodu):
+                s = sinif()
                 s.dp = SahteSaglayici([parite], {(parite, "1d"): gunluk})
                 tablo = s.populate_indicators(df.copy(), {"pair": parite})
                 tablo = s.populate_entry_trend(tablo, {"pair": parite})
@@ -208,7 +208,7 @@ class StratejiSiniflari(unittest.TestCase):
         parite = "ETH/USDT:USDT"
         self.assertGreater(int(sinyal_uret(df, kural_yukle("SM"))["sinyal"].sum()), 5)
         for saglayici in (None, SahteSaglayici([parite], {}), SahteSaglayici([parite], {}, hata=True)):
-            s = self.modul.SMVadeli()
+            s = self.emekli("SM")()
             s.dp = saglayici
             with self.assertLogs("karabasan_stratejileri", level="WARNING") as kayit:
                 tablo = s.populate_indicators(df.copy(), {"pair": parite})
@@ -225,7 +225,7 @@ class StratejiSiniflari(unittest.TestCase):
             def current_whitelist(self):
                 raise RuntimeError("parite listesi yok")
 
-        s = self.modul.SMVadeli()
+        s = self.emekli("SM")()
         s.dp = Hazirlanmamis([], {})
         with self.assertLogs("karabasan_stratejileri", level="WARNING"):
             self.assertEqual(s.informative_pairs(), [])
@@ -446,7 +446,7 @@ class BagimsizKarsilastirma(unittest.TestCase):
         self.assertEqual(sum(1 for ad in okunan if "-1d-" in ad), gunluk_isteyen * len(karsilastir.COINLER))
         self.assertTrue(all(ad.endswith("-vadeli.feather") for ad in okunan if "-1d-" in ad))
         # Smartmoney botları bu veride işlem açtı (günlük veri gerçekten kullanıldı).
-        for bot in ("sm-vadeli", "smk-vadeli"):
+        for bot in ("smk-vadeli",):
             satir = next(s for s in metin.splitlines() if s.startswith(bot))
             self.assertGreater(int(satir.split()[1]), 0, satir)
 
@@ -623,7 +623,7 @@ class UyumDenemesiTesti(unittest.TestCase):
 
     SAHTE_DOCKER = r'''#!/bin/bash
 case "$*" in
-  *list-strategies*) echo "KarabasanTaban SMVadeli SMKVadeli SMDVadeli $SAHTE_SON_SINIF";;
+  *list-strategies*) echo "KarabasanTaban SMKVadeli $SAHTE_SON_SINIF";;
   *"--version"*) echo "freqtrade 2026.9";;
   *download-data*) echo "docker $*" >> "$SAHTE_KAYIT"
                    [ "$SAHTE_MOD" = "gunluk_inmez" ] && case "$*" in *"--timeframes 1d"*) echo "freqtrade - ERROR - veri yok"; exit 1;; esac
@@ -719,7 +719,7 @@ exit 0
         self.assertIn("SONUÇ: 1 adım kaldı.", rapor)
 
     def test_eksik_sinif_yakalanir(self):
-        # "SMDVadeli" çıktıda var ama "SMDKVadeli" yok: biri diğerinin yerine sayılmamalı.
+        # "SMKVadeli" çıktıda var ama "SMDKVadeli" yok: biri diğerinin yerine sayılmamalı.
         kod, rapor = self._calistir("sinif_eksik")
         self.assertEqual(kod, 1)
         self.assertIn("Bulunamayan sınıflar: SMDKVadeli", rapor)

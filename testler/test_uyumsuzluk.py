@@ -9,7 +9,7 @@ import pandas as pd
 from karabasan import defter as d
 from karabasan import gostergeler as g
 from karabasan import kural as k
-from testler.test_motor_baglantisi import strateji_modulu
+from testler.test_motor_baglantisi import emekli_sinifi, strateji_modulu
 from testler.veri import duz_mumlar, yapay_mumlar
 
 
@@ -120,28 +120,29 @@ class GirisOnayiTesti(unittest.TestCase):
         cls.modul = strateji_modulu()
 
     def _onay(self, sinif, saglayici, side):
-        s = getattr(self.modul, sinif)()
+        # Canlı botun sınıf adı (SMDKVadeli) ya da emekli kuralın kodu (SM, SMD; 15 Ekim 2026'dan beri).
+        s = (getattr(self.modul, sinif) if sinif.endswith("Vadeli") else emekli_sinifi(self.modul, sinif))()
         s.dp = saglayici
         zaman = datetime(2026, 10, 12, tzinfo=timezone.utc)
         return s.confirm_trade_entry("ETH/USDT:USDT", "market", 1.0, 100.0, "GTC", zaman, None, side)
 
     def test_sanal_modda_defter_sorulur(self):
-        self.assertTrue(self._onay("SMDVadeli", SahteSaglayici("dry_run", kitap(2.0, 1.0)), "long"))
-        self.assertFalse(self._onay("SMDVadeli", SahteSaglayici("dry_run", kitap(1.0, 2.0)), "long"))
+        self.assertTrue(self._onay("SMD", SahteSaglayici("dry_run", kitap(2.0, 1.0)), "long"))
+        self.assertFalse(self._onay("SMD", SahteSaglayici("dry_run", kitap(1.0, 2.0)), "long"))
         self.assertTrue(self._onay("SMDKVadeli", SahteSaglayici("dry_run", kitap(1.0, 2.0)), "short"))
         self.assertFalse(self._onay("SMDKVadeli", SahteSaglayici("live", kitap(2.0, 1.0)), "short"))
 
     def test_gecmis_testinde_defter_sorulmaz(self):
         saglayici = SahteSaglayici("backtest", kitap(1.0, 2.0))
-        self.assertTrue(self._onay("SMDVadeli", saglayici, "long"))
+        self.assertTrue(self._onay("SMD", saglayici, "long"))
         self.assertEqual(saglayici.istek, 0)
 
     def test_defter_okunamazsa_girmez(self):
-        self.assertFalse(self._onay("SMDVadeli", SahteSaglayici("dry_run", hata=True), "long"))
+        self.assertFalse(self._onay("SMD", SahteSaglayici("dry_run", hata=True), "long"))
 
     def test_eski_smartmoney_defter_sormaz(self):
         saglayici = SahteSaglayici("dry_run", kitap(1.0, 2.0))
-        self.assertTrue(self._onay("SMVadeli", saglayici, "long"))
+        self.assertTrue(self._onay("SM", saglayici, "long"))
         self.assertEqual(saglayici.istek, 0)
 
 
