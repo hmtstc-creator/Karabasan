@@ -928,6 +928,14 @@ fiyatını güncelle". Önce 6. kuralı hatırlattım (zararda ekleme kapalı, k
   `nr_of_successful_entries` / `has_open_orders` alanları, 2 kat kaldıraçla vadeli sanal işlemin açılması
   (50 USDT x 2 = 100 USDT; BTC belki artık işlem görür), açık işlemlerin stopunun yeniden başlatmada %9'a
   çekilmesi. Uyum 23 raporunda SMK2 / SMDK2 satırlarına ve "yalnız motor" eşleşmelerine bak.
+- **12 aylık test 11 (22.10.2025–22.10.2026, hazırlandı 22 Ekim 06:34 UTC; Ahmet iletti).** SMK 510 işlem
+  %88,0 kazanma +22,13 USDT, düşüş %5,3, çeyrek 2 / 4; SMDK 439 / %88,2 / +13,60 / %5,2 / 2 / 4; SMK2 525 /
+  %89,1 / +29,68 / %10,9 / 3 / 4; SMDK2 448 / %89,1 / −8,89 / %11,9 / 2 / 4. Son çeyrekte (07.2026–) dördü de
+  ekside (SMK2 −34,70). Stop %3 → %9 (test 10'a göre, dönem bir hafta kaymış): SMK +16,73 → +22,13, SMDK
+  +20,33 → +13,60; toplamda değişiklik yok. Ek girişli işlemler: SMK2 62 (50'si yine stop), net −512,40;
+  SMDK2 53, net −476,51 (işlem başına ~−8,3 / −9,0 USDT). Ek giriş, yalnız kaldıracın yapacağından
+  (≈ 2 × SMK) kötü: SMK2 +29,68 < 44,26, SMDK2 −8,89 < 27,20; kaldıraç düşüşü de ikiye katladı. Uyum 23
+  raporu henüz okunmadı (sunucu oturumuna bulut oturumundan mesaj izni 22 Ekim'de kaydedilemedi).
 
 **Kriter istekleri (13 Ekim 2026, Ahmet'in isteği).** Ahmet "kriterleri sitede göster, değiştirebileyim;
 olmaz dersen sana söylerim sen çalıştırırsın" dedi. Sunucudaki sayfa değiştirilemez (sunucu 5 dakikada
