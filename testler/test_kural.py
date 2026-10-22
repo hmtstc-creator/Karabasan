@@ -24,7 +24,7 @@ class KuralDosyalari(unittest.TestCase):
     def test_tum_stratejiler_yuklenir(self):
         kurallar = k.tum_kurallar()
         self.assertEqual(sorted(kurallar),
-                         ["SMDK", "SMK"])
+                         ["SMDK", "SMDK2", "SMK", "SMK2"])
         for kod, kural in kurallar.items():
             with self.subTest(kod=kod):
                 self.assertEqual(kural["kod"], kod)
@@ -33,7 +33,7 @@ class KuralDosyalari(unittest.TestCase):
     def test_ters_yonluler_aciga_satis(self):
         kurallar = k.tum_kurallar()
         for kod, kural in kurallar.items():
-            self.assertEqual(kural["yon"], "aciga_satis" if kod.endswith("K") else "alim", kod)
+            self.assertEqual(kural["yon"], "aciga_satis" if kod.rstrip("2").endswith("K") else "alim", kod)
 
     def test_her_stratejinin_duz_adi_ve_aciklamasi_var(self):
         """Adlar ne yaptığını söylemeli; kod (S1, S5K) tek başına ad olamaz."""
@@ -69,19 +69,33 @@ class KuralDosyalari(unittest.TestCase):
 
     def test_butun_stratejilerde_cikis_ayni(self):
         """Ahmet'in isteği (12 Ekim 2026): iz süren stop %1,2 kârda başlar, %0,3 geriden
-        izler (ilk anda ~%0,9 kâr); stop %3; sabit kâr hedefi ve süre sınırı yok."""
+        izler (ilk anda ~%0,9 kâr); sabit kâr hedefi ve süre sınırı yok. Stop 22 Ekim 2026'dan
+        beri %9 (önce %3; stop sonrası dersi "stop 3 kat geniş olsaydı daha iyi" dedi)."""
         for kod, kural in k.tum_kurallar().items():
-            beklenen = {"zarar_durdur_yuzde": 3.0, "iz_suren_stop": {"tetik_yuzde": 1.2, "mesafe_yuzde": 0.3}}
+            beklenen = {"zarar_durdur_yuzde": 9.0, "iz_suren_stop": {"tetik_yuzde": 1.2, "mesafe_yuzde": 0.3}}
             if kod in ("RSI", "RSIK"):
                 # 13 Ekim 2026 (Ahmet'in isteği): RSI botlarında ayrıca %1,5 sabit kâr hedefi var.
                 beklenen["kar_hedefi_yuzde"] = 1.5
             self.assertEqual(kural["cikis"], beklenen, kod)
 
-    def test_ters_yonlu_ciftler_ayni_cikisi_kullanir(self):
+    def test_ters_yonlu_ciftler_ayni_gostergeleri_kullanir(self):
+        # Emekli alım halleri (SM, SMD) %3 stopta kaldı; açığa satışların stopu 22 Ekim'de %9 oldu.
         kurallar = {kod: k.kural_yukle(kod) for kod in ("SM", "SMK", "SMD", "SMDK")}
         for kod in ("SM", "SMD"):
-            self.assertEqual(kurallar[kod]["cikis"], kurallar[kod + "K"]["cikis"], kod)
+            self.assertEqual(kurallar[kod]["cikis"]["iz_suren_stop"], kurallar[kod + "K"]["cikis"]["iz_suren_stop"])
             self.assertEqual(kurallar[kod]["gostergeler"], kurallar[kod + "K"]["gostergeler"], kod)
+
+    def test_iki_kat_botlar_ikizleriyle_ayni_girer_ve_cikar(self):
+        """SMK2 / SMDK2 (22 Ekim 2026): girişler ve çıkışlar ikiziyle aynı; farkı 2 kat kaldıraç ve
+        fiyat %8 aleyhe gidince (stopa %1 kala) ilk tutarın 2 katı ek giriş."""
+        for kod in ("SMK", "SMDK"):
+            asil, iki = k.kural_yukle(kod), k.kural_yukle(kod + "2")
+            fark = {a for a in set(asil) | set(iki) if asil.get(a) != iki.get(a)}
+            self.assertEqual(fark, {"kod", "ad", "aciklama", "kaldirac", "zararda_ekleme"}, kod)
+            self.assertEqual(iki["kaldirac"], 2)
+            self.assertEqual(iki["zararda_ekleme"], {"stopa_kala_yuzde": 1.0, "kat": 2.0})
+            self.assertAlmostEqual(k.ekleme_fiyati(iki, 100.0), 108.0)
+            self.assertIsNone(k.ekleme_fiyati(asil, 100.0))
 
     def test_basabas_oranlari_raporla_ayni(self):
         # Sabit hedefli kuralda: (stop + maliyet) / (hedef + stop). S1: (3 + 0,2) / (0,8 + 3) = %84,21.

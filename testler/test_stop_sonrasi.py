@@ -527,3 +527,24 @@ class MumGetirTesti(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EskiStopTesti(unittest.TestCase):
+    """22 Ekim 2026: SMK / SMDK stopu %3'ten %9'a. Eski %3 stoplar yeni ayarın dersine katılmaz."""
+
+    def test_eski_stoplu_islem_ayrilir(self):
+        self.assertTrue(ss.eski_stoplu("smk-vadeli", -3.1))
+        self.assertTrue(ss.eski_stoplu("smdk-vadeli", -3.12))
+        self.assertFalse(ss.eski_stoplu("smk-vadeli", -9.1))
+        self.assertFalse(ss.eski_stoplu("smk2-vadeli", -3.1))     # stopu hiç değişmemiş bot
+        self.assertFalse(ss.eski_stoplu("smk-vadeli", None))
+
+    def test_donem_kayitlari_eskileri_atlar(self):
+        veri = {"islemler": {
+            "smk-vadeli#1": {"bot": "smk-vadeli", "giris_zamani": "2026-10-20T10:00:00Z",
+                             "cikis_zamani": "2026-10-20T12:00:00Z", "gercek_net_yuzde": -3.1},
+            "smk-vadeli#2": {"bot": "smk-vadeli", "giris_zamani": "2026-10-22T10:00:00Z",
+                             "cikis_zamani": "2026-10-22T12:00:00Z", "gercek_net_yuzde": -9.1},
+        }}
+        secilen = ss.donem_kayitlari(veri, "smk-vadeli", None, None)
+        self.assertEqual([k["gercek_net_yuzde"] for k in secilen], [-9.1])

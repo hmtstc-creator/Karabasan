@@ -16,7 +16,7 @@ from pathlib import Path
 from . import karne as kr
 from . import stop_sonrasi as ss
 from .botlar import BOTLAR, ayarlari_yukle
-from .kural import kural_yukle
+from .kural import ekleme_metni, kural_yukle
 
 SINAV_GUN = 30
 # Günlük rapor günleri bu saat dilimine göre ayırır (sonuç sayfası da aynı saati gösterir).
@@ -214,6 +214,8 @@ def bot_ozeti(
         "stop_yuzde": kural["cikis"].get("zarar_durdur_yuzde"),
         "sure_asimi_dakika": kural["cikis"].get("sure_asimi_dakika"),
         "izinli_durumlar": list(kural.get("izinli_durumlar", [])),
+        "kaldirac": float(kural.get("kaldirac", 1)),
+        "ekleme_metni": ekleme_metni(kural),
         "hata": kayit["hata"],
         "gunluk_yasi_dakika": None,
         "calisiyor": None,

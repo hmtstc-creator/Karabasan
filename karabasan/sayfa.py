@@ -531,7 +531,8 @@ def _bot_durumu(bot: dict) -> str:
 
 
 def _bot_karti(bot: dict) -> str:
-    piyasa = "Spot piyasada" if bot["piyasa"] == "spot" else "Vadeli piyasada, 1 kat kaldıraçla"
+    kaldirac = bot.get("kaldirac") or 1
+    piyasa = "Spot piyasada" if bot["piyasa"] == "spot" else f"Vadeli piyasada, {kaldirac:g} kat kaldıraçla"
     net = bot["net_tutar"]
     kazanma = yuzde(bot["kazanma_orani"])
     basabas = (
@@ -564,6 +565,8 @@ def _bot_karti(bot: dict) -> str:
     if bot.get("nedenler"):
         sirali = sorted(bot["nedenler"].items(), key=lambda n: n[1], reverse=True)
         notlar.append("Çıkışlar: " + ", ".join(f"{adet} {escape(neden)}" for neden, adet in sirali) + ".")
+    if bot.get("ekleme_metni"):
+        notlar.append(f"Pozisyon: {escape(bot['ekleme_metni'])}; stop ilk girişe göre kalır.")
     if bot.get("izinli_durumlar"):
         durumlar = ", ".join(DURUM_ADLARI.get(d, d) for d in bot["izinli_durumlar"])
         notlar.append(f"Tasarlandığı piyasa durumu: {escape(durumlar)}.")

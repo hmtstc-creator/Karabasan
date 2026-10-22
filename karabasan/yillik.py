@@ -28,7 +28,7 @@ import pandas as pd
 from . import karne as kr
 from .benzetim import benzet
 from .botlar import BOTLAR, ayarlari_yukle
-from .kural import basabas_orani, cikis_metni, ek_veri_topla, kural_yukle
+from .kural import basabas_orani, cikis_metni, ek_veri_topla, ekleme_metni, kural_yukle
 
 COINLER = ["BTC", "ETH", "SOL", "XRP", "DOGE"]
 GUN = 365
@@ -158,7 +158,8 @@ def rapor_uret(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tu
     yaz(f"12 aylık geçmiş testi: {baslangic:%d.%m.%Y} - {bitis:%d.%m.%Y} ({gun} gün)")
     yaz(f"Hazırlandı: {pd.Timestamp.now(tz='UTC'):%d.%m.%Y %H:%M} UTC. Ayarlar o anki kural dosyalarından.")
     yaz("Coinler: ETH, SOL, XRP, DOGE (vadelide BTC yok). İşlem başına "
-        f"{tutar:g} USDT, 1 kat kaldıraç, komisyon dahil.")
+        f"{tutar:g} USDT, komisyon dahil; kaldıraç 1 kat (SMK2 / SMDK2: 2 kat ve zararda ek giriş, "
+        "sonuçları ilk teminata göre).")
     yaz("Hesap: bağımsız benzetim. 11 Ekim 2026'da hazır motorla işlem işlem karşılaştırıldı;")
     yaz("12 botun 11'inde birebir ya da ±2 işlem tuttu. Karabasan süzgeci yok (canlıda da henüz yok).")
     yaz("Geçmiş, geleceğin garantisi değildir. Bu rapora bakıp ayar seçmek geçmişe ezberdir.")
@@ -203,6 +204,11 @@ def rapor_uret(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tu
         yaz(f"  Net {_sayi(k['net_tutar'], 2, True)} USDT, en büyük düşüş %{_sayi(k['en_buyuk_dusus_yuzde'], 1)} "
             f"(1.000 USDT bakiyeye göre)")
         yaz("  Çıkışlar: " + _nedenler_metni(nedenler, c))
+        if ekleme_metni(kural):
+            ekli = [i for i in islemler if i.get("ekleme_zamani") is not None]
+            yaz(f"  {ekleme_metni(kural)}: ek girişli işlem {len(ekli)}, onların neti "
+                f"{_sayi(sum(i['net_yuzde'] for i in ekli) * tutar / 100.0, 2, True)} USDT "
+                f"(sonuçlar ilk teminata göre, işlem tutarı {_sayi(tutar, 0)} USDT)")
         yaz("  Çeyrekler (net USDT): " + " | ".join(
             f"{p['baslangic']:%m.%Y}: {_sayi(p['net'], 2, True)} ({p['islem']})" for p in ceyrekler))
         arti = sum(1 for p in ceyrekler if p["net"] > 0)

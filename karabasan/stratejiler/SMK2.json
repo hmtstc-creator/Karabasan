@@ -1,0 +1,150 @@
+{
+  "kod": "SMK2",
+  "ad": "Smartmoney: tepki sonrası yapı kırılımıyla satış (2 kat, zararda ekleme)",
+  "yon": "aciga_satis",
+  "aciklama": "SMK ile aynı giriş ve çıkış; farkı pozisyon: 2 kat kaldıraç ve zararda bir kez ek giriş. Fiyat ilk girişten %8 aleyhe gidince (stopa %1 kala) ilk tutarın 2 katı kadar aynı yönde yeniden girilir; iz süren stop ve kâr ortalama girişe göre hesaplanır, %9 stop ilk girişe göre yerinde kalır. Ek girişten sonra stop olan bir işlem ilk teminatın yaklaşık %22'sini kaybettirir (eklemesiz, 1 kat botta %9). Ahmet'in isteğiyle (22 Ekim 2026), yalnız sanal.",
+  "zaman_dilimi": "5m",
+  "borsa_dilimleri": [
+    "1d"
+  ],
+  "gostergeler": {
+    "kapanis_1g": {
+      "tur": "sma",
+      "kaynak": "kapanis",
+      "periyot": 1,
+      "dilim": "1d"
+    },
+    "ema20_1g": {
+      "tur": "ema",
+      "kaynak": "kapanis",
+      "periyot": 20,
+      "dilim": "1d"
+    },
+    "yapi1s": {
+      "tur": "yapi",
+      "periyot": 5,
+      "dilim": "1h"
+    },
+    "rsi14_1s": {
+      "tur": "rsi",
+      "periyot": 14,
+      "dilim": "1h"
+    },
+    "rsi14_15": {
+      "tur": "rsi",
+      "periyot": 14,
+      "dilim": "15m"
+    },
+    "yapi15": {
+      "tur": "yapi",
+      "periyot": 5,
+      "dilim": "15m"
+    },
+    "yapi5": {
+      "tur": "yapi",
+      "periyot": 5
+    },
+    "rsi14": {
+      "tur": "rsi",
+      "periyot": 14
+    },
+    "hacim20": {
+      "tur": "hacim_ort",
+      "periyot": 20
+    }
+  },
+  "giris": {
+    "hepsi": [
+      {
+        "sol": "kapanis_1g",
+        "islem": "<",
+        "sag": "ema20_1g"
+      },
+      {
+        "sol": "yapi1s_yon",
+        "islem": "<",
+        "sag": 0
+      },
+      {
+        "sol": "rsi14_1s",
+        "islem": ">",
+        "sag": 20
+      },
+      {
+        "herhangi": [
+          {
+            "sol": "yuksek",
+            "islem": ">",
+            "sag": "yapi15_denge",
+            "son_n_mumda": 12
+          },
+          {
+            "sol": "yuksek",
+            "islem": ">=",
+            "sag": "yapi15_sblok_alt",
+            "son_n_mumda": 12
+          }
+        ]
+      },
+      {
+        "sol": "yapi5_kirilim",
+        "islem": "<",
+        "sag": 0
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": 50
+      },
+      {
+        "sol": "rsi14",
+        "islem": ">",
+        "sag": 20
+      },
+      {
+        "sol": "rsi14",
+        "islem": "<",
+        "sag": {
+          "ad": "rsi14",
+          "kaydir": 3
+        }
+      },
+      {
+        "sol": "rsi14_15",
+        "islem": ">",
+        "sag": 35
+      },
+      {
+        "sol": "hacim",
+        "islem": ">",
+        "sag": {
+          "ad": "hacim20",
+          "carpan": 1.2
+        }
+      }
+    ]
+  },
+  "giris_limiti": {
+    "atr_kat": 0.5,
+    "en_az_yuzde": 0.1,
+    "en_fazla_yuzde": 0.6,
+    "sure_dakika": 15
+  },
+  "cikis": {
+    "zarar_durdur_yuzde": 9.0,
+    "iz_suren_stop": {
+      "tetik_yuzde": 1.2,
+      "mesafe_yuzde": 0.3
+    }
+  },
+  "izinli_durumlar": [
+    "KIRMIZI",
+    "SARI"
+  ],
+  "bekleme_dakika": 120,
+  "kaldirac": 2,
+  "zararda_ekleme": {
+    "stopa_kala_yuzde": 1.0,
+    "kat": 2.0
+  }
+}

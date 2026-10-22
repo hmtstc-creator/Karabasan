@@ -92,14 +92,15 @@ class StratejiSiniflari(unittest.TestCase):
         self.assertEqual(s.startup_candle_count, 1870)
         self.assertEqual(self.emekli("S3").timeframe, "15m")
         self.assertAlmostEqual(self.emekli("SM").stoploss, -0.03)
-        self.assertAlmostEqual(self.modul.SMKVadeli.stoploss, -0.03)
+        # 22 Ekim 2026 (Ahmet'in isteği): SMK / SMDK stopu %3'ten %9'a.
+        self.assertAlmostEqual(self.modul.SMKVadeli.stoploss, -0.09)
         self.assertTrue(self.modul.SMKVadeli.can_short)
         self.assertFalse(self.emekli("SM").can_short)
 
     def test_yalniz_ters_yonluler_aciga_satar(self):
         for _bot, sinif, kural_kodu, _piyasa in botlar.BOTLAR:
             s = getattr(self.modul, sinif)
-            self.assertEqual(s.can_short, kural_kodu.endswith("K"))
+            self.assertEqual(s.can_short, kural_kodu.rstrip("2").endswith("K"))
             if s.can_short:
                 self.assertEqual(s.piyasa, "vadeli")
 
@@ -118,10 +119,12 @@ class StratejiSiniflari(unittest.TestCase):
         for _bot, sinif, _k, _p in botlar.BOTLAR:
             s = getattr(self.modul, sinif)
             self.assertTrue(s.trailing_stop, sinif)
-            self.assertAlmostEqual(s.trailing_stop_positive, 0.003)
-            self.assertAlmostEqual(s.trailing_stop_positive_offset, 0.012)
+            # Motor oranları teminata göre ölçer: kaldıraçlı botta oranlar kaldıraçla çarpılır.
+            kat = s.kaldirac_kat
+            self.assertAlmostEqual(s.trailing_stop_positive, 0.003 * kat)
+            self.assertAlmostEqual(s.trailing_stop_positive_offset, 0.012 * kat)
             self.assertTrue(s.trailing_only_offset_is_reached)
-            self.assertAlmostEqual(s.stoploss, -0.03)
+            self.assertAlmostEqual(s.stoploss, -0.09 * kat)
             if kural_yukle(_k)["cikis"].get("kar_hedefi_yuzde") is None:
                 self.assertGreaterEqual(s.minimal_roi["0"], 100.0)     # sabit hedef fiilen kapalı
         self.assertFalse(self.emekli("S1").trailing_stop)
@@ -135,9 +138,13 @@ class StratejiSiniflari(unittest.TestCase):
         self.assertEqual(e.custom_exit("ETH/USDT:USDT", islem, datetime(2026, 1, 2, tzinfo=timezone.utc), 1.0, 0.0),
                          "sure_asimi")
 
-    def test_zararda_ekleme_kapali(self):
-        for _bot, sinif, _k, _p in botlar.BOTLAR:
-            self.assertFalse(getattr(self.modul, sinif).position_adjustment_enable)
+    def test_zararda_ekleme_yalniz_isteyen_botta_acik(self):
+        for _bot, sinif, kod, _p in botlar.BOTLAR:
+            s = getattr(self.modul, sinif)
+            istiyor = bool(kural_yukle(kod).get("zararda_ekleme"))
+            self.assertEqual(s.position_adjustment_enable, istiyor, sinif)
+            self.assertEqual(s.max_entry_position_adjustment, 1 if istiyor else 0, sinif)
+        self.assertFalse(self.emekli("SM").position_adjustment_enable)
 
     def test_spotta_aciga_satis_reddedilir(self):
         with self.assertRaises(ValueError):
@@ -239,10 +246,46 @@ class StratejiSiniflari(unittest.TestCase):
             s.custom_exit("X/USDT", islem, acilis + timedelta(minutes=240), 1.0, 0.0), "sure_asimi"
         )
 
-    def test_kaldirac_her_zaman_bir(self):
-        s = self.modul.SMKVadeli()
+    def test_kaldirac_yalniz_isteyen_botta(self):
         simdi = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        self.assertEqual(s.leverage("X/USDT:USDT", simdi, 1.0, 5.0, 20.0, None, "short"), 1.0)
+        self.assertEqual(self.modul.SMKVadeli().leverage("X/USDT:USDT", simdi, 1.0, 5.0, 20.0, None, "short"), 1.0)
+        self.assertEqual(self.modul.SMDKVadeli().leverage("X/USDT:USDT", simdi, 1.0, 5.0, 20.0, None, "short"), 1.0)
+        s = self.modul.SMK2Vadeli()
+        self.assertEqual(s.leverage("X/USDT:USDT", simdi, 1.0, 5.0, 20.0, None, "short"), 2.0)
+        # Borsanın izin verdiğinden büyük kaldıraç istenmez.
+        self.assertEqual(s.leverage("X/USDT:USDT", simdi, 1.0, 1.0, 1.0, None, "short"), 1.0)
+        self.assertEqual(self.modul.SMDK2Vadeli().leverage("X/USDT:USDT", simdi, 1.0, 5.0, 20.0, None, "short"), 2.0)
+
+    def test_zararda_ek_giris(self):
+        """Açığa satış: fiyat ilk girişten %8 yukarı çıkınca ilk tutarın 2 katı, işlem başına bir kez."""
+        s = self.modul.SMK2Vadeli()
+        simdi = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+        class Islem:
+            pair = "X/USDT:USDT"
+            open_rate = 100.0
+            stake_amount = 50.0
+            nr_of_successful_entries = 1
+            has_open_orders = False
+
+        islem = Islem()
+        self.assertIsNone(s.adjust_trade_position(islem, simdi, 107.9, -0.16, 5.0, 1000.0))
+        self.assertEqual(s.adjust_trade_position(islem, simdi, 108.0, -0.16, 5.0, 1000.0), 100.0)
+        self.assertEqual(s.adjust_trade_position(islem, simdi, 108.5, -0.17, 5.0, 60.0), 60.0)   # en çok max_stake
+        islem.has_open_orders = True
+        self.assertIsNone(s.adjust_trade_position(islem, simdi, 108.5, -0.17, 5.0, 1000.0))
+        islem.has_open_orders = False
+        islem.nr_of_successful_entries = 2          # bir kez eklendi, bir daha eklenmez
+        self.assertIsNone(s.adjust_trade_position(islem, simdi, 108.5, -0.17, 5.0, 1000.0))
+        islem.nr_of_successful_entries = 1
+        self.assertIsNone(s.adjust_trade_position(islem, simdi, 108.5, -0.17, 200.0, 1000.0))  # en küçük tutar
+        # Eklemesiz bot hiç eklemez.
+        self.assertIsNone(self.modul.SMKVadeli().adjust_trade_position(islem, simdi, 120.0, -0.2, 5.0, 1000.0))
+
+    def test_ek_giris_limit_beklemez(self):
+        s = self.modul.SMK2Vadeli()
+        simdi = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        self.assertEqual(s.custom_entry_price("X/USDT:USDT", object(), simdi, 108.0, None, "short"), 108.0)
 
     def test_stop_sonrasi_bekleme_korumasi(self):
         koruma = self.emekli("S1")().protections
@@ -302,7 +345,9 @@ class Yapilandirma(unittest.TestCase):
                 self.assertEqual(y["exchange"]["secret"], "")
                 self.assertEqual(y["stake_amount"], 50)
                 self.assertEqual(y["max_open_trades"], 20)
-                self.assertEqual(y["dry_run_wallet"], 1000)
+                # Zararda ek giriş yapan botta her işlem ilk tutarın 3 katı teminat isteyebilir.
+                ekleme = kural_yukle(kural_kodu).get("zararda_ekleme")
+                self.assertEqual(y["dry_run_wallet"], 1000 * (1 + ekleme["kat"]) if ekleme else 1000)
                 self.assertFalse(y["force_entry_enable"])
                 json.dumps(y)  # JSON'a çevrilebilir olmalı
 
@@ -623,7 +668,7 @@ class UyumDenemesiTesti(unittest.TestCase):
 
     SAHTE_DOCKER = r'''#!/bin/bash
 case "$*" in
-  *list-strategies*) echo "KarabasanTaban SMKVadeli $SAHTE_SON_SINIF";;
+  *list-strategies*) echo "KarabasanTaban SMKVadeli SMK2Vadeli SMDK2Vadeli $SAHTE_SON_SINIF";;
   *"--version"*) echo "freqtrade 2026.9";;
   *download-data*) echo "docker $*" >> "$SAHTE_KAYIT"
                    [ "$SAHTE_MOD" = "gunluk_inmez" ] && case "$*" in *"--timeframes 1d"*) echo "freqtrade - ERROR - veri yok"; exit 1;; esac

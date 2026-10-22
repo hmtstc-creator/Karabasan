@@ -181,7 +181,7 @@ emir olsa da her emre alıcı (taker) oranı uygulanır; bu kötümser bir varsa
 oranlar farklıysa Claude'a yaz; değeri depoda o günceller, sunucu kendisi alır.
 
 Bot ekranları (hazır motorun kendi İngilizce ekranı), Tailscale açıkken
-`http://karabasan:8081` ile `http://karabasan:8085` arasındadır. Kullanıcı adı
+`http://karabasan:8081` ile `http://karabasan:8084` arasındadır. Kullanıcı adı
 `karabasan`, parola sunucudaki `.env` dosyasındadır. Günlük kullanımda
 gerekmez; sonuç sayfası ve Telegram yeterlidir.
 
@@ -189,11 +189,23 @@ gerekmez; sonuç sayfası ve Telegram yeterlidir.
 
 | Bot | Strateji | Ne yapar | Piyasa | Ekran |
 | --- | --- | --- | --- | --- |
-| sm-vadeli | SM Smartmoney: geri çekilme sonrası yapı kırılımıyla alım | Günlük trend ve 1 saatlik yapı yukarıyken, 15 dakikalıkta geri çekilmeden sonra 5 dakikalık yapı yukarı kırılınca alır | Vadeli, 1 kat | 8081 |
-| smk-vadeli | SMK Smartmoney: tepki sonrası yapı kırılımıyla satış | SM'nin tersi | Vadeli, 1 kat | 8082 |
-| smd-vadeli | SMD Smartmoney + uyumsuzluk + emir defteri: alım | SM'nin bütün koşulları, son 1 saatte en az bir göstergede boğa uyumsuzluğu, girişte emir defterinde alıcılar belirgin kalabalık | Vadeli, 1 kat | 8083 |
-| smdk-vadeli | SMDK Smartmoney + uyumsuzluk + emir defteri: satış | SMD'nin tersi | Vadeli, 1 kat | 8084 |
-| sniper5-vadeli | SNIPER Sniper: dip sonrası CHoCH + FVG ile kısa vuruş | 5 dakikalıkta dip görülüp yapı yukarı dönünce, hızlı alım izi (FVG), momentum, RSI ve hacim onayıyla alır | Vadeli, 1 kat | 8085 |
+| smk-vadeli | SMK Smartmoney: tepki sonrası yapı kırılımıyla satış | Günlük trend ve 1 saatlik yapı aşağıyken, 15 dakikalıkta tepkiden sonra 5 dakikalık yapı aşağı kırılınca açığa satar | Vadeli, 1 kat | 8081 |
+| smdk-vadeli | SMDK Smartmoney + uyumsuzluk + emir defteri: satış | SMK'nın bütün koşulları, son 1 saatte en az bir göstergede ayı uyumsuzluğu, girişte emir defterinde satıcılar belirgin kalabalık | Vadeli, 1 kat | 8082 |
+| smk2-vadeli | SMK2: SMK, 2 kat ve zararda ekleme | SMK ile aynı giriş ve çıkış; fiyat %8 aleyhe gidince ilk tutarın 2 katı ek giriş | Vadeli, 2 kat | 8083 |
+| smdk2-vadeli | SMDK2: SMDK, 2 kat ve zararda ekleme | SMDK ile aynı giriş ve çıkış; fiyat %8 aleyhe gidince ilk tutarın 2 katı ek giriş | Vadeli, 2 kat | 8084 |
+
+**22 Ekim 2026: stop %9, iki yeni bot (Ahmet'in isteği).** Stop sonrası izleme SMK için
+"stop dar görünüyor; 3 kat geniş olsaydı 30 stopta +26,66 USDT daha iyi olurdu" dersini yazdı.
+Ahmet SMK ve SMDK'nın stopunu %3'ten %9'a genişletti ve bu iki botun 2 kat kaldıraçlı,
+zararda bir kez ek girişli hallerini istedi (SMK2, SMDK2). Ek giriş: fiyat ilk girişten %8
+aleyhe gidince (stopa %1 kala) ilk tutarın 2 katı kadar aynı yönde yeniden girilir; iz süren
+stop ve kâr ortalama girişe göre hesaplanır, %9 stop ilk girişe göre yerinde kalır. Ek girişten
+sonra stop olan bir işlem ilk teminatın (50 USDT) yaklaşık %22'sini, yani ~11 USDT kaybettirir;
+eklemesiz SMK'da bir stop ~4,5 USDT. Ek girişler her zaman yapılabilsin diye bu iki botun sanal
+bakiyesi 3.000 USDT'dir; sonuç sayfası yüzdeleri yine 1.000 USDT'ye göre gösterir. Bu, projenin
+"zararda ekleme kapalı, kaldıraç 1 kat" kuralının bu iki sanal bot için Ahmet'in açık kararıyla
+kaldırılmasıdır; gerçek parada geçerli değildir. Stop sonrası izleme ve çıkış taraması bu iki botu
+atlar (ders ve tarama ikizlerinden okunur); eski %3 stoplu işlemler yeni ayarın dersine katılmaz.
 
 **12 Ekim 2026'dan beri yalnız Smartmoney çalışır (Ahmet'in isteğiyle).** Aynı
 gün 12 aylık geçmiş testi (11.10.2025–11.10.2026) on iki botun hepsini ekside
@@ -207,7 +219,7 @@ Sabit kâr hedefi ve süre sınırı yok. Kâr (komisyon düşülmüş) %1,2'ye 
 stop, o ana kadar görülen en iyi fiyatın %0,3 gerisine çekilir ve yalnız kâr
 yönünde ilerler. Yani fiyat %1,2 kârdan geri dönerse işlem yaklaşık %0,9 kârla
 kapanır; yükselmeye devam ederse kâr koşar. Kâr %1,2'ye hiç ulaşmazsa işlem
-%3 stopa ya da iz süren stopa kadar açık kalır (günlerce sürebilir). Bağımsız
+stopa (22 Ekim 2026'dan beri %9, önce %3) ya da iz süren stopa kadar açık kalır (günlerce sürebilir). Bağımsız
 benzetim kötümserdir: bir mumun tepesi stopu ancak bir sonraki mumdan itibaren
 taşır. Vadelide 50 USDT'lik işlem tutarıyla BTC işlem görmez.
 

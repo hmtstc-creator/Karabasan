@@ -95,6 +95,8 @@ def tara(yukle: Yukleyici, gun: int = GUN, ayar: dict | None = None) -> tuple[st
     eksik = 0
     for bot, _sinif, kod, piyasa in BOTLAR:
         kural = kural_yukle(kod)
+        if kural.get("zararda_ekleme") or kural.get("kaldirac", 1) != 1:
+            continue   # ek giriş seviyesi stopa bağlı; çıkış varyasyonları ikizinde (SMK, SMDK) sınanır
         komisyon = float(ayar["komisyon_yuzde"][piyasa])
         hazir, eksikler = _girisler(kural, piyasa, yukle)
         eksik += len(eksikler)

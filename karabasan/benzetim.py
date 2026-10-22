@@ -11,6 +11,12 @@ Varsayımlar bilerek kötümserdir:
 - Hedef ya da stopla kapanan mumun sinyali, bir sonraki mumda yeni işlem açabilir.
 - Kuralın çıkış sinyali varsa (cikis > sinyal), sinyal mumunun ardından gelen mumun
   açılışında kapanır; o mumun kendi giriş sinyali bir sonraki mumda yeni işlem açabilir.
+- Zararda ekleme (zararda_ekleme): fiyat ekleme seviyesine değdiği mumda, seviyeden (mum
+  ötesinde açıldıysa açılıştan, kaymalı) bir kez eklenir; aynı mumda stopa da değdiyse
+  önce ekleme, sonra stop sayılır (kötümser). Stop fiyatı ilk girişe göre kalır.
+
+Sonuç yüzdeleri ilk girişin teminatı (kaldıraçsız botta işlem tutarı) üzerindendir:
+kaldıraç ve ek giriş sonucu o oranda büyütür, komisyon da toplam büyüklük üzerinden alınır.
 """
 
 from __future__ import annotations
@@ -19,7 +25,7 @@ import numpy as np
 import pandas as pd
 
 from . import gostergeler as g
-from .kural import limit_fiyati, sinyal_uret
+from .kural import ekleme_fiyati, kaldirac, limit_fiyati, sinyal_uret
 
 
 class _Yurutucu:
@@ -63,6 +69,21 @@ class _Yurutucu:
         self.limit_mum = (int(self.limit["sure_dakika"]) // g.dilim_dakika(kural["zaman_dilimi"])
                           if self.limit else 0)
         self.n = n
+        self.kaldirac = kaldirac(kural)
+        ekleme = kural.get("zararda_ekleme")
+        self.ekleme_kat = float(ekleme["kat"]) if ekleme else None
+
+    def _etkin_stop(self, stop_fiyat: float, en_iyi: float, giris: float) -> tuple[float, bool]:
+        """Etkin stop: sabit stop ya da (devredeyse) iz süren stop, hangisi daha yakınsa."""
+        if not self.iz:
+            return stop_fiyat, False
+        alim = self.alim
+        kar = ((en_iyi / giris - 1.0) if alim else (1.0 - en_iyi / giris)) * 100.0 - 2.0 * self.komisyon
+        if kar >= self.iz_tetik:
+            seviye = en_iyi * (1 - self.iz_mesafe) if alim else en_iyi * (1 + self.iz_mesafe)
+            if (seviye > stop_fiyat) if alim else (seviye < stop_fiyat):
+                return seviye, True
+        return stop_fiyat, False
 
     def _kaymali(self, fiyat: float, k: int, giris: bool) -> float:
         """Piyasa emrinin aleyhe kaymış fiyatı (alımda girişte yukarı, çıkışta aşağı)."""
@@ -103,6 +124,13 @@ class _Yurutucu:
         if hedef is not None:
             hedef_fiyat = giris * (1 + hedef) if alim else giris * (1 - hedef)
         en_iyi = giris          # işlem açıkken görülen en iyi fiyat (alımda en yüksek)
+        ilk_giris = giris
+        # Girişler: (fiyat, ilk teminata göre büyüklük). Ekleme olursa ikinci giriş eklenir;
+        # 'giris' o zaman ortalama giriş fiyatıdır (hedef ve iz süren stop ondan hesaplanır).
+        girisler = [(giris, 1.0)]
+        # Ekleme seviyesi: ilk girişten (stop - stopa_kala) yüzde aleyhe.
+        ekleme_fiyat = ekleme_fiyati(self.kural, giris)
+        ekleme_zamani = None
 
         neden = None
         cikis_fiyat = None
@@ -116,13 +144,20 @@ class _Yurutucu:
             # Etkin stop: sabit stop ya da (devredeyse) iz süren stop, hangisi daha yakınsa.
             # Önceki mumlardaki en iyi fiyattan hesaplanır; bu mumun tepesi stopu ancak
             # bir sonraki mumdan itibaren taşır (mum içinde sıra bilinmez: kötümser).
-            etkin, iz_devrede = stop_fiyat, False
-            if self.iz:
-                kar = ((en_iyi / giris - 1.0) if alim else (1.0 - en_iyi / giris)) * 100.0 - 2.0 * self.komisyon
-                if kar >= self.iz_tetik:
-                    seviye = en_iyi * (1 - self.iz_mesafe) if alim else en_iyi * (1 + self.iz_mesafe)
-                    if (seviye > etkin) if alim else (seviye < etkin):
-                        etkin, iz_devrede = seviye, True
+            etkin, iz_devrede = self._etkin_stop(stop_fiyat, en_iyi, giris)
+            # Zararda ekleme: iz süren stop devredeyse fiyat ekleme seviyesine ondan önce
+            # değmez (iz seviyesi kâr tarafındadır); değilse seviyeye değen mumda eklenir.
+            if ekleme_fiyat is not None and ekleme_zamani is None and not iz_devrede and (
+                    dusuk[j] <= ekleme_fiyat if alim else yuksek[j] >= ekleme_fiyat):
+                ek = min(acilis[j], ekleme_fiyat) if alim else max(acilis[j], ekleme_fiyat)
+                ek = self._kaymali(ek, j, giris=True)
+                girisler.append((ek, self.ekleme_kat))
+                toplam = sum(b for _f, b in girisler)
+                giris = toplam / sum(b / f for f, b in girisler)     # ortalama giriş
+                ekleme_zamani = tarih[j]
+                en_iyi = ek
+                if hedef is not None:
+                    hedef_fiyat = giris * (1 + hedef) if alim else giris * (1 - hedef)
             if alim:
                 stop_oldu = dusuk[j] <= etkin
                 hedef_oldu = hedef_fiyat is not None and yuksek[j] >= hedef_fiyat
@@ -142,13 +177,15 @@ class _Yurutucu:
             # Limit emrin dolduğu mumda tepe, fiyat limite inmeden önce görülmüş olabilir:
             # kötümser olmak için o mumda hedef sayılmaz, en iyi fiyat da güncellenmez.
             ilk_limit_mumu = bool(self.limit) and j == giris_i
-            if ilk_limit_mumu:
+            # Ek girişin yapıldığı mumda da öyle: o mumun lehe ucu ekten önce görülmüş olabilir.
+            ekleme_mumu = ekleme_zamani is not None and ekleme_zamani == tarih[j]
+            if ilk_limit_mumu or ekleme_mumu:
                 hedef_oldu = False
             if hedef_oldu:
                 neden = "kar_hedefi"
                 cikis_fiyat = hedef_fiyat
                 break
-            if not ilk_limit_mumu:
+            if not (ilk_limit_mumu or ekleme_mumu):
                 en_iyi = max(en_iyi, yuksek[j]) if alim else min(en_iyi, dusuk[j])
             if self.sure is not None and tarih[j] + self.mum - giris_zamani >= self.sure:
                 neden = "sure_asimi"
@@ -160,10 +197,12 @@ class _Yurutucu:
             # Veri bitti, işlem açık kaldı: sonuca katılmaz.
             return None
 
+        # Sonuç ilk teminat üzerinden: her giriş kendi büyüklüğüyle, kaldıraç çarpanıyla.
+        buyukluk = sum(b for _f, b in girisler) * self.kaldirac
         if alim:
-            brut = (cikis_fiyat / giris - 1.0) * 100.0
+            brut = sum(b * (cikis_fiyat / f - 1.0) for f, b in girisler) * self.kaldirac * 100.0
         else:
-            brut = (giris - cikis_fiyat) / giris * 100.0
+            brut = sum(b * (f - cikis_fiyat) / f for f, b in girisler) * self.kaldirac * 100.0
         cikis_zamani = tarih[j] if neden == "cikis_sinyali" else tarih[j] + self.mum
         return {
             "kod": self.kural["kod"],
@@ -174,9 +213,14 @@ class _Yurutucu:
             "cikis_fiyati": float(cikis_fiyat),
             "neden": neden,
             "brut_yuzde": float(brut),
-            "net_yuzde": float(brut - 2.0 * self.komisyon),
+            "net_yuzde": float(brut - 2.0 * self.komisyon * buyukluk),
             "sure_dakika": float((cikis_zamani - giris_zamani) / pd.Timedelta(minutes=1)),
             "stop_yuzde": float(stop * 100.0),
+            "ilk_giris_fiyati": float(ilk_giris),
+            "ekleme_zamani": ekleme_zamani,
+            # İlk teminatın kaç katı büyüklükte pozisyon (kaldıraç x girişler); kaldıraçsız,
+            # eklemesiz işlemde 1.
+            "buyukluk": float(buyukluk),
             # Aynı paritede aynı anda tek işlem. Hedef ve stop mumun içinde gerçekleşir;
             # o mumun kapanışındaki sinyal bir sonraki mumda yeni işlem açabilir (hazır motor
             # da böyle yapar: önce girişe, sonra çıkışa bakar). Süre aşımı mumun kapanışında

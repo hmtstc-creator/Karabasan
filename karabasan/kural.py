@@ -380,6 +380,8 @@ def kural_dogrula(kural: dict) -> None:
     if limit is not None:
         _giris_limiti_dogrula(limit, taban_dk)
 
+    _kaldirac_dogrula(kural)
+
     if kural.get("portfoy") is not None:
         _portfoy_dogrula(kural["portfoy"])
     bilgi = kural.get("bilgi", {})
@@ -1045,7 +1047,9 @@ def cikis_metni(cikis: dict) -> str:
 def ozet(kural: dict) -> str:
     """Stratejinin tek satırlık Türkçe özeti (panel ve kayıtlar için)."""
     yon = "alım" if kural["yon"] == "alim" else "açığa satış"
-    return f"{kural['kod']} {kural['ad']} ({yon}, {kural['zaman_dilimi']}): {cikis_metni(kural['cikis'])}"
+    ek = ekleme_metni(kural)
+    return (f"{kural['kod']} {kural['ad']} ({yon}, {kural['zaman_dilimi']}): {cikis_metni(kural['cikis'])}"
+            + (f"; {ek}" if ek else ""))
 
 
 def _iz_suren_stop_dogrula(iz) -> None:
@@ -1063,6 +1067,68 @@ def _iz_suren_stop_dogrula(iz) -> None:
     if iz["mesafe_yuzde"] >= iz["tetik_yuzde"]:
         raise KuralHatasi("'iz_suren_stop': 'mesafe_yuzde', 'tetik_yuzde'den küçük olmalı "
                           "(yoksa stop devreye girdiği anda zarara düşer).")
+
+
+def kaldirac(kural: dict) -> float:
+    """Kuralın kaldıracı; yazılmamışsa 1."""
+    return float(kural.get("kaldirac", 1))
+
+
+def _kaldirac_dogrula(kural: dict) -> None:
+    """'kaldirac' (1-2) ve 'zararda_ekleme' (22 Ekim 2026, Ahmet'in isteği; yalnız sanal botlar).
+
+    'zararda_ekleme': {"stopa_kala_yuzde": 1.0, "kat": 2.0}: fiyat girişten stopa yüzde
+    'stopa_kala_yuzde' kalana kadar aleyhe gidince, ilk tutarın 'kat' katı kadar bir kez
+    daha aynı yönde girilir. Stop fiyatı ilk girişe göre kalır; hedef ve iz süren stop
+    ortalama girişe göre hesaplanır.
+    """
+    if "kaldirac" in kural:
+        deger = kural["kaldirac"]
+        if isinstance(deger, bool) or not isinstance(deger, (int, float)) or not 1 <= deger <= 2:
+            raise KuralHatasi("'kaldirac' 1 ile 2 arasında sayı olmalı.")
+    ekleme = kural.get("zararda_ekleme")
+    if ekleme is None:
+        return
+    if not isinstance(ekleme, dict):
+        raise KuralHatasi("'zararda_ekleme' bir sözlük olmalı.")
+    kat = ekleme.get("kat")
+    if isinstance(kat, bool) or not isinstance(kat, (int, float)) or not 0.1 <= kat <= 3:
+        raise KuralHatasi("'zararda_ekleme' içinde 'kat' 0,1 ile 3 arasında sayı olmalı.")
+    kala = ekleme.get("stopa_kala_yuzde")
+    stop = float(kural["cikis"]["zarar_durdur_yuzde"])
+    if isinstance(kala, bool) or not isinstance(kala, (int, float)) or not 0.1 <= kala < stop:
+        raise KuralHatasi("'zararda_ekleme' içinde 'stopa_kala_yuzde' 0,1 ile stop arasında olmalı.")
+    if kural["cikis"].get("stop_atr"):
+        raise KuralHatasi("'zararda_ekleme' işlem başına (ATR) stopla birlikte yazılamaz.")
+
+
+def ekleme_fiyati(kural: dict, ilk_giris: float) -> float | None:
+    """Zararda ek girişin yapılacağı fiyat: ilk girişten (stop - stopa_kala) yüzde aleyhe."""
+    ekleme = kural.get("zararda_ekleme")
+    if not ekleme:
+        return None
+    uzaklik = (float(kural["cikis"]["zarar_durdur_yuzde"]) - float(ekleme["stopa_kala_yuzde"])) / 100.0
+    return ilk_giris * (1 - uzaklik) if kural["yon"] == "alim" else ilk_giris * (1 + uzaklik)
+
+
+def ekleme_gerekli(kural: dict, ilk_giris: float, fiyat: float) -> bool:
+    """Fiyat ek giriş seviyesine geldi mi (alımda altına indi, açığa satışta üstüne çıktı)?"""
+    seviye = ekleme_fiyati(kural, ilk_giris)
+    if seviye is None:
+        return False
+    return fiyat <= seviye if kural["yon"] == "alim" else fiyat >= seviye
+
+
+def ekleme_metni(kural: dict) -> str:
+    """Kaldıraç ve zararda eklemenin kısa Türkçe anlatımı; ikisi de yoksa boş."""
+    parcalar = []
+    if kaldirac(kural) != 1:
+        parcalar.append(f"kaldıraç {kaldirac(kural):g} kat")
+    ekleme = kural.get("zararda_ekleme")
+    if ekleme:
+        uzaklik = float(kural["cikis"]["zarar_durdur_yuzde"]) - float(ekleme["stopa_kala_yuzde"])
+        parcalar.append(f"fiyat %{uzaklik:g} aleyhe gidince ilk tutarın {ekleme['kat']:g} katı ek giriş")
+    return ", ".join(parcalar).replace(".", ",")
 
 
 def basabas_orani(kural: dict, gidis_donus_maliyet_yuzde: float) -> float | None:

@@ -158,6 +158,12 @@ def bot_yapilandirmasi(bot: str, kural_kodu: str, piyasa: str, ayar: dict) -> di
     }
     if piyasa == "vadeli":
         yapi["margin_mode"] = "isolated"
+    # Zararda ek giriş isteyen bot (22 Ekim 2026): her açık işlem ilk tutarın 'kat' katı daha
+    # teminat isteyebilir. Pozisyon sınırı dolu olsa bile ek girişler parasızlıktan kalmasın diye
+    # sanal bakiye o oranda büyür. Sonuç sayfası yüzdeleri yine ayarlardaki bakiyeye göre hesaplar.
+    ekleme = kural.get("zararda_ekleme")
+    if ekleme:
+        yapi["dry_run_wallet"] = float(ayar["sanal_bakiye"]) * (1.0 + float(ekleme["kat"]))
     return yapi
 
 

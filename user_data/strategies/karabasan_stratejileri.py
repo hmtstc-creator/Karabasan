@@ -3,7 +3,7 @@
 Burada işlem mantığı YOKTUR. Mantık karabasan/ paketindedir ve orada
 test edilir; bu dosya yalnız o mantığı motorun beklediği biçime çevirir.
 
-Her sanal bot için bir sınıf vardır (SMKVadeli, SMDKVadeli).
+Her sanal bot için bir sınıf vardır (SMKVadeli, SMDKVadeli, SMK2Vadeli, SMDK2Vadeli).
 Sınıfın kâr hedefi, stopu, zaman dilimi ve yönü kural dosyasından gelir:
 karabasan/stratejiler/<kod>.json
 
@@ -32,10 +32,12 @@ from karabasan.botlar import ayarlari_yukle, net_hedef_orani  # noqa: E402
 from karabasan.kural import (  # noqa: E402
     borsa_dilimleri,
     cikis_sinyali,
+    ekleme_gerekli,
     gereken_mum,
     giris_limit_yuzde,
     giris_sinyali,
     gosterge_ekle,
+    kaldirac,
     kural_yukle,
     limit_fiyati,
 )
@@ -65,8 +67,11 @@ class KarabasanTaban(IStrategy):
     use_exit_signal = True
     exit_profit_only = False
     ignore_roi_if_entry_signal = False
-    # Zararda ekleme (maliyet düşürme) kapalıdır.
+    # Zararda ekleme (maliyet düşürme) kapalıdır; yalnız kuralı 'zararda_ekleme' isteyen
+    # sanal botta açılır (22 Ekim 2026, Ahmet'in isteği), o zaman da işlem başına bir kez.
     position_adjustment_enable = False
+    max_entry_position_adjustment = 0
+    kaldirac_kat = 1.0
     use_custom_stoploss = False
     trailing_stop = False
 
@@ -78,25 +83,31 @@ class KarabasanTaban(IStrategy):
         ayar = ayarlari_yukle()
         komisyon = float(ayar["komisyon_yuzde"][cls.piyasa])
         cikis = kural["cikis"]
+        # Motor oranları teminata göre ölçer: kaldıraçlı işlemde stop, hedef ve iz süren stop
+        # oranları kaldıraçla çarpılır ki fiyattaki uzaklık kural dosyasındaki gibi kalsın.
+        kat = kaldirac(kural)
+        cls.kaldirac_kat = kat
         cls.kural = kural
         cls.timeframe = kural["zaman_dilimi"]
         cls.can_short = kural["yon"] == "aciga_satis"
         if cikis.get("kar_hedefi_yuzde") is not None:
             cls.minimal_roi = {
-                "0": net_hedef_orani(float(cikis["kar_hedefi_yuzde"]), komisyon, cls.can_short)
+                "0": net_hedef_orani(float(cikis["kar_hedefi_yuzde"]), komisyon, cls.can_short) * kat
             }
         else:
             # Sabit kâr hedefi yok: motorun hedef çıkışı fiilen kapalı (%10.000).
             cls.minimal_roi = {"0": 100.0}
-        cls.stoploss = -float(cikis["zarar_durdur_yuzde"]) / 100.0
+        cls.stoploss = -float(cikis["zarar_durdur_yuzde"]) / 100.0 * kat
         iz = cikis.get("iz_suren_stop")
         # İz süren stop: kâr (komisyon sonrası) tetiğe ulaşınca devreye girer, stop en iyi
         # fiyatın mesafe kadar gerisine çekilir. Motorun kendi ayarlarıyla birebir.
         cls.trailing_stop = bool(iz)
         if iz:
-            cls.trailing_stop_positive = float(iz["mesafe_yuzde"]) / 100.0
-            cls.trailing_stop_positive_offset = float(iz["tetik_yuzde"]) / 100.0
+            cls.trailing_stop_positive = float(iz["mesafe_yuzde"]) / 100.0 * kat
+            cls.trailing_stop_positive_offset = float(iz["tetik_yuzde"]) / 100.0 * kat
             cls.trailing_only_offset_is_reached = True
+        cls.position_adjustment_enable = bool(kural.get("zararda_ekleme"))
+        cls.max_entry_position_adjustment = 1 if cls.position_adjustment_enable else 0
         cls.startup_candle_count = gereken_mum(kural)
         if cls.can_short and cls.piyasa != "vadeli":
             raise ValueError(f"{cls.__name__}: açığa satış yalnız vadeli piyasada yapılabilir.")
@@ -226,7 +237,8 @@ class KarabasanTaban(IStrategy):
         O satır bulunamazsa en küçük uzaklık kullanılır; emir yine de piyasadan iyi fiyattır.
         """
         limit = self.kural.get("giris_limiti")
-        if not limit:
+        if not limit or trade is not None:
+            # Zararda ek giriş (trade açık) önerilen fiyattan, beklemeden.
             return proposed_rate
         uzaklik = float(limit["en_az_yuzde"])
         saglayici = getattr(self, "dp", None)
@@ -257,8 +269,30 @@ class KarabasanTaban(IStrategy):
     def leverage(self, pair: str, current_time: datetime, current_rate: float,
                  proposed_leverage: float, max_leverage: float, entry_tag, side: str,
                  **kwargs) -> float:
-        # Sınavda kaldıraç her zaman 1 kattır.
-        return 1.0
+        # Kaldıraç 1 kattır; kuralı 'kaldirac' isteyen sanal bot (22 Ekim 2026) dışında.
+        return min(self.kaldirac_kat, max_leverage)
+
+    def adjust_trade_position(self, trade: Trade, current_time: datetime, current_rate: float,
+                              current_profit: float, min_stake, max_stake: float, **kwargs):
+        """Zararda ek giriş: fiyat ilk girişten stopa 'stopa_kala_yuzde' kalana kadar aleyhe
+        gidince ilk tutarın 'kat' katı kadar, işlem başına bir kez. Karar karabasan.kural'dadır
+        (ekleme_gerekli); burada yalnız motora çevrilir. Stop fiyatı ilk girişe göre kalır
+        (motor ek girişte stopu yeniden kurmaz); hedef ve iz süren stop ortalama girişten.
+        """
+        ekleme = self.kural.get("zararda_ekleme")
+        if not ekleme or trade.nr_of_successful_entries != 1 or getattr(trade, "has_open_orders", False):
+            return None
+        if not ekleme_gerekli(self.kural, float(trade.open_rate), float(current_rate)):
+            return None
+        tutar = float(trade.stake_amount) * float(ekleme["kat"])
+        tutar = min(tutar, float(max_stake))
+        if min_stake is not None and tutar < float(min_stake):
+            logger.warning("%s %s: zararda ek giriş tutarı (%.2f) borsanın en küçük tutarından az; eklenmedi.",
+                           self.kural.get("kod"), trade.pair, tutar)
+            return None
+        logger.info("%s %s: fiyat ekleme seviyesine geldi, %.2f USDT ek giriş.", self.kural.get("kod"),
+                    trade.pair, tutar)
+        return tutar
 
 
 class SMKVadeli(KarabasanTaban):
@@ -268,3 +302,11 @@ class SMKVadeli(KarabasanTaban):
 class SMDKVadeli(KarabasanTaban):
     kural_kodu, piyasa = "SMDK", "vadeli"
 
+
+# 22 Ekim 2026 (Ahmet'in isteği): SMK / SMDK'nın aynısı, 2 kat kaldıraç ve zararda bir kez ek giriş.
+class SMK2Vadeli(KarabasanTaban):
+    kural_kodu, piyasa = "SMK2", "vadeli"
+
+
+class SMDK2Vadeli(KarabasanTaban):
+    kural_kodu, piyasa = "SMDK2", "vadeli"

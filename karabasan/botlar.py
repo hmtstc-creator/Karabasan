@@ -27,6 +27,11 @@ BOTLAR = [
     ("smk-vadeli", "SMKVadeli", "SMK", "vadeli"),
     # 12 Ekim 2026 (Ahmet'in isteği): Smartmoney + uyumsuzluk + girişte emir defteri onayı.
     ("smdk-vadeli", "SMDKVadeli", "SMDK", "vadeli"),
+    # 22 Ekim 2026 (Ahmet'in isteği): SMK / SMDK'nın stopu %3'ten %9'a genişledi (stop sonrası
+    # dersi: "stop 3 kat geniş olsaydı daha iyi"). Aynı iki botun 2 kat kaldıraçlı ve zararda bir kez
+    # ek girişli halleri (fiyat %8 aleyhe gidince ilk tutarın 2 katı). Kapılar 8083, 8084.
+    ("smk2-vadeli", "SMK2Vadeli", "SMK2", "vadeli"),
+    ("smdk2-vadeli", "SMDK2Vadeli", "SMDK2", "vadeli"),
 ]
 
 ILK_PORT = 8081

@@ -412,11 +412,28 @@ def _zaman_metni(zaman: datetime) -> str:
     return zaman.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+# Stopu sonradan değişen botların eski stopları. Eski stopla kapanmış işlemler yeni ayarın
+# dersine katılmaz ve yeni stopla yeniden oynatılmaz (22 Ekim 2026: SMK / SMDK %3 -> %9, stop
+# sonrası dersinin ardından). İşlemin stopu kayıttaki sonucundan okunur: stopla kapanan
+# işlemin neti yaklaşık -(stop + komisyon).
+ESKI_STOPLAR = {"smk-vadeli": (3.0,), "smdk-vadeli": (3.0,)}
+STOP_TOLERANSI = 1.0
+
+
+def eski_stoplu(bot: str, net_yuzde) -> bool:
+    """Stopla kapanmış bu işlem botun eski bir stop ayarıyla mı açılmıştı?"""
+    if net_yuzde is None:
+        return False
+    return any(abs(abs(float(net_yuzde)) - eski) <= STOP_TOLERANSI for eski in ESKI_STOPLAR.get(bot, ()))
+
+
 def donem_kayitlari(veri: dict, bot: str, baslangic: datetime | None, bitis: datetime | None) -> list[dict]:
-    """Bir botun, verilen dönemde açılıp kapanmış izlenmiş stopları."""
+    """Bir botun, verilen dönemde açılıp kapanmış izlenmiş stopları (eski stop ayarıyla olanlar hariç)."""
     secilen = []
     for k in veri["islemler"].values():
         if k.get("bot") != bot:
+            continue
+        if eski_stoplu(bot, k.get("gercek_net_yuzde")):
             continue
         try:
             giris, cikis = _zaman(k["giris_zamani"]), _zaman(k["cikis_zamani"])
@@ -509,6 +526,10 @@ def bir_tur(veri_klasoru: Path, simdi: datetime | None = None, getir=mum_getir, 
             # Çıkış sinyali yalnız göstergelerle hesaplanır, işlem başına stop da kayıtta yok;
             # ham mumlardan yeniden oynatılamaz. (Bugünkü canlı botların hiçbiri böyle değil.)
             continue
+        if kural.get("zararda_ekleme") or kural.get("kaldirac", 1) != 1:
+            # Ek girişli / kaldıraçlı bot (SMK2, SMDK2): stopu geniş halin sonucu tek girişli,
+            # kaldıraçsız işleme göre kurulu; bu botların stop dersi ikizlerinden (SMK, SMDK) okunur.
+            continue
         hedef = cikis.get("kar_hedefi_yuzde")
         hedef = None if hedef is None else float(hedef)
         stop = float(cikis["zarar_durdur_yuzde"])
@@ -520,6 +541,8 @@ def bir_tur(veri_klasoru: Path, simdi: datetime | None = None, getir=mum_getir, 
         for i in kayit["kapali"]:
             if i["neden"] != "stop" or i.get("kimlik") is None:
                 continue
+            if eski_stoplu(bot, i.get("net_yuzde")):
+                continue    # eski stop ayarıyla açılmış işlem; şimdiki stopla yeniden oynatılamaz
             a = anahtar(bot, i["kimlik"])
             if a in veri["islemler"] or veri["basarisiz"].get(a, 0) >= DENEME_SINIRI:
                 continue
