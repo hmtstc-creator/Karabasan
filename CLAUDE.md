@@ -201,7 +201,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 617 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 627 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -997,6 +997,17 @@ trader, görsel tasarım) 5'er geri bildirim verdi; 20 madde birleştirildi. Uyg
   (2) Bot başına eğri, gezinti simgeleri, diğer ekranlarda açıklamaları `<details>` içine alma, `EKRANLAR` yeniden yapısı
   (yalnız "her ekran bir kez" testi eklendi), Caddy için fail2ban, `/defter` önbelleği.
 - 617 test geçiyor. Yalnız buradaki Chromium'da (390 px) görüldü; Ahmet'in iPhone Safari'sinde denenmedi.
+
+**Yeni sayfalar, başlık ve menü (6 Kasım 2026, 2. tur; Ahmet'in isteği).** Ekran sırası: ana, botlar, işlemler, dersler, rapor,
+grafikler, zaman, analiz, sınav, kriterler.
+- **Grafikler** (`_grafikler_ekrani`): botların birikimli seyri (zaman eksenli çok çizgi, en çok 8 bot, renk bota bağlı
+  `SERI_RENKLERI`), tepeden düşüş (alan), işlem sonuçlarının dağılımı (sıfıra hizalı histogram), süre ve sonuç (saçılım).
+- **Zaman** (`_zaman_ekrani`): açılış saatine (Bükreş) ve haftanın gününe göre net sonuç çubukları; "az işlemli saat şansa açık" uyarısı.
+- Veri `sonuc.grafik_verisi` (`zamanli_egri`, `dusus_egrisi`, `zaman_dagilimi`, `sonuc_dagilimi`, `sure_sonuc_noktalari`), `ozet["grafik"]`.
+- Grafikler satır içi SVG (`_Cerceve`, `_guzel_adimlar`); ipuçları `<title>` ile, betiksiz de çalışır.
+- Başlık: yapışkan çubuk (marka, çalışan bot / toplam etiketi, "Menü" açılır menüsü: `<details class="menu">`, bütün ekranlar
+  ve kısa açıklamaları `MENU_ACIKLAMA`). Alt çubuk telefonda yalnız 5 sekme (`ALT_CUBUK`); masaüstünde alt çubuk yok, menü var.
+- 627 test geçiyor. Yalnız buradaki Chromium'da (390 ve 1280 px) görüldü.
 
 Sıradaki işler, öncelik sırasıyla:
 

@@ -73,7 +73,7 @@ class RaporEkrani(unittest.TestCase):
                                self.ozet["toplam"]["net_tutar"], places=6)
 
     def test_ekran_ve_gezinti(self):
-        self.assertIn('<a href="#rapor">Rapor</a>', self.html)
+        self.assertIn('<a href="#rapor"><span class="menu-ad">Rapor</span>', self.html)
         self.assertIn('<section id="rapor" class="ekran">', self.html)
 
     def test_bot_secimi(self):

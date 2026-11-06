@@ -43,12 +43,23 @@ EKRANLAR = [
     ("islemler", "İşlemler"),
     ("dersler", "Dersler"),
     ("rapor", "Rapor"),
+    ("grafikler", "Grafikler"),
+    ("zaman", "Zaman"),
     ("analiz", "Analiz"),
     ("sinav", "Sınav"),
     ("kriterler", "Kriterler"),
 ]
 # Telefondaki alt gezintide görünen kısa adlar (8 sekme 390 px'e sığsın diye).
-GEZINTI_ADLARI = {"ana": "Ana", "islemler": "İşlem", "dersler": "Ders", "kriterler": "Kriter"}
+GEZINTI_ADLARI = {"ana": "Ana", "islemler": "İşlem", "dersler": "Ders", "kriterler": "Kriter", "grafikler": "Grafik"}
+# Telefonda alttaki çubukta duran ekranlar; hepsi üstteki menüde.
+ALT_CUBUK = ["ana", "botlar", "islemler", "grafikler", "analiz"]
+# Menüde ekran adının altındaki kısa açıklama.
+MENU_ACIKLAMA = {
+    "ana": "Özet ve gösterge halkası", "botlar": "Her botun kartı", "islemler": "Açık ve kapanan işlemler",
+    "dersler": "Stop sonrası izleme", "rapor": "Gün gün kâr / zarar", "grafikler": "Seyir, düşüş, dağılım",
+    "zaman": "Saat ve gün bazında", "analiz": "Karneler, coinler, risk", "sinav": "30 günlük sınav",
+    "kriterler": "Ahmet Özel kriterleri",
+}
 # Rapor ekranında seçilebilecek en çok bot sayısı (biçim kuralları bu kadarı için üretilir).
 RAPOR_EN_FAZLA = 16
 RAPOR_GUN = 30
@@ -773,6 +784,249 @@ kapandığı güne sayılır; açık pozisyonlar kapanınca eklenir. Gün sını
 # --------------------------------------------------------------------------
 # Analiz ekranı: yalnız okuma. Bot karşılaştırması, kazanma oranı, çıkış nedenleri, süre.
 # --------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------
+# Grafik yardımcıları (satır içi SVG; dış kütüphane yok, betiksiz de çizilir).
+# İpuçları <title> ile: dokununca / üstüne gelince değer görünür.
+# --------------------------------------------------------------------------
+
+SERI_RENKLERI = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"]
+SERI_EN_FAZLA = len(SERI_RENKLERI)
+
+
+def _guzel_adimlar(alt: float, ust: float, adet: int = 4) -> list[float]:
+    """Eksen için okunur değerler (1, 2, 2,5, 5 × 10^n)."""
+    if ust - alt < 1e-12:
+        ust = alt + 1.0
+    ham = (ust - alt) / max(adet, 1)
+    us = 10 ** math.floor(math.log10(ham))
+    adim = next(k * us for k in (1, 2, 2.5, 5, 10) if k * us >= ham)
+    bas = math.floor(alt / adim) * adim
+    cikti, v = [], bas
+    while v <= ust + adim * 0.001:
+        cikti.append(round(v, 10))
+        v += adim
+    if cikti[-1] < ust - 1e-12:
+        cikti.append(round(cikti[-1] + adim, 10))
+    return cikti
+
+
+def _tarih_kisa(zaman_sn: float) -> str:
+    yerel, _ = yerel_zaman(datetime.fromtimestamp(zaman_sn, tz=timezone.utc))
+    return yerel.strftime("%d.%m")
+
+
+class _Cerceve:
+    """Grafik alanı: kenar boşlukları ve ölçekler."""
+
+    def __init__(self, x0, x1, y0, y1, genislik=380.0, yukseklik=220.0, sol=40.0, sag=10.0, ust=12.0, alt=24.0):
+        self.g, self.h = genislik, yukseklik
+        self.sol, self.sag, self.ust, self.alt = sol, sag, ust, alt
+        self.x0, self.x1 = x0, (x1 if x1 > x0 else x0 + 1)
+        self.y0, self.y1 = y0, (y1 if y1 > y0 else y0 + 1)
+
+    def x(self, v):
+        return self.sol + (v - self.x0) / (self.x1 - self.x0) * (self.g - self.sol - self.sag)
+
+    def y(self, v):
+        return self.ust + (self.y1 - v) / (self.y1 - self.y0) * (self.h - self.ust - self.alt)
+
+    def y_ekseni(self, adimlar, bicim=lambda v: sayi(v, 2)) -> str:
+        parca = []
+        for v in adimlar:
+            yy = self.y(v)
+            sinif = "g-sifir" if abs(v) < 1e-12 else "g-izgara"
+            parca.append(f'<line class="{sinif}" x1="{self.sol:g}" x2="{self.g - self.sag:g}" y1="{yy:.1f}" y2="{yy:.1f}"/>'
+                         f'<text class="g-eksen" x="{self.sol - 6:g}" y="{yy:.1f}" text-anchor="end" dominant-baseline="middle">{bicim(v)}</text>')
+        return "".join(parca)
+
+    def x_etiketleri(self, ciftler) -> str:
+        return "".join(f'<text class="g-eksen" x="{self.x(v):.1f}" y="{self.h - 8:g}" text-anchor="middle">{escape(m)}</text>'
+                       for v, m in ciftler)
+
+    def svg(self, icerik: str, etiket: str) -> str:
+        return (f'<svg class="g-svg" viewBox="0 0 {self.g:g} {self.h:g}" role="img" aria-label="{escape(etiket)}">'
+                f"{icerik}</svg>")
+
+
+def _zaman_etiketleri(c: _Cerceve, adet: int = 4) -> str:
+    if c.x1 - c.x0 < 1:
+        return ""
+    return c.x_etiketleri([(c.x0 + (c.x1 - c.x0) * k / (adet - 1), _tarih_kisa(c.x0 + (c.x1 - c.x0) * k / (adet - 1)))
+                           for k in range(adet)])
+
+
+def _cizgi_grafigi(seriler: list) -> str:
+    """seriler: (ad, renk, [(zaman, değer)]). Bot başına birikimli sonuç; aynı eksen, aynı birim."""
+    tum = [p for _, _, nok in seriler for p in nok]
+    if len(tum) < 2:
+        return '<p class="bos">Grafik için henüz yeterli kapanmış işlem yok.</p>'
+    xs, ys = [p[0] for p in tum], [p[1] for p in tum] + [0.0]
+    adimlar = _guzel_adimlar(min(ys), max(ys))
+    c = _Cerceve(min(xs), max(xs), adimlar[0], adimlar[-1], sag=44.0 if len(seriler) <= 4 else 10.0)
+    parca = [c.y_ekseni(adimlar), _zaman_etiketleri(c)]
+    for ad, renk, nok in seriler:
+        if len(nok) < 2:
+            continue
+        cizgi = " ".join(f"{c.x(t):.1f},{c.y(v):.1f}" for t, v in nok)
+        son_t, son_v = nok[-1]
+        parca.append(f'<polyline class="g-cizgi" style="stroke:{renk}" points="{cizgi}"><title>{escape(ad)}: '
+                     f'{isaretli(son_v)} USDT</title></polyline>'
+                     f'<circle class="g-uc" style="fill:{renk}" cx="{c.x(son_t):.1f}" cy="{c.y(son_v):.1f}" r="4">'
+                     f'<title>{escape(ad)}: {isaretli(son_v)} USDT</title></circle>')
+        if len(seriler) <= 4:
+            parca.append(f'<text class="g-etiket" x="{c.x(son_t) + 8:.1f}" y="{c.y(son_v):.1f}" dominant-baseline="middle">'
+                         f'{escape(ad)}</text>')
+    gosterge = "".join(f'<span class="g-gosterge-oge"><i style="background:{renk}"></i>{escape(ad)}</span>'
+                       for ad, renk, _ in seriler)
+    return (c.svg("".join(parca), "Botların birikimli sanal sonucu")
+            + f'<div class="g-gosterge">{gosterge}</div>')
+
+
+def _dusus_grafigi(dusus: list) -> str:
+    if len(dusus) < 2:
+        return '<p class="bos">Grafik için henüz yeterli kapanmış işlem yok.</p>'
+    en_dip = min(v for _, v in dusus)
+    adimlar = _guzel_adimlar(min(en_dip, -0.01), 0.0)
+    c = _Cerceve(dusus[0][0], dusus[-1][0], adimlar[0], 0.0, yukseklik=170.0)
+    alan = (f"{c.x(dusus[0][0]):.1f},{c.y(0):.1f} "
+            + " ".join(f"{c.x(t):.1f},{c.y(v):.1f}" for t, v in dusus)
+            + f" {c.x(dusus[-1][0]):.1f},{c.y(0):.1f}")
+    cizgi = " ".join(f"{c.x(t):.1f},{c.y(v):.1f}" for t, v in dusus)
+    dip_t = next(t for t, v in dusus if v == en_dip)
+    icerik = (c.y_ekseni(adimlar) + _zaman_etiketleri(c)
+              + f'<polygon class="g-alan-eksi" points="{alan}"/><polyline class="g-cizgi eksi" points="{cizgi}"/>'
+              + (f'<circle class="g-uc eksi-dolgu" cx="{c.x(dip_t):.1f}" cy="{c.y(en_dip):.1f}" r="4">'
+                 f'<title>En derin düşüş {isaretli(en_dip)} USDT ({_tarih_kisa(dip_t)})</title></circle>' if en_dip < 0 else ""))
+    return (c.svg(icerik, f"Tepeden düşüş; en derini {isaretli(en_dip)} USDT")
+            + f'<p class="g-not">En derin düşüş <strong class="eksi">{isaretli(en_dip)} USDT</strong>'
+            + (f" ({_tarih_kisa(dip_t)})" if en_dip < 0 else "") + ". Sıfır çizgisi yeni tepe demektir.</p>")
+
+
+def _cubuk_grafigi(cubuklar: list, yukseklik: float = 190.0, etiket_adim: int = 1) -> str:
+    """cubuklar: (eksen etiketi, değer, ipucu). Sıfırın iki yanında; artı yeşil, eksi kırmızı."""
+    if not cubuklar or all(abs(v) < 1e-12 for _, v, _ in cubuklar):
+        return '<p class="bos">Henüz yeterli kapanmış işlem yok.</p>'
+    degerler = [v for _, v, _ in cubuklar] + [0.0]
+    adimlar = _guzel_adimlar(min(degerler), max(degerler))
+    n = len(cubuklar)
+    c = _Cerceve(0, n, adimlar[0], adimlar[-1], yukseklik=yukseklik)
+    genislik = (c.x(1) - c.x(0))
+    cubuk_g = max(genislik - 3.0, 2.0)
+    parca = [c.y_ekseni(adimlar)]
+    for k, (et, v, ipucu) in enumerate(cubuklar):
+        x = c.x(k) + (genislik - cubuk_g) / 2
+        y_ust, y_alt = sorted((c.y(v), c.y(0)))
+        sinif = _isaret_sinifi(v)
+        parca.append(f'<rect class="g-cubuk {sinif}" x="{x:.1f}" y="{y_ust:.1f}" width="{cubuk_g:.1f}" '
+                     f'height="{max(y_alt - y_ust, 0.8):.1f}" rx="2"><title>{escape(ipucu)}</title></rect>')
+        if k % etiket_adim == 0:
+            parca.append(f'<text class="g-eksen" x="{x + cubuk_g / 2:.1f}" y="{c.h - 8:g}" text-anchor="middle">{escape(et)}</text>')
+    return c.svg("".join(parca), "Çubuk grafik")
+
+
+def _histogram(kutular: list) -> str:
+    if not kutular:
+        return '<p class="bos">Henüz kapanmış işlem yok.</p>'
+    en_cok = max(k["adet"] for k in kutular) or 1
+    adimlar = _guzel_adimlar(0, en_cok)
+    c = _Cerceve(kutular[0]["alt"], kutular[-1]["ust"], 0, adimlar[-1], yukseklik=180.0)
+    parca = [c.y_ekseni(adimlar, bicim=lambda v: str(int(v)))]
+    for k in kutular:
+        x0, x1 = c.x(k["alt"]) + 1, c.x(k["ust"]) - 1
+        sinif = "eksi" if k["ust"] <= 0 else "arti" if k["alt"] >= 0 else "notr"
+        parca.append(f'<rect class="g-cubuk {sinif}" x="{x0:.1f}" y="{c.y(k["adet"]):.1f}" width="{max(x1 - x0, 1):.1f}" '
+                     f'height="{max(c.y(0) - c.y(k["adet"]), 0):.1f}" rx="2"><title>{k["adet"]} işlem: '
+                     f'{isaretli(k["alt"])} ile {isaretli(k["ust"])} USDT arası</title></rect>')
+    parca.append(c.x_etiketleri([(k["alt"], sayi(k["alt"], 1)) for k in kutular[:: max(len(kutular) // 4, 1)]]))
+    if c.x0 < 0 < c.x1:
+        parca.append(f'<line class="g-sifir" x1="{c.x(0):.1f}" x2="{c.x(0):.1f}" y1="{c.ust:g}" y2="{c.y(0):.1f}"/>')
+    return c.svg("".join(parca), "İşlem sonuçlarının dağılımı")
+
+
+def _sacilim(noktalar: list) -> str:
+    if len(noktalar) < 3:
+        return '<p class="bos">Henüz yeterli kapanmış işlem yok.</p>'
+    saatler = [d / 60 for d, _ in noktalar]
+    netler = [v for _, v in noktalar] + [0.0]
+    y_ad = _guzel_adimlar(min(netler), max(netler))
+    x_ad = _guzel_adimlar(0, max(saatler) or 1)
+    c = _Cerceve(0, x_ad[-1], y_ad[0], y_ad[-1], yukseklik=220.0)
+    parca = [c.y_ekseni(y_ad), c.x_etiketleri([(v, f"{sayi(v, 0)} sa") for v in x_ad])]
+    for (d, v), sa in zip(noktalar, saatler):
+        parca.append(f'<circle class="g-nokta {_isaret_sinifi(v)}" cx="{c.x(sa):.1f}" cy="{c.y(v):.1f}" r="3.2">'
+                     f'<title>{_sure(d)}: {isaretli(v)} USDT</title></circle>')
+    return c.svg("".join(parca), "İşlem süresi ve sonucu")
+
+
+def _grafikler_ekrani(ozet: dict) -> str:
+    g = ozet.get("grafik") or {}
+    botlar = ozet["botlar"]
+    egriler = g.get("egriler") or {}
+    kodlar = [b["kod"] for b in botlar if b["kod"] in egriler]
+    # Renk bota bağlıdır (sıra BOTLAR'dan), sonuca göre değişmez. 8'den fazlaysa en büyük 8.
+    if len(kodlar) > SERI_EN_FAZLA:
+        nets = {b["kod"]: abs(b["net_tutar"]) for b in botlar}
+        secilen = set(sorted(kodlar, key=lambda k: nets.get(k, 0), reverse=True)[:SERI_EN_FAZLA])
+        kodlar = [k for k in kodlar if k in secilen]
+        not_metni = f'<p class="g-not">Grafik en büyük {SERI_EN_FAZLA} botu gösteriyor.</p>'
+    else:
+        not_metni = ""
+    seriler = [(k, SERI_RENKLERI[i], egriler[k]) for i, k in enumerate(kodlar)]
+    dagilim = g.get("dagilim") or []
+    toplam_islem = sum(k["adet"] for k in dagilim)
+    kazanan = sum(k["adet"] for k in dagilim if k["alt"] >= 0)
+    return f"""<section id="grafikler" class="ekran">
+<h2 class="ekran-baslik">Grafikler</h2>
+<p class="ekran-ozet">{toplam_islem} kapanmış işlem · toplam <span class="{_isaret_sinifi(ozet["toplam"]["net_tutar"])}">{isaretli(ozet["toplam"]["net_tutar"])} USDT</span></p>
+<details class="aciklama-kutu"><summary>Bu grafikler nasıl okunur?</summary>
+<p>Hepsi sanal işlemlerden çizilir; tutarlar komisyon düşülmüş USDT'dir. Bir çizgiye, çubuğa ya da noktaya dokununca değeri görünür.
+Kısa dönemde iyi görünen bir eğri şans olabilir; Analiz ekranındaki güven etiketine de bak.</p></details>
+<div class="g-kartlar">
+<div class="kose kart"><h3>Botların seyri</h3><p class="alt">Her bot için kapanan işlemlerle biriken net sonuç.</p>
+{_cizgi_grafigi(seriler)}{not_metni}</div>
+<div class="kose kart"><h3>Tepeden düşüş</h3><p class="alt">Bütün botlar birlikte: ulaşılan en yüksek noktadan ne kadar geride.</p>
+{_dusus_grafigi(g.get("dusus") or [])}</div>
+<div class="kose kart"><h3>İşlem sonuçlarının dağılımı</h3><p class="alt">Kaç işlem hangi kâr / zarar aralığında kapandı.
+Sağda yeşil kazananlar, solda kırmızı kaybedenler{f" ({kazanan} / {toplam_islem} işlem sıfırın sağında)" if toplam_islem else ""}.</p>
+{_histogram(dagilim)}</div>
+<div class="kose kart"><h3>Süre ve sonuç</h3><p class="alt">Her nokta bir işlem: ne kadar açık kaldı, nasıl kapandı.</p>
+{_sacilim(g.get("sure_sonuc") or [])}</div>
+</div>
+</section>"""
+
+
+def _zaman_ekrani(ozet: dict, saat_dilimi: str) -> str:
+    z = (ozet.get("grafik") or {}).get("zaman") or {"saat": [], "gun": []}
+    _yerel, dilim_adi = yerel_zaman(ozet["uretildi"], saat_dilimi)
+
+    def ipucu(ad, k):
+        if not k["islem"]:
+            return f"{ad}: işlem yok"
+        return f'{ad}: {k["islem"]} işlem, %{sayi(k["kazanan"] / k["islem"] * 100, 0)} kazanma, {isaretli(k["net"])} USDT'
+
+    saat = [(f"{h:02d}", k["net"], ipucu(f"{h:02d}:00", k)) for h, k in enumerate(z["saat"])]
+    gun = [(ad, k["net"], ipucu(ad, k)) for ad, k in zip(GUN_ADLARI, z["gun"])]
+    dolu_saat = [(h, k) for h, k in enumerate(z["saat"]) if k["islem"] >= 3]
+    if dolu_saat:
+        en_iyi = max(dolu_saat, key=lambda hk: hk[1]["net"])
+        en_kotu = min(dolu_saat, key=lambda hk: hk[1]["net"])
+        satir = (f'En iyi saat <strong class="arti">{en_iyi[0]:02d}:00</strong> ({isaretli(en_iyi[1]["net"])} USDT), '
+                 f'en kötü <strong class="eksi">{en_kotu[0]:02d}:00</strong> ({isaretli(en_kotu[1]["net"])} USDT). '
+                 "Az işlemli saatler şansa çok açıktır; bunu ayar değiştirmek için kullanma.")
+    else:
+        satir = "Saatleri karşılaştırmak için henüz yeterli işlem yok."
+    return f"""<section id="zaman" class="ekran">
+<h2 class="ekran-baslik">Zaman</h2>
+<p class="ekran-ozet">İşlemler açıldıkları saate ve güne göre ({escape(dilim_adi)})</p>
+<div class="g-kartlar">
+<div class="kose kart"><h3>Günün saatine göre</h3><p class="alt">Her çubuk o saatte açılan işlemlerin toplam net sonucu.</p>
+{_cubuk_grafigi(saat, etiket_adim=3)}<p class="g-not">{satir}</p></div>
+<div class="kose kart"><h3>Haftanın gününe göre</h3>
+{_cubuk_grafigi(gun, yukseklik=170.0)}</div>
+</div>
+</section>"""
+
 
 # sonuc.CIKIS_NEDENI'nin Türkçe değerleri -> ekrandaki ad (aynı sırayla gösterilir).
 NEDEN_ADLARI = {
@@ -1553,12 +1807,71 @@ background:linear-gradient(160deg,var(--yuzey2),var(--yuzey))}
 .gezinti{border-radius:999px;overflow:hidden;box-shadow:0 14px 40px -12px rgba(0,0,0,.8);top:16px}
 .sayfa{padding-top:84px}
 }
+/* Başlık, menü ve grafikler (6 Kasım 2026, 2. tur) */
+.baslik-cubugu{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;
+margin:-16px -16px 0;padding:10px 16px;background:rgba(10,13,22,.86);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+border-bottom:1px solid var(--cizgi)}
+.baslik-cubugu .marka{text-decoration:none;white-space:nowrap;font-size:.875rem;letter-spacing:.32em}
+.canli{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:5px 10px;border-radius:999px;
+border:1px solid var(--cizgi);background:var(--yuzey);font-size:.75rem;font-weight:600;white-space:nowrap;color:var(--buz)}
+.canli i{width:7px;height:7px;border-radius:50%;background:var(--arti);box-shadow:0 0 0 3px rgba(79,209,161,.18)}
+.canli.uyari i{background:var(--uyari);box-shadow:0 0 0 3px rgba(255,159,67,.2)}
+.canli b{font-weight:700}
+.menu{position:relative}
+.menu summary{display:flex;align-items:center;justify-content:center;min-height:40px;min-width:64px;padding:0 14px;border-radius:999px;
+border:1px solid rgba(214,183,121,.45);background:rgba(214,183,121,.1);color:var(--holo);font-weight:700;font-size:.875rem;
+cursor:pointer;list-style:none}
+.menu summary::-webkit-details-marker{display:none}
+.menu summary::after{content:"";width:7px;height:7px;margin-left:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;
+transform:translateY(-2px) rotate(45deg);transition:transform .2s}
+.menu[open] summary::after{transform:translateY(2px) rotate(-135deg)}
+.menu-liste{position:absolute;right:0;top:calc(100% + 8px);width:min(340px,calc(100vw - 32px));display:grid;grid-template-columns:1fr 1fr;
+gap:6px;padding:8px;border-radius:var(--r-buyuk);border:1px solid var(--cizgi);background:#0d111c;
+box-shadow:0 24px 48px -16px rgba(0,0,0,.85)}
+.menu-liste a{display:flex;flex-direction:column;gap:2px;min-height:56px;justify-content:center;padding:8px 12px;border-radius:var(--r-orta);
+text-decoration:none;color:var(--buz);border:1px solid transparent}
+.menu-liste a:hover,.menu-liste a:focus-visible{background:var(--yuzey2)}
+.menu-liste a[aria-current]{border-color:rgba(214,183,121,.5);background:rgba(214,183,121,.1)}
+.menu-ad{font-weight:700;font-size:.9375rem}.menu-alt{font-size:.75rem;color:var(--soluk);line-height:1.3}
+p.guncelleme{margin:10px 0 0;font-size:.75rem;color:var(--soluk)}
+.g-svg{display:block;width:100%;height:auto;margin-top:10px;overflow:visible}
+.g-izgara{stroke:rgba(255,255,255,.07);stroke-width:1}
+.g-sifir{stroke:var(--soluk);stroke-width:1;stroke-dasharray:4 4;opacity:.8}
+.g-eksen{fill:var(--soluk);font:500 12px var(--govde)}
+.g-etiket{fill:var(--buz);font:700 12px var(--govde)}
+.g-kartlar{display:grid;gap:16px}
+.g-cizgi,.g-izgara,.g-sifir{vector-effect:non-scaling-stroke}
+@media (min-width:900px){.g-kartlar{grid-template-columns:1fr 1fr}.g-eksen,.g-etiket{font-size:10px}}
+.g-cizgi{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.g-cizgi.eksi{stroke:var(--eksi)}
+.g-uc{stroke:#0d111c;stroke-width:2}.g-uc.eksi-dolgu{fill:var(--eksi)}
+.g-alan-eksi{fill:rgba(240,112,107,.18)}
+.g-cubuk.arti{fill:var(--arti)}.g-cubuk.eksi{fill:var(--eksi)}.g-cubuk.notr{fill:var(--soluk)}
+.g-nokta{stroke:#0d111c;stroke-width:1;opacity:.85}.g-nokta.arti{fill:var(--arti)}.g-nokta.eksi{fill:var(--eksi)}.g-nokta.notr{fill:var(--soluk)}
+.g-gosterge{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:.8125rem;color:var(--buz)}
+.g-gosterge-oge{display:inline-flex;align-items:center;gap:6px}
+.g-gosterge-oge i{width:14px;height:3px;border-radius:2px}
+.g-not{margin:10px 0 0;font-size:.8125rem;color:var(--soluk);max-width:70ch}
+.g-not strong{font-weight:700}
+.baslik-cubugu{min-width:0;max-width:100vw}
+@media (max-width:639px){.gezinti{grid-template-columns:repeat(ALT_SAYISI,1fr)}.gezinti a{font-size:12px}
+.baslik-cubugu{gap:8px}.baslik-cubugu .marka{font-size:.75rem;letter-spacing:.18em}
+.baslik-cubugu .marka::before{margin-right:8px}
+.canli{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;padding:5px 8px}
+.menu summary{min-width:0;padding:0 12px}
+.menu-liste{position:fixed;left:16px;right:16px;top:62px;width:auto}}
+@media (min-width:900px){
+.baslik-cubugu{margin:-84px -24px 0;padding:12px 24px}
+.gezinti{display:none}
+.sayfa{padding-top:84px}
+}
 """
 STIL = (
     STIL.replace("KOSE", _KOSE)
     .replace("EKRAN_GOSTER", ",".join(f'.sekmeli[data-ekran="{k}"] #{k}' for k, _ in EKRANLAR))
     .replace("EKRAN_SECILI", ",".join(f'.sekmeli[data-ekran="{k}"] .gezinti a[href="#{k}"]' for k, _ in EKRANLAR))
     .replace("EKRAN_SAYISI", str(len(EKRANLAR)))
+    .replace("ALT_SAYISI", str(len(ALT_CUBUK)))
     .replace("RAPOR_SECILI", ",".join(f"#rb-{k}:checked~.rapor-secim label[for=rb-{k}]" for k in range(RAPOR_EN_FAZLA)))
     .replace("RAPOR_ODAK", ",".join(f"#rb-{k}:focus-visible~.rapor-secim label[for=rb-{k}]" for k in range(RAPOR_EN_FAZLA)))
     .replace("RAPOR_GOSTER", ",".join(f"#rb-{k}:checked~.rapor-paneller .rp-{k}" for k in range(RAPOR_EN_FAZLA)))
@@ -1577,7 +1890,8 @@ var ad=location.hash.slice(1),hedef=ad?document.getElementById(ad):null,ekran='a
 if(hedef){var e=hedef.closest('.ekran');if(e)ekran=e.id;}
 if(EKRANLAR.indexOf(ekran)<0)ekran='ana';
 kok.setAttribute('data-ekran',ekran);
-var b=document.querySelectorAll('.gezinti a');
+var m=document.querySelector('details.menu');if(m)m.removeAttribute('open');
+var b=document.querySelectorAll('.gezinti a,.menu-liste a');
 for(var i=0;i<b.length;i++){if(b[i].getAttribute('href')==='#'+ekran)b[i].setAttribute('aria-current','page');else b[i].removeAttribute('aria-current');}
 var eski=document.querySelector('.secili');if(eski)eski.classList.remove('secili');
 if(hedef&&hedef.id!==ekran){hedef.classList.add('secili');if(kaydir)hedef.scrollIntoView();}
@@ -1637,9 +1951,17 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
         yenileme_notu = " Bu dosya gönderildiği andaki durumu gösterir; kendini tazelemez."
         son = ""
 
+    adlar = dict(EKRANLAR)
     gezinti = "".join(
-        f'<a href="#{kimlik}">{GEZINTI_ADLARI.get(kimlik, ad)}</a>' for kimlik, ad in EKRANLAR
+        f'<a href="#{kimlik}">{GEZINTI_ADLARI.get(kimlik, adlar[kimlik])}</a>' for kimlik in ALT_CUBUK if kimlik in adlar
     )
+    menu = "".join(
+        f'<a href="#{kimlik}"><span class="menu-ad">{ad}</span>'
+        f'<span class="menu-alt">{MENU_ACIKLAMA.get(kimlik, "")}</span></a>'
+        for kimlik, ad in EKRANLAR
+    )
+    t = ozet["toplam"]
+    canli_sinif = "uyari" if t["calisan_bot"] < t["bot_sayisi"] else "arti"
 
     return f"""<!doctype html>
 <html lang="tr">
@@ -1655,16 +1977,20 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
 <body>
 <p class="kopuk-uyari" role="status">Sunucuya ulaşılamıyor. Ekrandaki sayılar son başarılı güncellemeden kalma.</p>
 <div id="govde" class="sayfa">
-<header class="ust">
-<span class="marka">KARABASAN</span>
-<span class="guncelleme">Son güncelleme {escape(guncelleme)}</span>
+<header class="ust baslik-cubugu">
+<a class="marka" href="#ana">KARABASAN</a>
+<span class="canli {canli_sinif}" title="Çalışan bot ve toplam sanal sonuç (USDT)"><i></i>{t["calisan_bot"]}/{t["bot_sayisi"]} · <b class="{_isaret_sinifi(t["net_tutar"])}">{isaretli(t["net_tutar"])}</b></span>
+<details class="menu"><summary>Menü</summary><nav class="menu-liste" aria-label="Bütün ekranlar">{menu}</nav></details>
 </header>
+<p class="guncelleme">Son güncelleme {escape(guncelleme)} · sanal işlem, gerçek para yok</p>
 <main>
 {_ana_ekran(ozet, saat_dilimi)}
 {_botlar_ekrani(ozet)}
 {_islemler_ekrani(ozet, saat_dilimi)}
 {_dersler_ekrani(ozet, saat_dilimi)}
 {_rapor_ekrani(ozet, saat_dilimi)}
+{_grafikler_ekrani(ozet)}
+{_zaman_ekrani(ozet, saat_dilimi)}
 {_analiz_ekrani(ozet)}
 {_sinav_ekrani(ozet, yenileme_notu)}
 {_kriterler_ekrani()}

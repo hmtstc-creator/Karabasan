@@ -9,6 +9,7 @@ Yalnız Python standart kütüphanesi ile karabasan.karne kullanılır.
 
 from __future__ import annotations
 
+import math
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -399,6 +400,11 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
         for i in kayit["acik"]:
             acik_islemler.append({**i, "bot": bot, "kod": kural_kodu,
                                   **acik_risk(i, kural, float(ayar["islem_tutari"]))})
+    bot_islemleri: dict[str, list] = {}
+    for i in son_islemler:
+        if donem["bitis"] is None or i["cikis_zamani"] <= donem["bitis"]:
+            bot_islemleri.setdefault(i["kod"], []).append(i)
+    tum_islemler = [i for liste in bot_islemleri.values() for i in liste]
     son_islemler.sort(key=lambda i: i["cikis_zamani"], reverse=True)
     acik_islemler.sort(key=lambda i: i["giris_zamani"], reverse=True)
 
@@ -441,6 +447,7 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
             "carpanlar": list(ss.CARPANLAR),
             "en_az_stop": ss.EN_AZ_STOP,
         },
+        "grafik": grafik_verisi(tum_islemler, bot_islemleri),
         "egri": birikimli_egri(
             [i for i in son_islemler if donem["bitis"] is None or i["cikis_zamani"] <= donem["bitis"]]
         ),
@@ -506,6 +513,101 @@ def birikimli_egri(islemler: list, en_fazla: int = EGRI_NOKTA) -> list:
         return egri
     adim = (len(egri) - 1) / (en_fazla - 1)
     return [egri[round(k * adim)] for k in range(en_fazla)]
+
+
+
+# --------------------------------------------------------------------------
+# Grafik verisi (6 Kasım 2026): Grafikler ve Zaman ekranları. Yalnız okur.
+# --------------------------------------------------------------------------
+
+GRAFIK_NOKTA = 90
+DAGILIM_KUTU = 16
+SACILIM_NOKTA = 400
+
+
+def _yerel(zaman: datetime) -> datetime:
+    try:
+        from zoneinfo import ZoneInfo
+
+        return zaman.astimezone(ZoneInfo(SAAT_DILIMI))
+    except Exception:  # noqa: BLE001
+        return zaman.astimezone(timezone.utc)
+
+
+def zamanli_egri(islemler: list, en_fazla: int = GRAFIK_NOKTA) -> list[tuple[float, float]]:
+    """(unix zaman, birikimli net USDT) noktaları; ilk nokta ilk işlemin girişinde sıfır."""
+    sirali = sorted(islemler, key=lambda i: i["cikis_zamani"])
+    if not sirali:
+        return []
+    noktalar = [(min(i["giris_zamani"] for i in sirali).timestamp(), 0.0)]
+    toplam = 0.0
+    for i in sirali:
+        toplam += float(i["net_tutar"])
+        noktalar.append((i["cikis_zamani"].timestamp(), toplam))
+    if len(noktalar) > en_fazla:
+        adim = (len(noktalar) - 1) / (en_fazla - 1)
+        noktalar = [noktalar[round(k * adim)] for k in range(en_fazla)]
+    return noktalar
+
+
+def dusus_egrisi(egri: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Her noktada o ana kadarki tepeden uzaklık (USDT, sıfır ya da eksi)."""
+    tepe, cikti = 0.0, []
+    for t, v in egri:
+        tepe = max(tepe, v)
+        cikti.append((t, v - tepe))
+    return cikti
+
+
+def zaman_dagilimi(islemler: list) -> dict:
+    """Açılış saatine (0-23) ve haftanın gününe (0 = Pazartesi) göre işlem sayısı ve net USDT."""
+    saat = [{"islem": 0, "net": 0.0, "kazanan": 0} for _ in range(24)]
+    gun = [{"islem": 0, "net": 0.0, "kazanan": 0} for _ in range(7)]
+    for i in islemler:
+        yerel = _yerel(i["giris_zamani"])
+        net = float(i["net_tutar"])
+        for kutu in (saat[yerel.hour], gun[yerel.weekday()]):
+            kutu["islem"] += 1
+            kutu["net"] += net
+            kutu["kazanan"] += 1 if net > 0 else 0
+    return {"saat": saat, "gun": gun}
+
+
+def sonuc_dagilimi(islemler: list, kutu: int = DAGILIM_KUTU) -> list[dict]:
+    """İşlem sonuçlarının (net USDT) histogramı: eşit genişlikte kutular, sıfır bir kutu sınırıdır."""
+    netler = [float(i["net_tutar"]) for i in islemler]
+    if not netler:
+        return []
+    alt, ust = min(min(netler), 0.0), max(max(netler), 0.0)
+    if ust - alt < 1e-9:
+        return [{"alt": alt, "ust": ust, "adet": len(netler)}]
+    genislik = (ust - alt) / kutu
+    # Sıfır sınır olsun diye kutuları sıfıra hizala.
+    bas = math.floor(alt / genislik) * genislik
+    adet = int(math.ceil((ust - bas) / genislik)) or 1
+    kutular = [{"alt": bas + k * genislik, "ust": bas + (k + 1) * genislik, "adet": 0} for k in range(adet)]
+    for x in netler:
+        k = min(int((x - bas) / genislik), adet - 1)
+        kutular[k]["adet"] += 1
+    return kutular
+
+
+def sure_sonuc_noktalari(islemler: list, en_fazla: int = SACILIM_NOKTA) -> list[tuple[float, float]]:
+    """(süre dakika, net USDT); çok işlem varsa son işlemler."""
+    sirali = sorted(islemler, key=lambda i: i["cikis_zamani"])[-en_fazla:]
+    return [(float(i.get("sure_dakika") or 0.0), float(i["net_tutar"])) for i in sirali]
+
+
+def grafik_verisi(islemler: list, bot_islemleri: dict[str, list]) -> dict:
+    toplam_egri = zamanli_egri(islemler)
+    return {
+        "egriler": {kod: zamanli_egri(liste) for kod, liste in bot_islemleri.items()},
+        "toplam_egri": toplam_egri,
+        "dusus": dusus_egrisi(toplam_egri),
+        "zaman": zaman_dagilimi(islemler),
+        "dagilim": sonuc_dagilimi(islemler),
+        "sure_sonuc": sure_sonuc_noktalari(islemler),
+    }
 
 
 def _gecmis_test_oku(yol: Path) -> dict:
