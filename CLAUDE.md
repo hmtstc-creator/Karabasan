@@ -955,6 +955,13 @@ bir `main`'e eşitlenir; ayar değişikliği test ve deneme defteri ister), bu y
   para, ölçütü sonuca göre gevşetmek) `durum` "reddedildi", `yanit` nedeni; Ahmet'e de söyle.
   Kodda bir değer başka yoldan değişirse sayfadaki `deger`'i de güncelle (`kriterler.liste()` ile karşılaştır).
 
+**Premium görünüm (6 Kasım 2026, Ahmet'in isteği).** Sonuç sayfasının CSS'ine `sayfa.STIL` sonunda bir "Premium katman" eklendi
+(koyu lacivert zemin, şampanya altını vurgu, cam kartlar, yuvarlak köşeler, bulanık alt / üst gezinti). Yalnız görünüm: ekranlar,
+sınıf adları, betik ve izin başlığı aynı; 591 test geçti. Yalnız buradaki Chromium'da (390 ve 1280 px) denendi. Ahmet'in
+telefonundaki tarayıcıda görülmedi. Aynı gün çalışma notları ve kurallar claude.ai'de bir belgeye de yazıldı
+(https://claude.ai/artifact/7UUxEcuWXbwaN8ZgbAxbmf). PlanningExpert sitesinin yedeklenip arşivlenmesi istendi; o site bu
+depoda değil, sunucuda ve burada erişilemiyor (karar bekliyor).
+
 Sıradaki işler, öncelik sırasıyla:
 
 0. 22 Ekim: uyum 23 ve 12 aylık test 11 (SMK / SMDK %9 stop, SMK2 / SMDK2) raporlarını sunucudaki

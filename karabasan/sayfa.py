@@ -1235,6 +1235,61 @@ border:1px solid var(--cizgi);padding:0}
 .sekmeli .gezinti a{border-top:0}
 }
 @media (prefers-reduced-motion:reduce){.r-kat,.r-don{animation:none}}
+
+/* Premium katman (6 Kasım 2026): yalnız görünüm; ekran yapısı ve sınıf adları aynı. */
+:root{--gece:#070a12;--yuzey:rgba(255,255,255,.035);--yuzey2:rgba(255,255,255,.06);
+--holo:#d6b779;--cizgi:rgba(255,255,255,.09);--cam:rgba(255,255,255,.03);
+--buz:#f2ede2;--soluk:#9a9fae;--altin:#e8c36a;--arti:#4fd1a1;--eksi:#f0706b;
+--yaricap:18px;--golge:0 18px 48px -20px rgba(0,0,0,.75),0 1px 0 rgba(255,255,255,.05) inset;
+--rakam:"Inter","SF Pro Display","Avenir Next","Segoe UI",system-ui,sans-serif}
+html{background:radial-gradient(900px 520px at 78% -120px,rgba(214,183,121,.16) 0,rgba(7,10,18,0) 70%),
+radial-gradient(760px 520px at 0% 8%,rgba(79,140,209,.12) 0,rgba(7,10,18,0) 70%) no-repeat var(--gece)}
+body::before{opacity:.22;background:repeating-linear-gradient(0deg,rgba(255,255,255,.06) 0 1px,transparent 1px 64px),
+repeating-linear-gradient(90deg,rgba(255,255,255,.06) 0 1px,transparent 1px 64px)}
+::selection{background:rgba(214,183,121,.35)}
+.marka{font-weight:600;letter-spacing:.42em;font-size:.9375rem;color:var(--holo);text-shadow:none}
+.marka::before{content:"";display:inline-block;width:9px;height:9px;margin-right:12px;border-radius:50%;
+background:var(--holo);box-shadow:0 0 0 4px rgba(214,183,121,.16)}
+.guncelleme{font-size:.75rem;letter-spacing:.02em}
+h1,h2,h3,h4{font-weight:650;letter-spacing:-.015em}
+h2.ekran-baslik{font-weight:600;letter-spacing:-.025em}
+.selam-ust{color:var(--holo);letter-spacing:.14em;text-transform:uppercase;font-size:.75rem;font-weight:600}
+.kose,.kart,.ders-kart,.okumalar{background:linear-gradient(160deg,var(--yuzey2),var(--yuzey));
+border:1px solid var(--cizgi);border-radius:var(--yaricap);box-shadow:var(--golge);
+-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.okumalar{overflow:hidden}
+.kart.secili{border-color:rgba(214,183,121,.65);box-shadow:var(--golge),0 0 0 1px rgba(214,183,121,.4)}
+.kod{border-radius:8px;border-color:rgba(214,183,121,.28);background:rgba(214,183,121,.09);color:var(--holo)}
+.serit{border:1px solid var(--cizgi);border-left:3px solid var(--altin);border-radius:12px;background:var(--yuzey)}
+.serit.ders{border-left-color:var(--holo)}
+.bos{border-radius:14px;border-color:var(--cizgi);background:var(--yuzey)}
+.sira{border-radius:12px;transition:background .2s}
+.sira:hover{background:var(--yuzey2)}
+.cubuk{height:5px;border-radius:5px;overflow:hidden}
+.cubuk i{box-shadow:none}
+.isaret,.kriter-dugme,.rapor-secim label{border-radius:999px}
+.kriter-dugme{background:linear-gradient(180deg,rgba(214,183,121,.22),rgba(214,183,121,.08));
+border-color:rgba(214,183,121,.5);color:var(--buz)}
+.rapor-secim label{background:var(--yuzey);transition:background .2s,color .2s}
+.r-bot,.r-cizgi,.s-cizgi,.r-cekirdek{filter:none}
+.r-cekirdek{fill:rgba(255,255,255,.03);stroke:rgba(214,183,121,.5)}
+.r-ince,.r-olcek,.r-nokta{stroke:var(--holo)}
+.s-cizgi.notr,.s-uc.notr{color:var(--holo)}
+.gun{border-radius:5px}
+.gun.gecti{background:var(--holo);border-color:var(--holo);box-shadow:none}
+.gun.bugun{box-shadow:0 0 0 3px rgba(232,195,106,.2)}
+.g-cubuk{rx:3}
+.cizelge thead th{letter-spacing:.06em;text-transform:uppercase;font-weight:600;font-size:.6875rem}
+.kopuk-uyari{background:#2b2108;border-bottom:1px solid rgba(232,195,106,.35)}
+.gezinti{background:rgba(10,13,22,.82);-webkit-backdrop-filter:blur(22px) saturate(1.4);
+backdrop-filter:blur(22px) saturate(1.4);border-top:1px solid var(--cizgi)}
+.gezinti a{letter-spacing:.03em}
+EKRAN_SECILI{color:var(--holo);border-top-color:var(--holo);
+background:linear-gradient(rgba(214,183,121,.16),rgba(214,183,121,0))}
+@media (min-width:900px){
+.gezinti{border-radius:999px;overflow:hidden;box-shadow:0 14px 40px -12px rgba(0,0,0,.8);top:16px}
+.sayfa{padding-top:84px}
+}
 """
 STIL = (
     STIL.replace("KOSE", _KOSE)
