@@ -10,6 +10,7 @@ Adresler:
     /veri.json   Aynı özetin ham hali
     /saglik      Sunucu ayakta mı (izleme için)
     /defter      Emir defteri denemesinin özeti (BTC/USDT vadeli, sanal)
+    /islem       Tek bir işlemin fiyat grafiği (?bot=<bot adı>&id=<işlem kimliği>)
 
 Yalnız Python standart kütüphanesi ile karabasan paketini kullanır.
 """
@@ -25,6 +26,7 @@ import os
 import secrets
 import threading
 import time
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -123,7 +125,10 @@ Sorun sürerse şu kimliği Claude'a gönder; ayrıntı sunucunun kaydındadır:
 
 
 def isleyici_uret(onbellek: Onbellek):
+    from . import islem_grafik
+
     guvenlik = guvenlik_basligi()
+    mum_onbellegi = islem_grafik.MumOnbellegi()
 
     class Isleyici(BaseHTTPRequestHandler):
         server_version = "Karabasan"
@@ -184,6 +189,15 @@ def isleyici_uret(onbellek: Onbellek):
 
                     ozet = defter_sayfa.ozet_cikar(onbellek.klasor / "kayit" / "defter.sqlite")
                     self._yanit(200, "text/html; charset=utf-8", defter_sayfa.html_uret(ozet).encode("utf-8"))
+                elif yol == "/islem":
+                    sorgu = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+                    bot = (sorgu.get("bot") or [""])[0]
+                    kimlik = (sorgu.get("id") or [""])[0]
+                    if islem_grafik.bot_bul(bot) is None or not kimlik.isdigit() or len(kimlik) > 12:
+                        self._yanit(404, "text/plain; charset=utf-8", "Böyle bir işlem yok.\n".encode("utf-8"))
+                    else:
+                        govde = islem_grafik.islem_sayfasi(onbellek.klasor, bot, int(kimlik), mum_onbellegi)
+                        self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"))
                 elif yol in ("/", "/index.html"):
                     govde, etiket = onbellek.html()
                     self._yanit(200, "text/html; charset=utf-8", govde, etiket)

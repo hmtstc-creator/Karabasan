@@ -400,6 +400,14 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
         for i in kayit["acik"]:
             acik_islemler.append({**i, "bot": bot, "kod": kural_kodu,
                                   **acik_risk(i, kural, float(ayar["islem_tutari"]))})
+    # İşlem grafiği ekranı: bot başına son işlemler (açıklar önde), dokununca grafiği açılır.
+    islem_listesi = []
+    for b in botlar:
+        aciklar = [i for i in acik_islemler if i["bot"] == b["bot"]]
+        kapali = sorted((i for i in son_islemler if i["bot"] == b["bot"]),
+                        key=lambda i: i["cikis_zamani"], reverse=True)[:ISLEM_LISTESI_SAYISI]
+        islem_listesi.append({"bot": b["bot"], "kod": b["kod"], "ad": b["ad"],
+                              "acik": aciklar, "kapali": kapali})
     bot_islemleri: dict[str, list] = {}
     for i in son_islemler:
         if donem["bitis"] is None or i["cikis_zamani"] <= donem["bitis"]:
@@ -448,6 +456,7 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
             "en_az_stop": ss.EN_AZ_STOP,
         },
         "grafik": grafik_verisi(tum_islemler, bot_islemleri),
+        "islem_listesi": islem_listesi,
         "egri": birikimli_egri(
             [i for i in son_islemler if donem["bitis"] is None or i["cikis_zamani"] <= donem["bitis"]]
         ),
@@ -494,6 +503,7 @@ def gunluk_topla(listeler: list[list[dict]]) -> list[dict]:
 
 
 SON_ISLEM_SAYISI = 30
+ISLEM_LISTESI_SAYISI = 40
 DERS_SAYISI = 40
 EGRI_NOKTA = 160
 

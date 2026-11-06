@@ -41,6 +41,7 @@ EKRANLAR = [
     ("ana", "Ana ekran"),
     ("botlar", "Botlar"),
     ("islemler", "İşlemler"),
+    ("islemgrafik", "İşlem grafiği"),
     ("dersler", "Dersler"),
     ("rapor", "Rapor"),
     ("grafikler", "Grafikler"),
@@ -50,12 +51,14 @@ EKRANLAR = [
     ("kriterler", "Kriterler"),
 ]
 # Telefondaki alt gezintide görünen kısa adlar (8 sekme 390 px'e sığsın diye).
-GEZINTI_ADLARI = {"ana": "Ana", "islemler": "İşlem", "dersler": "Ders", "kriterler": "Kriter", "grafikler": "Grafik"}
+GEZINTI_ADLARI = {"ana": "Ana", "islemler": "İşlem", "dersler": "Ders", "kriterler": "Kriter", "grafikler": "Grafik",
+                  "islemgrafik": "İşlemler"}
 # Telefonda alttaki çubukta duran ekranlar; hepsi üstteki menüde.
-ALT_CUBUK = ["ana", "botlar", "islemler", "grafikler", "analiz"]
+ALT_CUBUK = ["ana", "botlar", "islemgrafik", "grafikler", "analiz"]
 # Menüde ekran adının altındaki kısa açıklama.
 MENU_ACIKLAMA = {
     "ana": "Özet ve gösterge halkası", "botlar": "Her botun kartı", "islemler": "Açık ve kapanan işlemler",
+    "islemgrafik": "Giriş / çıkış grafikte",
     "dersler": "Stop sonrası izleme", "rapor": "Gün gün kâr / zarar", "grafikler": "Seyir, düşüş, dağılım",
     "zaman": "Saat ve gün bazında", "analiz": "Karneler, coinler, risk", "sinav": "30 günlük sınav",
     "kriterler": "Ahmet Özel kriterleri",
@@ -105,7 +108,7 @@ def fiyat_metni(fiyat) -> str:
     """Fiyatı büyüklüğüne göre basamakla yazar: 97,00 · 2,4512 · 0,123456."""
     if fiyat is None:
         return "–"
-    basamak = 2 if abs(fiyat) >= 100 else 4 if abs(fiyat) >= 1 else 6
+    basamak = 2 if abs(fiyat) >= 10 else 4 if abs(fiyat) >= 1 else 6
     return sayi(fiyat, basamak)
 
 
@@ -665,6 +668,56 @@ def _islemler_ekrani(ozet: dict, saat_dilimi: str) -> str:
 {_kapananlar(kapanan, saat_dilimi)}
 <p class="not">Sağdaki sayı işlemin komisyon düşülmüş sanal sonucudur (USDT); altında yüzdesi yazar.
 Hiçbir emir borsaya gitmez.</p>
+</section>"""
+
+
+# --------------------------------------------------------------------------
+# İşlem grafiği ekranı: bot seç, işleme dokun, /islem sayfasında grafiği aç.
+# Bot seçimi betiksiz (gizli seçim düğmeleri + biçim kuralları; Rapor ekranı gibi).
+# --------------------------------------------------------------------------
+
+IG_EN_FAZLA = 16
+
+
+def _ig_satiri(i: dict, bot: str, saat_dilimi: str, acik: bool) -> str:
+    adres = f"/islem?bot={escape(bot)}&amp;id={int(i['kimlik'])}"
+    if acik:
+        sag = '<span class="ig-sonuc notr">açık<span class="alt">şu an</span></span>'
+        zaman = _tarih_saat(i["giris_zamani"], saat_dilimi)
+    else:
+        net = i.get("net_tutar")
+        sag = (f'<span class="ig-sonuc {_isaret_sinifi(net)}">{isaretli(net)}'
+               f'<span class="alt">{escape(str(i.get("neden") or ""))}</span></span>')
+        zaman = _tarih_saat(i["cikis_zamani"], saat_dilimi)
+    return (f'<li><a class="ig-satir" href="{adres}"><span class="islem-zaman">{zaman}</span>'
+            f'<span class="islem-parite">{_parite(i["parite"])}<span class="alt">{_yon(i["yon"])}</span></span>'
+            f'{sag}<span class="ig-ok" aria-hidden="true">›</span></a></li>')
+
+
+def _islem_grafigi_ekrani(ozet: dict, saat_dilimi: str) -> str:
+    liste = (ozet.get("islem_listesi") or [])[:IG_EN_FAZLA]
+    if not liste:
+        govde = '<p class="bos">Henüz bot yok.</p>'
+    else:
+        dugmeler = "".join(
+            f'<input type="radio" name="ig-bot" id="ig-{k}" class="rapor-radyo"{" checked" if k == 0 else ""}>'
+            for k in range(len(liste)))
+        etiketler = "".join(f'<label for="ig-{k}">{escape(b["kod"])}</label>' for k, b in enumerate(liste))
+        paneller = []
+        for k, b in enumerate(liste):
+            satirlar = ([_ig_satiri(i, b["bot"], saat_dilimi, True) for i in b["acik"]]
+                        + [_ig_satiri(i, b["bot"], saat_dilimi, False) for i in b["kapali"]])
+            icerik = (f'<ul class="ig-liste">{"".join(satirlar)}</ul>' if satirlar
+                      else '<p class="bos">Bu botun henüz işlemi yok.</p>')
+            paneller.append(f'<div class="ig-panel ig-p-{k}"><h3>{escape(b["kod"])} · {escape(b["ad"])}</h3>{icerik}</div>')
+        govde = (f'{dugmeler}<div class="rapor-secim ig-secim" role="group" aria-label="Bot seç">{etiketler}</div>'
+                 f'<div class="ig-paneller">{"".join(paneller)}</div>')
+    return f"""<section id="islemgrafik" class="ekran">
+<h2 class="ekran-baslik">İşlem grafiği</h2>
+<p class="ekran-ozet">Bir bot seç, sonra bir işleme dokun: o coinin grafiğinde nerede girip nerede çıktığını görürsün.</p>
+<p class="g-not">Açık pozisyonlar üstte. Grafik ayrı bir sayfada açılır; bu sayfaya dönmek için "İşlem listesi" düğmesine dokun.
+Telegram'dan gelen dosyada bu bağlantılar çalışmaz, yalnız sitede çalışır.</p>
+{govde}
 </section>"""
 
 
@@ -1807,6 +1860,17 @@ background:linear-gradient(160deg,var(--yuzey2),var(--yuzey))}
 .gezinti{border-radius:999px;overflow:hidden;box-shadow:0 14px 40px -12px rgba(0,0,0,.8);top:16px}
 .sayfa{padding-top:84px}
 }
+.ig-panel{display:none}
+IG_GOSTER{display:block}
+IG_SECILI{color:var(--holo);border-color:var(--holo);background:rgba(214,183,121,.14)}
+.ig-liste{list-style:none;margin:0;padding:0;border-top:1px solid var(--cizgi)}
+.ig-satir{display:grid;grid-template-columns:4.8em minmax(0,1fr) auto 14px;gap:4px 10px;align-items:center;padding:12px 2px;
+min-height:56px;border-bottom:1px solid var(--cizgi);color:inherit;text-decoration:none}
+.ig-satir:hover,.ig-satir:focus-visible{background:var(--yuzey2)}
+.ig-sonuc{font:700 1.0625rem/1.25 var(--rakam);text-align:right;white-space:nowrap}
+.ig-sonuc .alt{font-family:var(--govde);font-weight:500}
+.ig-ok{color:var(--holo);font-size:1.25rem;font-weight:700}
+.ig-panel h3{margin-top:16px}
 /* Başlık, menü ve grafikler (6 Kasım 2026, 2. tur) */
 .baslik-cubugu{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;
 margin:-16px -16px 0;padding:10px 16px;background:rgba(10,13,22,.86);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
@@ -1872,6 +1936,8 @@ STIL = (
     .replace("EKRAN_SECILI", ",".join(f'.sekmeli[data-ekran="{k}"] .gezinti a[href="#{k}"]' for k, _ in EKRANLAR))
     .replace("EKRAN_SAYISI", str(len(EKRANLAR)))
     .replace("ALT_SAYISI", str(len(ALT_CUBUK)))
+    .replace("IG_GOSTER", ",".join(f"#ig-{k}:checked~.ig-paneller .ig-p-{k}" for k in range(IG_EN_FAZLA)))
+    .replace("IG_SECILI", ",".join(f"#ig-{k}:checked~.ig-secim label[for=ig-{k}]" for k in range(IG_EN_FAZLA)))
     .replace("RAPOR_SECILI", ",".join(f"#rb-{k}:checked~.rapor-secim label[for=rb-{k}]" for k in range(RAPOR_EN_FAZLA)))
     .replace("RAPOR_ODAK", ",".join(f"#rb-{k}:focus-visible~.rapor-secim label[for=rb-{k}]" for k in range(RAPOR_EN_FAZLA)))
     .replace("RAPOR_GOSTER", ",".join(f"#rb-{k}:checked~.rapor-paneller .rp-{k}" for k in range(RAPOR_EN_FAZLA)))
@@ -1910,9 +1976,9 @@ var yeni=new DOMParser().parseFromString(m,'text/html').getElementById('govde');
 if(!yeni)throw 0;
 kok.style.setProperty('--gecen','-'+(performance.now()/1000).toFixed(1)+'s');
 kok.classList.add('acildi');
-var r=document.querySelector('.rapor-radyo:checked'),rid=r?r.id:null;
+var r=document.querySelectorAll('.rapor-radyo:checked'),rid=[];for(var j=0;j<r.length;j++)rid.push(r[j].id);
 govde.innerHTML=yeni.innerHTML;
-if(rid){var s=document.getElementById(rid);if(s)s.checked=true;}
+for(var j=0;j<rid.length;j++){var s=document.getElementById(rid[j]);if(s)s.checked=true;}
 kok.classList.remove('kopuk');sonBasari=new Date();
 goster(false);
 }).catch(function(h){
@@ -1987,6 +2053,7 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
 {_ana_ekran(ozet, saat_dilimi)}
 {_botlar_ekrani(ozet)}
 {_islemler_ekrani(ozet, saat_dilimi)}
+{_islem_grafigi_ekrani(ozet, saat_dilimi)}
 {_dersler_ekrani(ozet, saat_dilimi)}
 {_rapor_ekrani(ozet, saat_dilimi)}
 {_grafikler_ekrani(ozet)}

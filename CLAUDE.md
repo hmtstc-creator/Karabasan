@@ -201,7 +201,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 627 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 638 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -1008,6 +1008,18 @@ grafikler, zaman, analiz, sınav, kriterler.
 - Başlık: yapışkan çubuk (marka, çalışan bot / toplam etiketi, "Menü" açılır menüsü: `<details class="menu">`, bütün ekranlar
   ve kısa açıklamaları `MENU_ACIKLAMA`). Alt çubuk telefonda yalnız 5 sekme (`ALT_CUBUK`); masaüstünde alt çubuk yok, menü var.
 - 627 test geçiyor. Yalnız buradaki Chromium'da (390 ve 1280 px) görüldü.
+
+**İşlem grafiği (6 Kasım 2026, 3. tur; Ahmet'in isteği: "bot seçip işleme tıklayınca grafikte nerede girip çıktığımı göreyim").**
+- Ekran `islemgrafik` (`sayfa._islem_grafigi_ekrani`): bot seçimi betiksiz (gizli seçim düğmeleri `ig-<k>`, en çok 16 bot), seçilen
+  botun açık işlemleri ve son 40 kapanmış işlemi (`ozet["islem_listesi"]`, `sonuc.ISLEM_LISTESI_SAYISI`); her satır `/islem?bot=..&id=..`.
+- `karabasan/islem_grafik.py` + panel `/islem`: işlemi botun SQLite kaydında bulur (`islem_bul`; yalnız `BOTLAR`'daki bot adları,
+  kimlik yalnız rakam), süreye göre mum aralığı seçer (1m…1d, en çok 240 mum, işlemin iki yanında pay), Binance'in açık
+  `klines` adresinden indirir, mum grafiği çizer: giriş / çıkış işaretleri (açığa satışta giriş aşağı ok), işlem süresi bandı,
+  giriş fiyatı, stop, iz tetiği / hedef çizgileri. Kapanmış işlemin mumları bir kez indirilir (`MumOnbellegi`), açıkta 60 sn.
+  Ağ hatasında sayfa düşmez, "alınamadı" der. Sayfada betik yok.
+- Alt çubuk: Ana, Botlar, İşlemler (= İşlem grafiği), Grafik, Analiz. Betik tazelemede bütün seçili düğmeleri korur.
+- **Gerçek sunucuda ilk kez:** panelin kapsayıcısından `fapi.binance.com/fapi/v1/klines`'a ulaşması (stop sonrası izleme `kayitci`
+  kapsayıcısında ulaşıyor; panel kapsayıcısının ağı aynı olmalı, doğrulanmadı), sayfanın açılış süresi. 638 test geçiyor.
 
 Sıradaki işler, öncelik sırasıyla:
 
