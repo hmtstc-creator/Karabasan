@@ -972,6 +972,11 @@ istenirse fail2ban eklenebilir. Sertifika sslip.io'nun ortak sınırına takıla
 (PlanningExpert'in Tailscale kapsayıcısı ana makine kapılarını tutmamalı), Hetzner bulut güvenlik duvarının bu kapıları
 engellememesi. Kapatmak için `internet.sh`'ı `kur.sh`'tan çıkar ve sunucuda kapsayıcıyı durdur.
 
+**Analiz ekranı (6 Kasım 2026, Ahmet'in isteği).** Sonuç sayfasına yedinci ekran "Analiz" eklendi (`sayfa._analiz_ekrani`):
+bot başına net sonuç (sıfırın iki yanında çubuk), kazanma / başa baş / beklenti / kâr faktörü tablosu, çıkış nedenleri, ortalama işlem süresi.
+Yalnız okur; ayar yazmaz. Kazanma ve başa baş oranları zaten yüzde olarak gelir (`karne.py`); ekranda bir daha 100 ile çarpılmaz
+(testli). Yalnız buradaki Chromium'da (390 px) denendi.
+
 Sıradaki işler, öncelik sırasıyla:
 
 0. 22 Ekim: uyum 23 ve 12 aylık test 11 (SMK / SMDK %9 stop, SMK2 / SMDK2) raporlarını sunucudaki
