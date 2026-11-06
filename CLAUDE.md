@@ -191,7 +191,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 - Gizli dosyaları okuma, içeriklerini yazma: `.env`, `telegram.env`,
   `/root/karabasan.env`, `/root/.claude/.credentials.json`.
 - Değişmez kurallar burada da geçerlidir: gerçek para kodu ya da anahtarı yok,
-  sınav sürerken strateji ayarı değişmez, internete kapı açılmaz. Üretilen
+  sınav sürerken strateji ayarı değişmez, internete yeni kapı açılmaz (tek istisna aşağıdaki parolalı sayfa yayını). Üretilen
   dosyaları (`docker-compose.yml`, `user_data/config/`) elle düzenleme;
   üreteç her güncellemede yeniden yazar.
 - Botları durdurmak ya da yeniden başlatmak sınav kaydını etkiler (bir saatten
@@ -961,6 +961,16 @@ sınıf adları, betik ve izin başlığı aynı; 591 test geçti. Yalnız burad
 telefonundaki tarayıcıda görülmedi. Aynı gün çalışma notları ve kurallar claude.ai'de bir belgeye de yazıldı
 (https://claude.ai/artifact/7UUxEcuWXbwaN8ZgbAxbmf). PlanningExpert sitesinin yedeklenip arşivlenmesi istendi; o site bu
 depoda değil, sunucuda ve burada erişilemiyor (karar bekliyor).
+
+**İnternetten parolalı erişim (6 Kasım 2026, Ahmet'in açık isteği; önceki "internete kapı açılmaz" kuralının tek istisnası).**
+`araclar/internet.sh` (kur.sh çağırır): Caddy kapsayıcısı (`karabasan-kapi`, ana makine ağı) sonuç sayfasını
+(127.0.0.1:8080) `https://<ip-tireli>.sslip.io` adresinde yayınlar (ücretsiz ad; Ahmet alan adı almadı). Kullanıcı `ahmet`;
+parola sunucuda üretilir (`/var/lib/karabasan/internet_parola`, root 600), depoya girmez, Ahmet'e Telegram'dan bir kez gelir.
+Yalnız GET / HEAD, geri kalanı 405. ufw 80 ve 443 açılır. Yanlış parola denemesi sınırlanmaz (uzun rastgele parola, 128 bit);
+istenirse fail2ban eklenebilir. Sertifika sslip.io'nun ortak sınırına takılabilir (Caddy ZeroSSL'e düşer). Yalnız sahte
+`docker` / `curl` / `ufw` ile prova edildi; **gerçek sunucuda ilk kez çalışacak**: sertifika alımı, 80 / 443'ün boş olması
+(PlanningExpert'in Tailscale kapsayıcısı ana makine kapılarını tutmamalı), Hetzner bulut güvenlik duvarının bu kapıları
+engellememesi. Kapatmak için `internet.sh`'ı `kur.sh`'tan çıkar ve sunucuda kapsayıcıyı durdur.
 
 Sıradaki işler, öncelik sırasıyla:
 

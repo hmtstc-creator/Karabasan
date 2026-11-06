@@ -314,6 +314,8 @@ print(' '.join(b[0] for b in BOTLAR))")"
     [ -f user_data/isinma_baslangici.txt ] || date -u '+%Y-%m-%dT%H:%M:%SZ' > user_data/isinma_baslangici.txt
     chown -R 1000:1000 user_data
     bash araclar/ozel_ag.sh || true
+    # İnternetten parolalı erişim (6 Kasım 2026, Ahmet'in isteği). Kurulamazsa yalnız uyarı; botlar etkilenmez.
+    bash araclar/internet.sh || echo "UYARI: internet yayını kurulamadı; botlar bundan etkilenmez."
 
     # ------------------------------------------------------------ ek
     adim "Ek: sunucudaki Claude"
