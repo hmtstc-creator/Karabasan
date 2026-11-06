@@ -265,7 +265,8 @@ class SunucuTesti(unittest.TestCase):
         self.assertEqual(kod, 200)
         self.assertIn("text/html", baslik["Content-Type"])
         self.assertIn("Sınavın 12. günü.", govde)
-        self.assertEqual(baslik["Cache-Control"], "no-store")
+        self.assertEqual(baslik["Cache-Control"], "private, no-cache")
+        self.assertTrue(baslik["ETag"])
 
     def test_veri_json(self):
         _kod, _baslik, govde = self._al("/veri.json")
@@ -286,7 +287,35 @@ class SunucuTesti(unittest.TestCase):
         self.assertNotIn("script-src 'unsafe-inline'", izin)
 
     def test_saglik(self):
-        self.assertEqual(self._al("/saglik")[2], "tamam\n")
+        govde = self._al("/saglik")[2]
+        self.assertTrue(govde.startswith("tamam\n"))
+        self.assertIn("sn önce", govde)
+
+    def test_etag_degismeyince_304(self):
+        _kod, baslik, _govde = self._al("/")
+        istek = urllib.request.Request(self.adres + "/", headers={"If-None-Match": baslik["ETag"]})
+        with self.assertRaises(urllib.error.HTTPError) as hata:
+            urllib.request.urlopen(istek, timeout=5)
+        self.assertEqual(hata.exception.code, 304)
+
+    def test_gzip_istenirse_sikistirir(self):
+        import gzip
+        istek = urllib.request.Request(self.adres + "/", headers={"Accept-Encoding": "gzip"})
+        with urllib.request.urlopen(istek, timeout=5) as yanit:
+            self.assertEqual(yanit.headers["Content-Encoding"], "gzip")
+            metin = gzip.decompress(yanit.read()).decode("utf-8")
+        self.assertIn("Sınavın 12. günü.", metin)
+
+    def test_ek_guvenlik_basliklari(self):
+        _kod, baslik, _govde = self._al("/")
+        self.assertEqual(baslik["X-Frame-Options"], "DENY")
+        self.assertIn("camera=()", baslik["Permissions-Policy"])
+        self.assertEqual(baslik["Cross-Origin-Opener-Policy"], "same-origin")
+
+    def test_her_ekran_sayfada_bir_kez(self):
+        govde = self._al("/")[2]
+        for kimlik, _ad in sayfa.EKRANLAR:
+            self.assertEqual(govde.count(f'<section id="{kimlik}"'), 1, kimlik)
 
     def test_bilinmeyen_adres_404(self):
         with self.assertRaises(urllib.error.HTTPError) as hata:
@@ -298,6 +327,23 @@ class SunucuTesti(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as hata:
             urllib.request.urlopen(istek, timeout=5)
         self.assertEqual(hata.exception.code, 501)
+
+
+class OnbellekTesti(unittest.TestCase):
+    def test_hata_olursa_son_iyi_ozet_sunulur(self):
+        ob = panel.Onbellek(Path("/yok"), sure=0)
+        ob._ozet, ob._zaman, ob._surum = {"eski": True}, 0.0, 1
+        eski = panel.genel_ozet
+        panel.genel_ozet = lambda k: (_ for _ in ()).throw(RuntimeError("kilitli"))
+        try:
+            self.assertEqual(ob.ozet(), {"eski": True})
+            self.assertIn("kilitli", ob.son_hata)
+        finally:
+            panel.genel_ozet = eski
+
+    def test_hata_sayfasi_ayrinti_gostermez(self):
+        self.assertNotIn("Traceback", panel.HATA_SAYFASI)
+        self.assertIn("kimliği", panel.HATA_SAYFASI)
 
 
 if __name__ == "__main__":

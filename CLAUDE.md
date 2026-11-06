@@ -201,7 +201,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 591 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 617 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -976,6 +976,27 @@ engellememesi. Kapatmak için `internet.sh`'ı `kur.sh`'tan çıkar ve sunucuda 
 bot başına net sonuç (sıfırın iki yanında çubuk), kazanma / başa baş / beklenti / kâr faktörü tablosu, çıkış nedenleri, ortalama işlem süresi.
 Yalnız okur; ayar yazmaz. Kazanma ve başa baş oranları zaten yüzde olarak gelir (`karne.py`); ekranda bir daha 100 ile çarpılmaz
 (testli). Yalnız buradaki Chromium'da (390 px) denendi.
+
+**Uzman toplantısı ve site geliştirmesi (6 Kasım 2026, Ahmet'in isteği).** Dört alt ajan (mimari, programlama, kripto
+trader, görsel tasarım) 5'er geri bildirim verdi; 20 madde birleştirildi. Uygulanan:
+- Analiz ekranı yeniden yazıldı: bot başına karne kartı (kazanma, işlem başına USDT ve %, ort. kazanç / kayıp USDT, en kötü
+  işlem, en uzun kayıp serisi, kâr faktörü, "bir kayıp kaç kazancı siler"), coin bazında sonuç ve tek coin payı, çıkış nedenleri
+  (`sonuc.CIKIS_NEDENI`'nin Türkçe değerleriyle eşleşir), süre çubuğu soldan ve `_sure` ile. Başa baş rengi en az 5 kayıp yoksa
+  verilmez. İşlemsiz bot "henüz işlem yok" der, %0 göstermez.
+- `sonuc.py`: `risk_olcumleri`, `guven_etiketi` (gün bazında t; < 10 gün "Veri az", |t| ≥ 2,5 belirgin), `parite_ozeti`,
+  `acik_risk` (açık pozisyonun stop fiyatı ve stopta yaklaşık kaybı; ek giriş bekleyen / yapılmış SMK2 / SMDK2 ayrı hesap,
+  komisyon hariç), `toplam.acik_stopta_kayip`. İşlemler ekranında "hepsi stopa giderse" şeridi; bot kartında güven rozeti.
+- Panel: içerik özetinden ETag ve 304, istenirse gzip, `Cache-Control: private, no-cache`, son başarılı özet (hata olursa eski
+  özet sunulur, 20 sn sonra yeniden denenir), `/saglik` özetin yaşını yazar (hiç özet yoksa 503), hata sayfası ayrıntı yerine
+  kimlik gösterir (ayrıntı kayıtta), ek başlıklar (X-Frame-Options, Permissions-Policy, COOP, CORP).
+- Betik: 15 sn zaman sınırı, üst üste istek yok, gizli sekmede tazelemez, hata türüne göre mesaj ve son başarılı saat.
+- Görünüm: ayrı uyarı rengi (`--uyari` turuncu; ses vermeyen bot dilimleri ve üstte uyarı şeridi), alt gezinti telefonda
+  8 eşit sütun ve kısa adlar (`GEZINTI_ADLARI`), kartlarda bulanıklık kaldırıldı (yalnız gezintide), köşe ölçüleri 8 / 12 / 20.
+- Ertelenen: (1) karne USDT'yi yüzde × 50 ile hesaplıyor; ek girişli işlemde `stake_amount` toplam teminatsa SMK2 / SMDK2'nin
+  net ve düşüş değerleri küçük çıkar. Sunucudaki kayıtla doğrulanmadan `karne.py`'ye dokunulmadı (sınav ölçütlerini etkiler).
+  (2) Bot başına eğri, gezinti simgeleri, diğer ekranlarda açıklamaları `<details>` içine alma, `EKRANLAR` yeniden yapısı
+  (yalnız "her ekran bir kez" testi eklendi), Caddy için fail2ban, `/defter` önbelleği.
+- 617 test geçiyor. Yalnız buradaki Chromium'da (390 px) görüldü; Ahmet'in iPhone Safari'sinde denenmedi.
 
 Sıradaki işler, öncelik sırasıyla:
 

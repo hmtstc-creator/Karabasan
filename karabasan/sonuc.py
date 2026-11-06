@@ -137,6 +137,110 @@ def islemleri_oku(db_yolu: Path) -> dict:
 SESSIZLIK_DAKIKA = 15
 
 
+
+# --------------------------------------------------------------------------
+# Risk ve güven ölçümleri (6 Kasım 2026, uzman toplantısı). Yalnız okur; USDT değerleri
+# işlemin kendi kayıtlı tutarından (net_tutar) gelir.
+# --------------------------------------------------------------------------
+
+GUVEN_ESIGI = 2.5   # panel sınamasıyla aynı: gün bazında t >= 2,5
+GUVEN_EN_AZ_GUN = 10
+
+
+def risk_olcumleri(islemler: list) -> dict:
+    """Ortalama kazanç / kayıp (USDT), en büyük tek kayıp, en uzun art arda kayıp serisi."""
+    sirali = sorted(islemler, key=lambda i: i["cikis_zamani"])
+    tutarlar = [float(i["net_tutar"]) for i in sirali]
+    kazanc = [t for t in tutarlar if t > 0]
+    kayip = [t for t in tutarlar if t <= 0]
+    seri = en_uzun = 0
+    seri_toplam = en_uzun_toplam = 0.0
+    for t in tutarlar:
+        if t <= 0:
+            seri += 1
+            seri_toplam += t
+            if seri > en_uzun or (seri == en_uzun and seri_toplam < en_uzun_toplam):
+                en_uzun, en_uzun_toplam = seri, seri_toplam
+        else:
+            seri, seri_toplam = 0, 0.0
+    ort_kazanc = sum(kazanc) / len(kazanc) if kazanc else None
+    ort_kayip = sum(kayip) / len(kayip) if kayip else None
+    return {
+        "ort_kazanc_usdt": ort_kazanc,
+        "ort_kayip_usdt": ort_kayip,
+        "kayip_sayisi": len(kayip),
+        # Bir ortalama kayıp kaç ortalama kazancı siler.
+        "kayip_kazanc_orani": (abs(ort_kayip) / ort_kazanc) if ort_kazanc and ort_kayip else None,
+        "en_buyuk_kayip_usdt": min(tutarlar) if tutarlar and min(tutarlar) < 0 else None,
+        "en_uzun_kayip_serisi": en_uzun,
+        "en_uzun_kayip_toplami": en_uzun_toplam,
+    }
+
+
+def guven_etiketi(gunluk: list) -> dict:
+    """Gün bazında net tutarların t değeri ve düz Türkçe etiket. Şanstan ayırt edilebilir mi?"""
+    netler = [float(g["net_tutar"]) for g in gunluk]
+    n = len(netler)
+    if n < GUVEN_EN_AZ_GUN:
+        return {"t": None, "gun": n, "etiket": "Veri az", "sinif": "notr"}
+    ort = sum(netler) / n
+    varyans = sum((x - ort) ** 2 for x in netler) / (n - 1)
+    if varyans <= 0:
+        return {"t": None, "gun": n, "etiket": "Veri az", "sinif": "notr"}
+    t = ort / (varyans ** 0.5 / n ** 0.5)
+    if t >= GUVEN_ESIGI:
+        etiket, sinif = "Belirgin artı, ama tek dönem", "arti"
+    elif t <= -GUVEN_ESIGI:
+        etiket, sinif = "Belirgin eksi", "eksi"
+    elif abs(t) >= 1.5:
+        etiket, sinif = "Zayıf işaret", "notr"
+    else:
+        etiket, sinif = "Kanıt yok (şanstan ayırt edilemez)", "notr"
+    return {"t": t, "gun": n, "etiket": etiket, "sinif": sinif}
+
+
+def parite_ozeti(islemler: list) -> list[dict]:
+    """Coin başına işlem sayısı, kazanma ve net USDT; en çok kazandırandan en çok kaybettirene."""
+    gruplar: dict[str, list] = {}
+    for i in islemler:
+        gruplar.setdefault(str(i.get("parite") or "?"), []).append(float(i["net_tutar"]))
+    satirlar = [
+        {"parite": p, "islem": len(t), "kazanma_orani": sum(1 for x in t if x > 0) / len(t) * 100.0,
+         "net_tutar": sum(t)}
+        for p, t in gruplar.items()
+    ]
+    return sorted(satirlar, key=lambda r: r["net_tutar"], reverse=True)
+
+
+def acik_risk(islem: dict, kural: dict, ilk_tutar: float) -> dict:
+    """Açık pozisyon stopa giderse yaklaşık kayıp (USDT, komisyon hariç) ve stop fiyatı.
+
+    Stop fiyatı ilk girişe göredir (motor ek girişte stopu yeniden kurmaz). Ek giriş henüz
+    yapılmamışsa ve kural izin veriyorsa, ek girişin stoptaki kaybı da eklenir.
+    """
+    stop = kural["cikis"].get("zarar_durdur_yuzde")
+    fiyat = islem.get("giris_fiyati")
+    if not stop or not fiyat:
+        return {"stop_fiyati": None, "stopta_kayip": None}
+    kaldirac = float(kural.get("kaldirac", 1))
+    yon = 1.0 if islem["yon"] == "aciga_satis" else -1.0
+    stop_fiyati = float(fiyat) * (1 + yon * stop / 100.0)
+    tutar = float(islem.get("tutar") or 0.0)
+    ekleme = kural.get("zararda_ekleme")
+    if ekleme:
+        kalan = float(ekleme["stopa_kala_yuzde"])
+        if tutar <= ilk_tutar * 1.01:
+            # Ek giriş henüz yapılmadı: stopa giderken yolda yapılacak.
+            kayip = tutar * kaldirac * stop / 100.0 + ilk_tutar * float(ekleme["kat"]) * kaldirac * kalan / 100.0
+        else:
+            # Ek giriş yapıldı: ilk kısım stopa tam uzaklıkta, eklenen kısım yalnız 'kalan' kadar.
+            ilk = min(ilk_tutar, tutar)
+            kayip = ilk * kaldirac * stop / 100.0 + (tutar - ilk) * kaldirac * kalan / 100.0
+    else:
+        kayip = tutar * kaldirac * stop / 100.0
+    return {"stop_fiyati": stop_fiyati, "stopta_kayip": -kayip}
+
+
 def gunluk_yasi_dakika(veri_klasoru: Path, bot: str, simdi: datetime) -> float | None:
     """Botun günlük dosyasına en son kaç dakika önce yazıldı (dosya yoksa None).
 
@@ -233,7 +337,10 @@ def bot_ozeti(
         "olcutler": [],
         "karar": None,
         "gunluk": gunluk_ozet(islemler),
+        "pariteler": parite_ozeti(islemler),
     }
+    ozet.update(risk_olcumleri(islemler))
+    ozet["guven"] = guven_etiketi(ozet["gunluk"])
     if donem["donem"] in ("sinav", "bitti"):
         beklenti = (gecmis_test or {}).get(bot)
         karar = kr.sinav_karari(islemler, baslangic, beklenti, tutar, bakiye)
@@ -288,8 +395,10 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
                     {**i, "bot": bot, "kod": kural_kodu,
                      "stop_sonrasi": ss.islem_cumlesi(izlenen) if izlenen else None}
                 )
+        kural = kural_yukle(kural_kodu)
         for i in kayit["acik"]:
-            acik_islemler.append({**i, "bot": bot, "kod": kural_kodu})
+            acik_islemler.append({**i, "bot": bot, "kod": kural_kodu,
+                                  **acik_risk(i, kural, float(ayar["islem_tutari"]))})
     son_islemler.sort(key=lambda i: i["cikis_zamani"], reverse=True)
     acik_islemler.sort(key=lambda i: i["giris_zamani"], reverse=True)
 
@@ -317,6 +426,7 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
             "net_tutar": sum(b["net_tutar"] for b in botlar),
             "son_24s_islem": len(son_gun),
             "son_24s_net_tutar": sum(i["net_tutar"] for i in son_gun),
+            "acik_stopta_kayip": sum(i["stopta_kayip"] or 0.0 for i in acik_islemler),
         },
         "gunluk_toplam": gunluk_topla([b["gunluk"] for b in botlar]),
         "son_islemler": son_islemler[:SON_ISLEM_SAYISI],

@@ -47,6 +47,8 @@ EKRANLAR = [
     ("sinav", "Sınav"),
     ("kriterler", "Kriterler"),
 ]
+# Telefondaki alt gezintide görünen kısa adlar (8 sekme 390 px'e sığsın diye).
+GEZINTI_ADLARI = {"ana": "Ana", "islemler": "İşlem", "dersler": "Ders", "kriterler": "Kriter"}
 # Rapor ekranında seçilebilecek en çok bot sayısı (biçim kuralları bu kadarı için üretilir).
 RAPOR_EN_FAZLA = 16
 RAPOR_GUN = 30
@@ -86,6 +88,14 @@ def isaretli_yuzde(deger, basamak: int = 2) -> str:
     if abs(deger) < 0.5 * 10 ** (-basamak):
         return "%" + sayi(0.0, basamak)
     return ("+" if deger > 0 else "−") + "%" + sayi(abs(deger), basamak)
+
+
+def fiyat_metni(fiyat) -> str:
+    """Fiyatı büyüklüğüne göre basamakla yazar: 97,00 · 2,4512 · 0,123456."""
+    if fiyat is None:
+        return "–"
+    basamak = 2 if abs(fiyat) >= 100 else 4 if abs(fiyat) >= 1 else 6
+    return sayi(fiyat, basamak)
 
 
 def kisa_yuzde(deger) -> str:
@@ -317,7 +327,7 @@ def _halka(ozet: dict) -> str:
     return (
         f'<div class="reaktor"><svg viewBox="0 0 400 400" role="img" aria-label="{escape(etiket)}">'
         f'{"".join(parcalar)}</svg>'
-        '<p class="reaktor-not">Dış halkadaki her dilim bir bottur: yeşil artıda, kırmızı ekside. '
+        '<p class="reaktor-not">Dış halkadaki her dilim bir bottur: yeşil artıda, kırmızı ekside, turuncu kesik ses yok. '
         "İç halka sınavın 30 günüdür.</p></div>"
     )
 
@@ -450,11 +460,19 @@ def _aciklar(ozet: dict, saat_dilimi: str) -> str:
             f'<span class="islem-zaman">{_tarih_saat(i["giris_zamani"], saat_dilimi)}</span>'
             f'<span class="kod">{escape(str(i.get("kod") or i["bot"]))}</span>'
             f'<span class="islem-parite">{_parite(i["parite"])}'
-            f'<span class="alt">{_yon(i["yon"])}, {sayi(i["tutar"], 0)} USDT</span></span>'
-            f'<span class="islem-sure">{_sure(gecen)}<span class="alt">önce açıldı</span></span>'
+            f'<span class="alt">{_yon(i["yon"])}, {sayi(i["tutar"], 0)} USDT'
+            + (f', stop {fiyat_metni(i["stop_fiyati"])}' if i.get("stop_fiyati") else "")
+            + '</span></span>'
+            f'<span class="islem-sure">{_sure(gecen)}<span class="alt">önce açıldı</span>'
+            + (f'<span class="alt eksi">stopta ≈ {isaretli(i["stopta_kayip"])}</span>'
+               if i.get("stopta_kayip") is not None else "")
+            + '</span>'
             "</li>"
         )
-    return f'<ul class="islemler">{"".join(satirlar)}</ul>'
+    toplam = sum(i.get("stopta_kayip") or 0.0 for i in aciklar)
+    risk = (f'<p class="serit risk"><strong>{len(aciklar)} açık pozisyon.</strong> Hepsi stopa giderse '
+            f'yaklaşık <span class="eksi">{isaretli(toplam)} USDT</span> (komisyon hariç).</p>') if toplam else ""
+    return f'{risk}<ul class="islemler">{"".join(satirlar)}</ul>'
 
 
 def _son_ders_seridi(ozet: dict, saat_dilimi: str) -> str:
@@ -469,6 +487,16 @@ def _son_ders_seridi(ozet: dict, saat_dilimi: str) -> str:
     )
 
 
+def _sessiz_seridi(ozet: dict, bot_cumlesi: str) -> str:
+    """Bot cümlesi; ses vermeyen bot varsa göze batan bir uyarı şeridi olarak."""
+    if not bot_cumlesi:
+        return ""
+    sessiz = any(b.get("calisiyor") is False and not b.get("hata") for b in ozet["botlar"])
+    if sessiz:
+        return f'<p class="uyari-serit" role="status">{escape(bot_cumlesi)}</p>'
+    return f'<p class="bot-cumlesi">{escape(bot_cumlesi)}</p>'
+
+
 def _ana_ekran(ozet: dict, saat_dilimi: str) -> str:
     baslik, aciklama = _durum_cumlesi(ozet)
     yerel, _ad = yerel_zaman(ozet["uretildi"], saat_dilimi)
@@ -476,7 +504,8 @@ def _ana_ekran(ozet: dict, saat_dilimi: str) -> str:
     return f"""<section id="ana" class="ekran">
 <div class="pano">
 <div class="selam">
-<p class="selam-ust">{selam(yerel.hour)} {escape(bot_cumlesi)}</p>
+<p class="selam-ust">{selam(yerel.hour)}</p>
+{_sessiz_seridi(ozet, bot_cumlesi)}
 <h1>{escape(baslik)}</h1>
 <p class="aciklama">{escape(aciklama)}</p>
 </div>
@@ -555,6 +584,10 @@ def _bot_karti(bot: dict) -> str:
         ("Kazanma", kazanma + basabas, ""),
         ("Net (USDT)", f'<span class="{_isaret_sinifi(net)}">{isaretli(net)}</span>', ""),
         ("En büyük düşüş", yuzde(bot["en_buyuk_dusus_yuzde"], 2), ""),
+        ("Ort. kazanç", f'<span class="arti">{isaretli(bot.get("ort_kazanc_usdt"))}</span>', ""),
+        ("Ort. kayıp", f'<span class="eksi">{isaretli(bot.get("ort_kayip_usdt"))}</span>', ""),
+        ("En kötü işlem", f'<span class="eksi">{isaretli(bot.get("en_buyuk_kayip_usdt"))}</span>', ""),
+        ("Kayıp serisi", f'{bot.get("en_uzun_kayip_serisi") or 0} işlem', ""),
     ]
 
     def liste(ogeler, sinif):
@@ -583,6 +616,7 @@ def _bot_karti(bot: dict) -> str:
         f'<article class="kart kose" id="bot-{escape(bot["bot"])}">'
         f'<div class="kart-ust"><span class="kod">{escape(bot["kod"])}</span>'
         f'<h3>{escape(bot["ad"])}</h3></div>'
+        f'<div class="kart-guven">{_guven_rozeti(bot)}</div>'
         f'<p class="alt">{piyasa} {_yon(bot["yon"])} yapar. Bot adı {escape(bot["bot"])}.</p>'
         f'<p class="kart-aciklama">{escape(bot.get("aciklama") or "")}</p>'
         f'{liste(olculer, "kural")}{liste(sonuclar, "sonuc")}'
@@ -740,122 +774,172 @@ kapandığı güne sayılır; açık pozisyonlar kapanınca eklenir. Gün sını
 # Analiz ekranı: yalnız okuma. Bot karşılaştırması, kazanma oranı, çıkış nedenleri, süre.
 # --------------------------------------------------------------------------
 
+# sonuc.CIKIS_NEDENI'nin Türkçe değerleri -> ekrandaki ad (aynı sırayla gösterilir).
 NEDEN_ADLARI = {
-    "hedef": "Hedef", "stop": "Stop", "sure": "Süre aşımı", "sinyal": "Çıkış sinyali",
-    "iz_stop": "İz süren stop", "exit_signal": "Çıkış sinyali", "roi": "Hedef",
-    "stop_loss": "Stop", "trailing_stop_loss": "İz süren stop", "time_exit": "Süre aşımı",
-    "force_exit": "Zorla kapatma",
+    "kâr hedefi": "Kâr hedefi", "iz süren stop": "İz süren stop", "stop": "Stop",
+    "süre aşımı": "Süre aşımı", "çıkış sinyali": "Çıkış sinyali", "elle kapatma": "Elle kapatma",
+    "acil çıkış": "Acil çıkış", "tasfiye": "Tasfiye",
 }
-NEDEN_SIRASI = ["Hedef", "Stop", "İz süren stop", "Süre aşımı", "Çıkış sinyali", "Zorla kapatma"]
+NEDEN_SIRASI = list(NEDEN_ADLARI.values())
 
 
-def _yatay_cubuklar(satirlar: list, en_buyuk: float) -> str:
-    """satirlar: (etiket, değer, sınıf). Değer sıfırın iki yanına çizilir."""
+def _ilk_buyuk(metin: str) -> str:
+    """Türkçeye uygun ilk harf büyütme (i -> İ)."""
+    if not metin:
+        return metin
+    ilk = "İ" if metin[0] == "i" else metin[0].upper()
+    return ilk + metin[1:]
+
+
+def _yatay_cubuklar(satirlar: list, en_buyuk: float, tek_yon: bool = False) -> str:
+    """satirlar: (etiket, değer, sınıf, yazı). tek_yon: çubuk soldan başlar (süre gibi)."""
     en_buyuk = en_buyuk or 1.0
     cikti = []
-    for etiket, deger, sinif in satirlar:
-        oran = min(abs(deger) / en_buyuk, 1.0) * 50
-        if deger >= 0:
-            sol, genislik = 50, oran
+    for etiket, deger, sinif, yazi in satirlar:
+        if tek_yon:
+            sol, genislik = 0.0, min(abs(deger) / en_buyuk, 1.0) * 100
         else:
-            sol, genislik = 50 - oran, oran
+            genislik = min(abs(deger) / en_buyuk, 1.0) * 50
+            sol = 50.0 if deger >= 0 else 50.0 - genislik
         cikti.append(
             f'<li><span class="kriter-ad">{escape(etiket)}</span>'
-            f'<span class="cubuk-ic"><i class="{sinif}" style="left:{sol:.2f}%;width:{genislik:.2f}%"></i></span>'
-            f'<span class="kriter-deger {sinif}">{isaretli(deger)}</span></li>'
+            f'<span class="cubuk-ic{" tek" if tek_yon else ""}"><i class="{sinif}" '
+            f'style="left:{sol:.2f}%;width:{genislik:.2f}%"></i></span>'
+            f'<span class="kriter-deger {sinif}">{yazi}</span></li>'
         )
     return '<ul class="yatay">' + "".join(cikti) + "</ul>"
+
+
+def _guven_rozeti(bot: dict) -> str:
+    g = bot.get("guven") or {}
+    if not g:
+        return ""
+    t = f'; t {sayi(g["t"], 1)}' if g.get("t") is not None else ""
+    return (f'<span class="guven {g["sinif"]}">{escape(g["etiket"])}'
+            f'<span class="guven-alt"> ({g["gun"]} gün{t})</span></span>')
+
+
+def _analiz_karti(b: dict) -> str:
+    """Bir botun analiz kartı: kazanma, beklenti, risk, güven."""
+    n = b["islem_sayisi"]
+    if n == 0:
+        return (f'<article class="analiz-kart bos-kart"><div class="analiz-ust"><span class="kod">{escape(b["kod"])}</span>'
+                f'<span class="alt">Henüz kapanmış işlem yok.</span></div></article>')
+    kazanma = yuzde(b["kazanma_orani"])
+    basabas = b["basabas_orani"]
+    yeterli = (b.get("kayip_sayisi") or 0) >= 5
+    if basabas is None or not yeterli or b["kazanma_orani"] is None:
+        k_sinif = "notr"
+    else:
+        k_sinif = "arti" if b["kazanma_orani"] >= basabas else "eksi"
+    basabas_metni = (f"başa baş {yuzde(basabas)}" if basabas is not None and yeterli
+                     else "başa baş için en az 5 kayıp gerekir")
+    islem_basi = b["net_tutar"] / n if n else None
+    oran = b.get("kayip_kazanc_orani")
+    oran_metni = (f"Bir ortalama kayıp {sayi(oran, 1)} ortalama kazancı siler."
+                  if oran is not None else "")
+    seri = b.get("en_uzun_kayip_serisi") or 0
+    return f"""<article class="analiz-kart">
+<div class="analiz-ust"><span class="kod">{escape(b["kod"])}</span>{_guven_rozeti(b)}</div>
+<dl class="olcu analiz-olcu">
+<div><dt>Kazanma</dt><dd class="{k_sinif}">{kazanma}<span class="alt">{escape(basabas_metni)}</span></dd></div>
+<div><dt>İşlem başına</dt><dd class="{_isaret_sinifi(islem_basi)}">{isaretli(islem_basi, 3)}
+<span class="alt">USDT · {isaretli_yuzde(b["net_beklenti"], 3)}</span></dd></div>
+<div><dt>Ort. kazanç / kayıp</dt><dd><span class="arti">{isaretli(b.get("ort_kazanc_usdt"))}</span> /
+<span class="eksi">{isaretli(b.get("ort_kayip_usdt"))}</span><span class="alt">USDT</span></dd></div>
+<div><dt>En kötü işlem</dt><dd class="eksi">{isaretli(b.get("en_buyuk_kayip_usdt"))}<span class="alt">USDT</span></dd></div>
+<div><dt>En uzun kayıp serisi</dt><dd>{seri} işlem<span class="alt">{isaretli(b.get("en_uzun_kayip_toplami")) if seri else "–"} USDT</span></dd></div>
+<div><dt>Kâr faktörü</dt><dd>{sayi(b["kar_faktoru"]) if b["kar_faktoru"] not in (None, float("inf")) else "–"}<span class="alt">{n} işlem</span></dd></div>
+</dl>
+{f'<p class="alt">{escape(oran_metni)}</p>' if oran_metni else ""}
+</article>"""
 
 
 def _analiz_ekrani(ozet: dict) -> str:
     botlar = ozet["botlar"]
     if not botlar:
-        return '<section id="analiz" class="ekran"><h2 class="ekran-baslik">Analiz</h2><p class="bos">Henüz bot yok.</p></section>'
+        return ('<section id="analiz" class="ekran"><h2 class="ekran-baslik">Analiz</h2>'
+                '<p class="bos">Henüz bot yok.</p></section>')
 
-    # 1) Bot başına net sonuç (sıfırın iki yanında)
     sirali = sorted(botlar, key=lambda b: b["net_tutar"], reverse=True)
     en_buyuk = max((abs(b["net_tutar"]) for b in sirali), default=0.0)
-    net_satirlar = [
-        (f'{b["kod"]}', b["net_tutar"], "arti" if b["net_tutar"] >= 0 else "eksi") for b in sirali
-    ]
-    net_grafik = _yatay_cubuklar(net_satirlar, en_buyuk)
+    net_grafik = _yatay_cubuklar(
+        [(b["kod"], b["net_tutar"], _isaret_sinifi(b["net_tutar"]), isaretli(b["net_tutar"])) for b in sirali],
+        en_buyuk)
+    artida = sum(1 for b in botlar if b["net_tutar"] > 0)
+    toplam = sum(b["net_tutar"] for b in botlar)
 
-    # 2) Kazanma oranı ve başa baş oranı (yan yana, yüzde)
-    satirlar = []
-    for b in botlar:
-        kazanma = b["kazanma_orani"] or 0.0
-        basabas = b["basabas_orani"]
-        if basabas is None:
-            notu = ""
-        else:
-            notu = f"başa baş %{basabas:.1f}".replace(".", ",")
-        durum = "arti" if basabas is not None and kazanma >= basabas else "eksi"
-        if basabas is None:
-            durum = "notr"
-        satirlar.append(
-            f'<tr><th scope="row">{escape(b["kod"])}</th>'
-            f'<td>{b["islem_sayisi"]}</td>'
-            f'<td class="{durum}">%{kazanma:.1f}'.replace(".", ",") +
-            f'<span class="alt"> {escape(notu)}</span></td>'
-            f'<td>{isaretli(b["net_beklenti"] or 0, 3)} <span class="alt">USDT / işlem</span></td>'
-            f'<td>{sayi(b["kar_faktoru"]) if b["kar_faktoru"] is not None else "—"}</td></tr>'
-        )
-    tablo = (
-        '<table class="cizelge"><thead><tr><th>Bot</th><th>İşlem</th><th>Kazanma</th>'
-        '<th>Beklenti</th><th>Kâr faktörü</th></tr></thead><tbody>'
-        + "".join(satirlar) + "</tbody></table>"
-    )
+    kartlar = "".join(_analiz_karti(b) for b in botlar)
 
-    # 3) Çıkış nedenleri (bot başına, sayı olarak)
-    nedenler_satirlar = []
+    neden_satirlar = []
     for b in botlar:
         sayac: dict[str, int] = {}
-        for neden, adet in b["nedenler"].items():
-            ad = NEDEN_ADLARI.get(neden, neden.replace("_", " ").capitalize())
+        for neden, adet in (b.get("nedenler") or {}).items():
+            ad = NEDEN_ADLARI.get(neden, _ilk_buyuk(str(neden)))
             sayac[ad] = sayac.get(ad, 0) + adet
-        toplam = sum(sayac.values())
-        if toplam == 0:
+        if not sayac:
             parca = '<span class="alt">henüz kapanmış işlem yok</span>'
         else:
-            sira = [a for a in NEDEN_SIRASI if a in sayac] + sorted(
-                a for a in sayac if a not in NEDEN_SIRASI)
-            parca = " · ".join(f'{escape(a)} {sayac[a]}' for a in sira)
-        nedenler_satirlar.append(f'<li><span class="kriter-ad">{escape(b["kod"])}</span>'
-                                 f'<span class="analiz-not">{parca}</span></li>')
-    nedenler = '<ul class="analiz-liste">' + "".join(nedenler_satirlar) + "</ul>"
+            sira = [a for a in NEDEN_SIRASI if a in sayac] + sorted(a for a in sayac if a not in NEDEN_SIRASI)
+            parca = " · ".join(f"{escape(a)} {sayac[a]}" for a in sira)
+        neden_satirlar.append(f'<li><span class="kriter-ad">{escape(b["kod"])}</span>'
+                              f'<span class="analiz-not">{parca}</span></li>')
+    nedenler = '<ul class="analiz-liste">' + "".join(neden_satirlar) + "</ul>"
 
-    # 4) Ortalama işlem süresi (saat)
-    sure_satirlar = []
-    sureli = [b for b in botlar if b["ort_sure_dakika"]]
-    en_uzun = max((b["ort_sure_dakika"] for b in sureli), default=0.0)
-    for b in sorted(sureli, key=lambda b: b["ort_sure_dakika"], reverse=True):
-        sure_satirlar.append((b["kod"], b["ort_sure_dakika"] / 60, "notr"))
-    if sure_satirlar:
-        sure_grafik = _yatay_cubuklar(sure_satirlar, en_uzun / 60)
+    sureli = sorted((b for b in botlar if b.get("ort_sure_dakika")), key=lambda b: b["ort_sure_dakika"], reverse=True)
+    if sureli:
+        sure_grafik = _yatay_cubuklar(
+            [(b["kod"], b["ort_sure_dakika"], "notr", _sure(b["ort_sure_dakika"])) for b in sureli],
+            sureli[0]["ort_sure_dakika"], tek_yon=True)
     else:
         sure_grafik = '<p class="bos">Henüz kapanmış işlem yok.</p>'
 
+    # Coin bazında (bütün botlar birlikte)
+    birlesik: dict[str, dict] = {}
+    for b in botlar:
+        for r in b.get("pariteler") or []:
+            d = birlesik.setdefault(r["parite"], {"islem": 0, "kazanan": 0.0, "net": 0.0})
+            d["islem"] += r["islem"]
+            d["kazanan"] += r["kazanma_orani"] / 100.0 * r["islem"]
+            d["net"] += r["net_tutar"]
+    if birlesik:
+        coinler = sorted(birlesik.items(), key=lambda kv: kv[1]["net"], reverse=True)
+        en_iyi = coinler[0]
+        pay = (en_iyi[1]["net"] / toplam * 100.0) if toplam > 0 and en_iyi[1]["net"] > 0 else None
+        pay_metni = (f"Toplam artının %{sayi(pay, 0)} kadarı tek coinden ({_parite(en_iyi[0])})."
+                     if pay is not None else "")
+        en_coin = max(abs(v["net"]) for _, v in coinler) or 1.0
+        coin_grafik = _yatay_cubuklar(
+            [(str(p).split(":", 1)[0], v["net"], _isaret_sinifi(v["net"]),
+              f'{isaretli(v["net"])}<span class="alt"> {v["islem"]} işlem</span>') for p, v in coinler],
+            en_coin)
+    else:
+        pay_metni, coin_grafik = "", '<p class="bos">Henüz kapanmış işlem yok.</p>'
+
     return f"""<section id="analiz" class="ekran">
 <h2 class="ekran-baslik">Analiz</h2>
-<p class="not">Ölçümler yalnız sanal işlemlerden hesaplanır; hiçbir ayarı değiştirmez. Net sonuç komisyon düşülmüş USDT'dir.</p>
+<p class="ekran-ozet">{len(botlar)} bot · {artida} tanesi artıda · toplam <span class="{_isaret_sinifi(toplam)}">{isaretli(toplam)} USDT</span></p>
+<details class="aciklama-kutu"><summary>Bu ekran ne gösteriyor?</summary>
+<p>Ölçümler yalnız sanal işlemlerden hesaplanır; hiçbir ayarı değiştirmez. Tutarlar komisyon düşülmüş USDT'dir.
+Güven etiketi, günlük sonuçların şanstan ayırt edilip edilemediğini söyler (gün bazında t ≥ 2,5 belirgin sayılır).
+Az veriyle yüksek kazanma oranı yanıltabilir: bir stop birçok küçük kazancı silebilir.</p></details>
 <div class="kose kart">
 <h3>Bot başına net sonuç</h3>
-<p class="alt">Sıfırın sağı kâr, solu zarar. Çubuk uzunluğu en büyük bota göre.</p>
 {net_grafik}
 </div>
+<h3>Botların karnesi</h3>
+<div class="analiz-kartlar">{kartlar}</div>
 <div class="kose kart">
-<h3>Kazanma ve beklenti</h3>
-<p class="alt">Kazanma, başa baş oranının üstündeyse yeşil. Başa baş, kazanma ile kayıp dengesinin tutacağı orandır.</p>
-{tablo}
+<h3>Coin bazında</h3>
+{f'<p class="alt">{pay_metni}</p>' if pay_metni else ""}
+{coin_grafik}
 </div>
 <div class="kose kart">
 <h3>Çıkış nedenleri</h3>
-<p class="alt">Her işlem hangi koşulla kapandı.</p>
 {nedenler}
 </div>
 <div class="kose kart">
 <h3>Ortalama işlem süresi</h3>
-<p class="alt">Saat cinsinden; işlemler ne kadar açık kalıyor.</p>
 {sure_grafik}
 </div>
 </section>"""
@@ -1400,7 +1484,6 @@ border-color:rgba(214,183,121,.5);color:var(--buz)}
 .r-bot,.r-cizgi,.s-cizgi,.r-cekirdek{filter:none}
 .r-cekirdek{fill:rgba(255,255,255,.03);stroke:rgba(214,183,121,.5)}
 .r-ince,.r-olcek,.r-nokta{stroke:var(--holo)}
-.s-cizgi.notr,.s-uc.notr{color:var(--holo)}
 .gun{border-radius:5px}
 .gun.gecti{background:var(--holo);border-color:var(--holo);box-shadow:none}
 .gun.bugun{box-shadow:0 0 0 3px rgba(232,195,106,.2)}
@@ -1426,6 +1509,46 @@ backdrop-filter:blur(22px) saturate(1.4);border-top:1px solid var(--cizgi)}
 .gezinti a{letter-spacing:.03em}
 EKRAN_SECILI{color:var(--holo);border-top-color:var(--holo);
 background:linear-gradient(rgba(214,183,121,.16),rgba(214,183,121,0))}
+/* Uzman toplantısı kararları (6 Kasım 2026) */
+:root{--uyari:#ff9f43;--r-kucuk:8px;--r-orta:12px;--r-buyuk:20px}
+.kose,.kart,.ders-kart,.okumalar{-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:var(--r-buyuk);
+box-shadow:0 12px 32px -16px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.05) inset}
+.kod{border-radius:var(--r-kucuk)}
+.serit,.bos,.sira{border-radius:var(--r-orta)}
+.ekran{scroll-margin-top:96px}
+.r-bot.sessiz,.r-etiket.sessiz{color:var(--uyari)}
+.uyari-serit{margin:12px 0 4px;padding:12px 14px;border-radius:var(--r-orta);background:rgba(255,159,67,.12);
+border:1px solid rgba(255,159,67,.3);border-left:3px solid var(--uyari);color:#ffd2a8;font:600 15px/1.4 var(--govde)}
+.bot-cumlesi{margin:8px 0 0;color:var(--soluk);font-size:.9375rem}
+.serit.risk{border-left-color:var(--eksi);background:rgba(240,112,107,.07)}
+.serit.risk strong{color:var(--buz)}
+.ekran-ozet{margin:0 0 14px;font:650 1.125rem/1.35 var(--rakam)}
+.aciklama-kutu{margin:0 0 16px;max-width:70ch}
+.aciklama-kutu summary{display:flex;align-items:center;min-height:44px;cursor:pointer;color:var(--holo);font-size:.875rem;
+font-weight:600;list-style:none}
+.aciklama-kutu summary::-webkit-details-marker{display:none}
+.aciklama-kutu summary::before{content:"+";display:inline-block;width:1.2em;font-weight:700}
+.aciklama-kutu[open] summary::before{content:"−"}
+.aciklama-kutu p{margin:0 0 8px;color:var(--soluk);font-size:.875rem}
+.guven{display:inline-flex;align-items:center;gap:2px;padding:3px 10px;border-radius:999px;font-size:.75rem;font-weight:700;
+border:1px solid currentColor;background:rgba(255,255,255,.03)}
+.guven.notr{color:var(--soluk)}.guven-alt{font-weight:500;opacity:.8}
+.kart-guven{margin-top:8px}
+.analiz-kartlar{display:grid;gap:14px;margin:8px 0 18px}
+.analiz-kart{padding:14px 16px;border:1px solid var(--cizgi);border-radius:var(--r-buyuk);
+background:linear-gradient(160deg,var(--yuzey2),var(--yuzey))}
+.analiz-ust{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.analiz-olcu{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px}
+.analiz-olcu div{border-top:1px solid var(--cizgi);padding:9px 8px 8px 0}
+.analiz-olcu dd .alt{display:block}
+.cubuk-ic.tek{background:var(--yuzey)}
+.islem-sure .alt.eksi{color:var(--eksi)}
+@media (max-width:639px){
+.gezinti{display:grid;grid-template-columns:repeat(EKRAN_SAYISI,1fr);overflow:visible}
+.gezinti a{min-width:0;padding:6px 1px;font-size:11px;letter-spacing:0}
+}
+@media (min-width:640px){.analiz-olcu{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:900px){.analiz-kartlar{grid-template-columns:1fr 1fr}}
 @media (min-width:900px){
 .gezinti{border-radius:999px;overflow:hidden;box-shadow:0 14px 40px -12px rgba(0,0,0,.8);top:16px}
 .sayfa{padding-top:84px}
@@ -1460,8 +1583,15 @@ var eski=document.querySelector('.secili');if(eski)eski.classList.remove('secili
 if(hedef&&hedef.id!==ekran){hedef.classList.add('secili');if(kaydir)hedef.scrollIntoView();}
 else if(kaydir)window.scrollTo(0,0);
 }
+var suruyor=false,sonBasari=new Date();
+function saat(t){return ('0'+t.getHours()).slice(-2)+':'+('0'+t.getMinutes()).slice(-2);}
+function kopuk(metin){var u=document.querySelector('.kopuk-uyari');
+if(u)u.textContent=metin+' Ekrandaki sayılar '+saat(sonBasari)+' güncellemesinden.';kok.classList.add('kopuk');}
 function yenile(){
-fetch(location.pathname,{cache:'no-store'}).then(function(y){if(!y.ok)throw 0;return y.text();}).then(function(m){
+if(suruyor||document.hidden)return;suruyor=true;
+var iptal=window.AbortController?new AbortController():null,sure=setTimeout(function(){if(iptal)iptal.abort();},15000);
+fetch(location.pathname,{cache:'no-cache',signal:iptal?iptal.signal:undefined}).then(function(y){
+if(!y.ok)throw y.status;return y.text();}).then(function(m){
 var yeni=new DOMParser().parseFromString(m,'text/html').getElementById('govde');
 if(!yeni)throw 0;
 kok.style.setProperty('--gecen','-'+(performance.now()/1000).toFixed(1)+'s');
@@ -1469,9 +1599,11 @@ kok.classList.add('acildi');
 var r=document.querySelector('.rapor-radyo:checked'),rid=r?r.id:null;
 govde.innerHTML=yeni.innerHTML;
 if(rid){var s=document.getElementById(rid);if(s)s.checked=true;}
-kok.classList.remove('kopuk');
+kok.classList.remove('kopuk');sonBasari=new Date();
 goster(false);
-}).catch(function(){kok.classList.add('kopuk');});
+}).catch(function(h){
+kopuk(typeof h==='number'&&h>=500?'Sunucu çalışıyor ama özet çıkarılamadı.':(typeof h==='number'&&h===401?'Oturum süresi doldu; sayfayı yenile.':'Sunucuya ulaşılamıyor.'));
+}).then(function(){clearTimeout(sure);suruyor=false;});
 }
 kok.classList.add('sekmeli');
 goster(!!location.hash);
@@ -1505,7 +1637,9 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
         yenileme_notu = " Bu dosya gönderildiği andaki durumu gösterir; kendini tazelemez."
         son = ""
 
-    gezinti = "".join(f'<a href="#{kimlik}">{ad}</a>' for kimlik, ad in EKRANLAR)
+    gezinti = "".join(
+        f'<a href="#{kimlik}">{GEZINTI_ADLARI.get(kimlik, ad)}</a>' for kimlik, ad in EKRANLAR
+    )
 
     return f"""<!doctype html>
 <html lang="tr">
