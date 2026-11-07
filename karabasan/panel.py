@@ -205,9 +205,14 @@ def isleyici_uret(onbellek: Onbellek):
 
                     sorgu = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "",
                                                   max_num_fields=120)
-                    govde = ayar_sayfa.ayar_sayfasi(ayar_sayfa.sorgu_coz(sorgu))
-                    self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"),
-                                izin=ayar_sayfa.guvenlik_basligi())
+                    istek = ayar_sayfa.sorgu_coz(sorgu)
+                    if (sorgu.get("json") or [""])[0] == "1":
+                        self._yanit(200, "application/json; charset=utf-8",
+                                    ayar_sayfa.ayar_json(istek).encode("utf-8"), izin=ayar_sayfa.guvenlik_basligi())
+                    else:
+                        govde = ayar_sayfa.ayar_sayfasi(istek)
+                        self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"),
+                                    izin=ayar_sayfa.guvenlik_basligi())
                 elif yol in ("/", "/index.html"):
                     govde, etiket = onbellek.html()
                     self._yanit(200, "text/html; charset=utf-8", govde, etiket)

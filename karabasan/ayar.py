@@ -337,11 +337,15 @@ def _kapanmis(tablo: pd.DataFrame, dilim: str, bitis: datetime) -> pd.DataFrame:
 
 
 def veri_topla(kural: dict, coin: str, piyasa: str, bitis: datetime, gun: int, getir=binance_getir,
-               onbellek: VeriOnbellegi | None = None) -> tuple[pd.DataFrame, dict]:
-    """(taban mumlar, ek_veri). Taban mumlar pencere + göstergelerin oturması için gereken başlangıç mumlarını içerir."""
+               onbellek: VeriOnbellegi | None = None, diger: dict | None = None) -> tuple[pd.DataFrame, dict]:
+    """(taban mumlar, ek_veri). Taban mumlar pencere + göstergelerin oturması için gereken başlangıç mumlarını içerir.
+
+    diger: aynı veriyle çalıştırılacak ikinci kural (canlı ayar ile denenen ayar); ikisinin de ihtiyacına yetecek kadar mum alınır.
+    """
+    kurallar = [kural] + ([diger] if diger else [])
     taban = kural["zaman_dilimi"]
     dk = g.dilim_dakika(taban)
-    bas = bitis - timedelta(days=gun) - timedelta(minutes=(gereken_mum(kural) + 5) * dk)
+    bas = bitis - timedelta(days=gun) - timedelta(minutes=(max(gereken_mum(k) for k in kurallar) + 5) * dk)
     saat = lambda z: int(z.timestamp() // 3600)  # noqa: E731 - önbellek anahtarı için saate yuvarla
 
     def indir(dilim: str, baslangic: datetime) -> pd.DataFrame:
@@ -352,7 +356,11 @@ def veri_topla(kural: dict, coin: str, piyasa: str, bitis: datetime, gun: int, g
 
     df = indir(taban, bas)
     ek: dict = {}
-    for dilim, adet in gereken_ek_mum(kural).items():
+    ek_ihtiyac: dict = {}
+    for k in kurallar:
+        for dilim, adet in gereken_ek_mum(k).items():
+            ek_ihtiyac[dilim] = max(adet, ek_ihtiyac.get(dilim, 0))
+    for dilim, adet in ek_ihtiyac.items():
         ek_bas = bitis - timedelta(days=gun) - timedelta(minutes=(adet + 5) * g.dilim_dakika(dilim))
         tablo = indir(dilim, ek_bas)
         if len(tablo):

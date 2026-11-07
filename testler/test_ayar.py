@@ -178,7 +178,10 @@ class Sayfa(unittest.TestCase):
             self.assertIn("Kriter ayarı", html)
             self.assertIn("Çalıştır", html)
             self.assertIn('method="get"', html)
-            self.assertNotIn("<script", html)
+            self.assertEqual(html.count("<script>"), 1)    # tek satır içi betik (canlı güncelleme)
+            self.assertIn('class="ay-ac"', html)           # her kriter açılır kutu
+            self.assertIn("data-adim", html)               # + / − düğmeleri
+            self.assertIn('id="ay-sabit"', html)           # grafik sabit duran blokta
             self.assertIn("<svg", html)
             self.assertIn("Canlı botlar değişmez", html)
 
@@ -230,13 +233,58 @@ class Sayfa(unittest.TestCase):
         html = self.sayfa(bot="smk-vadeli", bot0="smk-vadeli", **{f"p{idx}": "abc"})
         self.assertIn("bir sayı değil", html)
 
-    def test_tarama_ve_goster(self):
+    def test_canli_yanit_tarama_ve_goster(self):
+        import json
+
         kural = a.kural_hazirla("smk-vadeli")
         idx = [yol for yol, _a, _d in a.tum_sayilar(kural)].index("giris.hepsi.8.sag")
-        html = self.sayfa(bot="smk-vadeli", bot0="smk-vadeli", tara=idx, goster=4)
-        self.assertIn("Tarama:", html)
-        self.assertIn("ezberdir", html)
-        self.assertIn("ay-engel", html)   # 4. şart (yapı kırılımı) çok mum engelliyor
+        ham = {"bot": ["smk-vadeli"], "bot0": ["smk-vadeli"], "tara": [str(idx)], "goster": ["0"]}
+        v = json.loads(s.ayar_json(s.sorgu_coz(ham), a.VeriOnbellegi(), sahte_getir, SIMDI))
+        self.assertIn("ezberdir", v["tara"])
+        self.assertIn("ay-engel", v["grafik"])     # 1. şart (günlük kapanış < EMA) çok mum engelliyor
+        self.assertEqual(len(v["rozet"]), len(kural["giris"]["hepsi"]))
+        self.assertIn("engel", "".join(v["rozet"]))
+        for anahtar in ("grafik", "ozet", "anahtar", "islemler", "secim", "mesaj"):
+            self.assertIn(anahtar, v)
+
+    def test_canli_yanit_degisikligi_yansitir(self):
+        import json
+
+        kural = a.kural_hazirla("smk-vadeli")
+        idx = [yol for yol, _a, _d in a.tum_sayilar(kural)].index("cikis.zarar_durdur_yuzde")
+        ham = {"bot": ["smk-vadeli"], "bot0": ["smk-vadeli"], f"p{idx}": ["4,5"]}
+        v = json.loads(s.ayar_json(s.sorgu_coz(ham), a.VeriOnbellegi(), sahte_getir, SIMDI))
+        self.assertIn("Senin ayarın", v["ozet"])
+        self.assertIn("Canlı ayar", v["ozet"])
+        v0 = json.loads(s.ayar_json(s.sorgu_coz({"bot": ["smk-vadeli"]}), a.VeriOnbellegi(), sahte_getir, SIMDI))
+        self.assertNotIn("Senin ayarın", v0["ozet"])
+
+    def test_veri_hatasinda_grafik_none_son_grafik_kalir(self):
+        import json
+
+        def bozuk(*_):
+            raise OSError("ağ yok")
+
+        v = json.loads(s.ayar_json(s.sorgu_coz({}), a.VeriOnbellegi(), bozuk, SIMDI))
+        self.assertIsNone(v["grafik"])
+        self.assertIn("alınamadı", v["mesaj"])
+
+    def test_adim_buyuklugu(self):
+        self.assertEqual(s._adim(14), 1)
+        self.assertEqual(s._adim(120), 5)
+        self.assertEqual(s._adim(0.3), 0.05)
+        self.assertEqual(s._adim(1.2), 0.1)
+        self.assertEqual(s._adim(9.0), 0.5)
+
+    def test_csp_ozeti_sayfadaki_betikle_tutar(self):
+        import base64
+        import hashlib
+        import re
+
+        html = self.sayfa(bot="smk-vadeli", gun=3)
+        betik = re.search(r"<script>(.*?)</script>", html, re.S).group(1)
+        ozet = base64.b64encode(hashlib.sha256(betik.encode("utf-8")).digest()).decode("ascii")
+        self.assertIn(f"'sha256-{ozet}'", s.guvenlik_basligi())
 
     def test_veri_alinamazsa_sayfa_dusmez(self):
         def bozuk(*_):
@@ -247,7 +295,7 @@ class Sayfa(unittest.TestCase):
         self.assertIn("Çalıştır", html)
 
     def test_az_islem_uyarisi(self):
-        self.assertIn("Az işlem", self.sayfa(bot="smk-vadeli", gun=3))
+        self.assertIn("30'dan az işlem", self.sayfa(bot="smk-vadeli", gun=3))
 
 
 class Sunucu(unittest.TestCase):
@@ -277,7 +325,8 @@ class Sunucu(unittest.TestCase):
                 metin = y.read().decode("utf-8")
         self.assertIn("tamam", metin)
         self.assertIn("form-action 'self'", baslik)
-        self.assertNotIn("script-src", baslik)
+        self.assertIn("script-src 'sha256-", baslik)   # yalnız bu sayfanın kendi betiği
+        self.assertIn("connect-src 'self'", baslik)
         self.assertIn("default-src 'none'", baslik)
 
     def test_ana_sayfa_formu_hala_yasak(self):
