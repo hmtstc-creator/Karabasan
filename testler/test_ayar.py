@@ -136,6 +136,39 @@ class Gecmis(unittest.TestCase):
         self.assertEqual(bir, iki)
 
 
+class Aciklamalar(unittest.TestCase):
+    def test_rsi_aciklamasi_grafik_dilimini_ve_kapsami_soyler(self):
+        kural = a.kural_hazirla("smk-vadeli")
+        metin = a.gosterge_aciklamasi(kural, "rsi14_1s")
+        self.assertIn("RSI 14", metin)
+        self.assertIn("1 saatlik", metin)
+        self.assertIn("son 14 saat", metin)
+        self.assertIn("son 70 dakika", a.gosterge_aciklamasi(kural, "rsi14"))   # 5 dakikalık grafik
+
+    def test_etiketlerde_grafik_dilimi_hep_yazar(self):
+        kural = a.kural_hazirla("smk-vadeli")
+        self.assertEqual(a.sutun_etiketi(kural, "rsi14"), "RSI 14 (5 dakikalık)")
+        self.assertEqual(a.sutun_etiketi(kural, "ema20_1g"), "EMA 20 (günlük)")
+
+    def test_her_kriter_ve_her_sayinin_aciklamasi_var(self):
+        for bot in BOT_ADLARI:
+            kural = a.kural_hazirla(bot)
+            for k in a.kriterler(kural):
+                bilgi = a.kriter_bilgisi(kural, k["sira"])
+                self.assertTrue(bilgi["anlam"].endswith("."))
+                self.assertNotIn("..", bilgi["anlam"])
+                self.assertTrue(bilgi["sozluk"], f"{bot} {k['sira']}")
+            for yol, ad, _ in a.tum_sayilar(kural):
+                self.assertTrue(a.sayi_aciklamasi(kural, yol), f"{bot} {yol}")
+
+    def test_esik_yonu_dogru_soylenir(self):
+        kural = a.kural_hazirla("smk-vadeli")
+        # 2. şart: RSI(1 saatlik) > 20 : eşiği büyütmek zorlaştırır
+        self.assertIn("zorlaşır (giriş sayısı azalır)", a.sayi_aciklamasi(kural, "giris.hepsi.2.sag"))
+        # 5. şart: RSI(5 dk) < 50 : eşiği büyütmek kolaylaştırır
+        self.assertIn("kolaylaşır (giriş sayısı artar)", a.sayi_aciklamasi(kural, "giris.hepsi.5.sag"))
+
+
 class Katmanlar(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -182,6 +215,8 @@ class Sayfa(unittest.TestCase):
             self.assertIn('class="ay-ac"', html)           # her kriter açılır kutu
             self.assertIn("data-adim", html)               # + / − düğmeleri
             self.assertIn('id="ay-sabit"', html)           # grafik sabit duran blokta
+            self.assertIn("Bu şart ne diyor?", html)       # her kriterde düz Türkçe açıklama
+            self.assertIn("ay-ipucu", html)                # her sayının altında ne işe yaradığı
             self.assertIn("<svg", html)
             self.assertIn("Canlı botlar değişmez", html)
 

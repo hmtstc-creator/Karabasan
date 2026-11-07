@@ -87,7 +87,35 @@ _SONEK = {"_yon": "yönü", "_denge": "denge çizgisi", "_kirilim": "kırılım�
           "_ayi_ust": "ayı boşluğunun üst sınırı", "_ayi_alt": "ayı boşluğunun alt sınırı"}
 
 
-def _gosterge_adi(ad: str, tanim: dict) -> str:
+def dilim_adi(dilim: str) -> str:
+    """"5m" -> "5 dakikalık", "1h" -> "1 saatlik", "1d" -> "günlük"."""
+    dk = g.dilim_dakika(dilim)
+    if dk >= 1440:
+        return "günlük" if dk == 1440 else f"{dk // 1440} günlük"
+    if dk >= 60:
+        return f"{dk // 60} saatlik"
+    return f"{dk} dakikalık"
+
+
+def _sure_yazisi(dakika: float) -> str:
+    if dakika >= 1440 and dakika % 1440 == 0:
+        return f"{int(dakika // 1440)} gün"
+    if dakika >= 60 and dakika % 60 == 0:
+        return f"{int(dakika // 60)} saat"
+    return f"{int(dakika)} dakika"
+
+
+def _gosterge_dilimi_adi(kural: dict, tanim: dict) -> str:
+    """Göstergenin hesaplandığı grafiğin düz adı ("1 saatlik")."""
+    dilim = tanim.get("dilim")
+    if dilim in (None, "taban"):
+        dilim = kural["zaman_dilimi"]
+    elif dilim == "ust":
+        dilim = kural.get("ust_zaman_dilimi") or kural["zaman_dilimi"]
+    return dilim_adi(dilim)
+
+
+def _gosterge_adi(ad: str, tanim: dict, taban: str | None = None) -> str:
     tur, per = tanim.get("tur"), tanim.get("periyot")
     if tur == "sma" and per == 1:
         etiket = "Kapanış"
@@ -102,8 +130,10 @@ def _gosterge_adi(ad: str, tanim: dict) -> str:
     else:
         etiket = str(tur).capitalize() + (f" {per}" if per else "")
     dilim = tanim.get("dilim")
-    if dilim in _UST_DILIM:
-        etiket += f" ({_UST_DILIM[dilim]})"
+    if dilim in (None, "taban"):
+        dilim = taban
+    if dilim and dilim not in ("ust",):
+        etiket += f" ({dilim_adi(dilim)})"
     return etiket
 
 
@@ -117,7 +147,7 @@ def sutun_etiketi(kural: dict, sutun: str) -> str:
             en_uyan = ad
     if en_uyan is None:
         return sutun
-    etiket = _gosterge_adi(en_uyan, kural["gostergeler"][en_uyan])
+    etiket = _gosterge_adi(en_uyan, kural["gostergeler"][en_uyan], kural["zaman_dilimi"])
     ek = sutun[len(en_uyan):]
     if ek in _SONEK:
         etiket = f"{etiket} {_SONEK[ek]}" if "(" not in etiket else \
@@ -204,7 +234,7 @@ def gosterge_sayilari(kural: dict) -> list[tuple[str, str, float]]:
     for ad, tanim in kural["gostergeler"].items():
         for alan in _SAYISAL_ALANLAR:
             if _say(tanim.get(alan)) and not (tanim.get("tur") == "sma" and tanim.get("periyot") == 1 and alan == "periyot"):
-                cikti.append((f"gostergeler.{ad}.{alan}", f"{_gosterge_adi(ad, tanim)} · {alan}", tanim[alan]))
+                cikti.append((f"gostergeler.{ad}.{alan}", f"{_gosterge_adi(ad, tanim, kural['zaman_dilimi'])} · {alan}", tanim[alan]))
     return cikti
 
 
@@ -231,6 +261,175 @@ def cikis_sayilari(kural: dict) -> list[tuple[str, str, float]]:
     if _say(kural.get("bekleme_dakika")):
         cikti.append(("bekleme_dakika", "Stoptan sonra bekleme (dakika)", kural["bekleme_dakika"]))
     return cikti
+
+
+# --------------------------------------------------------------------------
+# Düz Türkçe açıklamalar (Ahmet: "RSI 14 ne, kaç saatlik grafik için geçerli?")
+# --------------------------------------------------------------------------
+
+_SONEK_ACIKLAMA = {
+    "_yon": "Yön: +1 yükseliş trendi, −1 düşüş trendi demektir (son tepe ve diplerin sıralanışından çıkar).",
+    "_kirilim": "Yapı kırılımı: fiyat bir önceki tepeyi ya da dibi kırdığı mumda +1 (yukarı) ya da −1 (aşağı) olur, diğer mumlarda 0.",
+    "_denge": "Denge çizgisi: son tepe ile son dibin tam ortası. Üstü 'pahalı bölge', altı 'ucuz bölge' sayılır.",
+    "_sblok_alt": "Satış bloğu: fiyatın daha önce sert düşüşe geçtiği bölge; fiyat oraya dönünce genelde direnç gibi davranır. Bu, o bölgenin alt sınırı.",
+    "_sblok_ust": "Satış bloğu: fiyatın daha önce sert düşüşe geçtiği bölge (direnç gibi). Bu, üst sınırı.",
+    "_blok_alt": "Alış bloğu: fiyatın daha önce sert yükselişe geçtiği bölge (destek gibi). Bu, alt sınırı.",
+    "_blok_ust": "Alış bloğu: fiyatın daha önce sert yükselişe geçtiği bölge (destek gibi). Bu, üst sınırı.",
+    "_tepe": "Son tepe: en son onaylanmış tepe noktasının fiyatı.",
+    "_dip": "Son dip: en son onaylanmış dip noktasının fiyatı.",
+    "_boga": "Boğa uyumsuzluğu sayısı: fiyat yeni dip yaparken göstergelerin dip yapmaması (düşüş zayıflıyor); kaç göstergede olduğunu sayar.",
+    "_ayi": "Ayı uyumsuzluğu sayısı: fiyat yeni tepe yaparken göstergelerin tepe yapmaması (yükseliş zayıflıyor); kaç göstergede olduğunu sayar.",
+}
+
+
+def gosterge_aciklamasi(kural: dict, ad: str) -> str:
+    """Bir göstergenin ne olduğu, hangi grafikte ve kaç muma baktığı (düz Türkçe)."""
+    tanim = kural["gostergeler"][ad]
+    tur, per = tanim.get("tur"), tanim.get("periyot")
+    dilim = _gosterge_dilimi_adi(kural, tanim)
+    mum_dk = g.dilim_dakika(tanim.get("dilim") if tanim.get("dilim") not in (None, "taban", "ust")
+                            else (kural.get("ust_zaman_dilimi") if tanim.get("dilim") == "ust" else None)
+                            or kural["zaman_dilimi"])
+    kapsam = f" {per} mum × {_sure_yazisi(mum_dk)} = son {_sure_yazisi(per * mum_dk)} demek." if per else ""
+    adi = _gosterge_adi(ad, tanim, kural["zaman_dilimi"])
+    if tur == "rsi":
+        return (f"{adi}: 0 ile 100 arası bir sayı. Fiyatın son {per} mumda ne kadar güçlü yükseldiğini ya da düştüğünü ölçer. "
+                f"50 civarı nötr, yüksek değer (70-80 üstü) 'fazla yükselmiş', düşük değer (20-30 altı) 'fazla düşmüş' sayılır. "
+                f"Bu {dilim} grafiğin mumlarından hesaplanır;{kapsam}")
+    if tur == "ema":
+        return (f"{adi}: son {per} mumun üstel ortalaması (yeni mumlara daha çok ağırlık verir). Fiyatın genel eğilimini gösterir: "
+                f"fiyat üstündeyse genelde yükseliş, altındaysa düşüş sayılır. {dilim.capitalize()} grafikte;{kapsam}")
+    if tur == "sma" and per == 1:
+        return f"{adi}: o {dilim} mumun kapanış fiyatı (mum kapanınca belli olur)."
+    if tur == "sma":
+        return f"{adi}: son {per} mumun düz ortalaması; fiyatın genel eğilimini gösterir. {dilim.capitalize()} grafikte;{kapsam}"
+    if tur == "hacim_ort":
+        return f"{adi}: son {per} mumun ortalama işlem hacmi ({dilim} grafikte). 'Hacim' bu ortalamanın kaç katı olduğuna bakılır."
+    if tur == "yapi":
+        return (f"{adi}: {dilim} grafikte tepe ve dipleri bulur (bir tepe ya da dip için iki yanında {per} mum daha alçak / yüksek "
+                f"olması gerekir). Bu tepe ve diplerin sıralanışından trend yönü, yapı kırılımı (BOS / CHoCH), denge çizgisi ve "
+                f"emir blokları çıkarılır (Smart Money kavramları).")
+    if tur == "macd":
+        return f"{adi}: iki ortalama arasındaki farktan momentumu (hızı) ölçer; histogram sıfırı geçince hız yön değiştirir. {dilim.capitalize()} grafikte."
+    if tur == "uyumsuzluk":
+        return (f"{adi}: {dilim} grafikte fiyat ile göstergeler (RSI, MACD vb.) ters yönde gidiyorsa uyumsuzluk denir; "
+                f"dönüş habercisi sayılır.")
+    return f"{adi} ({dilim} grafik)."
+
+
+def _sutun_gostergesi(kural: dict, sutun: str):
+    ad, ek = _gosterge_bul(kural, _sutun_adi(sutun))
+    return ad, ek
+
+
+def _anlam(kural: dict, kosul: dict) -> str:
+    if "herhangi" in kosul:
+        parca = "; ya da ".join(_anlam(kural, k) for k in kosul["herhangi"])
+        zaman = (f" (şart son {kosul['son_n_mumda']} mumdan herhangi birinde sağlanmışsa yeter)"
+                 if kosul.get("son_n_mumda", 1) > 1 else "")
+        return f"Şunlardan en az biri doğru olmalı: {parca}{zaman}"
+    if "hepsi" in kosul:
+        return " ve ".join(_anlam(kural, k) for k in kosul["hepsi"])
+    sol = _islenen_yazi(kural, kosul["sol"])
+    sag = _sayi_yazi(kosul["sag"]) if _say(kosul["sag"]) else _islenen_yazi(kural, kosul["sag"])
+    fiil = {">": "büyük olmalı", "<": "küçük olmalı", ">=": "en az o kadar olmalı", "<=": "en çok o kadar olmalı",
+            "yukari_keser": "onu aşağıdan yukarı kesmeli", "asagi_keser": "onu yukarıdan aşağı kesmeli"}[kosul["islem"]]
+    yazi = f"{sol}, {sag} değerinden {fiil}" if kosul["islem"] in (">", "<") else f"{sol}, {sag} değerine göre {fiil}"
+    if kosul.get("son_n_mumda", 1) > 1:
+        yazi += f" (son {kosul['son_n_mumda']} mumdan birinde yeter)"
+    return yazi
+
+
+def kosul_anlami(kural: dict, kosul: dict) -> str:
+    """Bir şartın düz cümlesi."""
+    return _anlam(kural, kosul) + "."
+
+
+def kriter_bilgisi(kural: dict, sira: int) -> dict:
+    """Bir giriş şartı için: düz cümle ve içinde geçen göstergelerin açıklamaları."""
+    kosul = kural["giris"]["hepsi"][sira]
+    sutunlar: list = []
+    _kosul_sutunlari(kosul, sutunlar)
+    gorulen, sozluk, ekler = set(), [], []
+    for ham in sutunlar:
+        sutun = _sutun_adi(ham)
+        ad, ek = _sutun_gostergesi(kural, sutun)
+        if ad is None:
+            continue
+        if ad not in gorulen:
+            gorulen.add(ad)
+            sozluk.append(gosterge_aciklamasi(kural, ad))
+        if ek in _SONEK_ACIKLAMA and ek not in ekler:
+            ekler.append(ek)
+            sozluk.append(_SONEK_ACIKLAMA[ek])
+    if any(h in _TABAN and h == "hacim" for h in sutunlar):
+        sozluk.append("Hacim: o mumda işlem gören toplam miktar. Yüksek hacim, hareketin güçlü olduğunu gösterir.")
+    if any(h in ("yuksek", "dusuk") for h in sutunlar):
+        sozluk.append(f"Mum tepesi / dibi: {dilim_adi(kural['zaman_dilimi'])} grafikteki mumun en yüksek / en düşük fiyatı.")
+    return {"anlam": kosul_anlami(kural, kosul), "sozluk": sozluk}
+
+
+_CIKIS_ACIKLAMA = {
+    "zarar_durdur_yuzde": "Stop: fiyat girişten bu yüzde kadar aleyhine giderse işlem zararına kapanır. Büyütürsen daha az stop olur ama bir stopta kayıp büyür.",
+    "kar_hedefi_yuzde": "Kâr hedefi: fiyat bu yüzde kadar lehine gidince işlem kârla kapanır. Küçültürsen kâr daha sık alınır ama küçük olur.",
+    "tetik_yuzde": "İz süren stop devreye girme kârı: işlem bu yüzde kâra ulaşınca kâr korunmaya başlar.",
+    "mesafe_yuzde": "İz süren stop mesafesi: fiyat ulaştığı en iyi seviyeden bu yüzde kadar geri gelirse işlem kapanır. Küçültürsen kârı sıkı korur ama erken çıkarsın; büyütürsen kâra daha çok yer bırakırsın.",
+    "sure_asimi_dakika": "En uzun süre: işlem bu kadar dakika sonra hâlâ açıksa kapatılır.",
+    "bekleme_dakika": "Bir stoptan sonra bu kadar dakika yeni giriş yapılmaz (art arda zarar etmemek için).",
+    "atr_kat": "Giriş emri fiyatın ne kadar uzağına konsun: oynaklığın (ATR) bu katı kadar. Büyütürsen emir daha uzağa konur: daha iyi fiyat ama daha az dolar.",
+    "en_az_yuzde": "Giriş emrinin fiyattan en az uzaklığı (yüzde); oynaklık çok düşükse bile bu kadar uzağa konur.",
+    "en_fazla_yuzde": "Giriş emrinin fiyattan en çok uzaklığı (yüzde); oynaklık çok yüksekse bile bundan uzağa konmaz.",
+    "sure_dakika": "Giriş emri dolmazsa bu kadar dakika beklenir, sonra iptal edilir.",
+}
+
+_GOSTERGE_SAYI_ACIKLAMA = {
+    "rsi": "Kaç muma bakılacağı. Küçültürsen RSI hızlı ve oynak olur (daha çok sinyal, daha çok yanlış alarm); büyütürsen yavaş ve sakin olur.",
+    "ema": "Ortalama kaç muma baksın. Büyütürsen ortalama daha yavaş ve düzgün olur; küçültürsen fiyata daha çok yaklaşır.",
+    "sma": "Ortalama kaç muma baksın. Büyütürsen daha yavaş ve düzgün olur.",
+    "hacim_ort": "Hacim ortalaması kaç muma baksın. Büyütürsen 'normal hacim' daha uzun döneme göre ölçülür.",
+    "yapi": "Salınım uzunluğu: bir tepe ya da dip için iki yanda kaç mum gerekir. Küçültürsen çok sayıda küçük tepe / dip bulunur (gürültülü); büyütürsen az ve belirgin olanlar bulunur.",
+}
+
+
+def _daha_zor(op: str, artis: bool) -> str:
+    """Bir sayıyı büyütmek şartı zorlaştırır mı kolaylaştırır mı."""
+    if op in (">", ">="):
+        return "zorlaşır" if artis else "kolaylaşır"
+    if op in ("<", "<="):
+        return "kolaylaşır" if artis else "zorlaşır"
+    return "değişir"
+
+
+def sayi_aciklamasi(kural: dict, yol: str) -> str:
+    """Bir ayarlanabilir sayının ne işe yaradığı ve büyütünce / küçültünce ne olacağı."""
+    parcalar = yol.split(".")
+    son = parcalar[-1]
+    if parcalar[0] == "gostergeler":
+        tanim = kural["gostergeler"][parcalar[1]]
+        metin = _GOSTERGE_SAYI_ACIKLAMA.get(tanim.get("tur"), "Göstergenin kaç muma bakacağı.")
+        per = tanim.get(son)
+        if son == "periyot" and per and tanim.get("tur") in ("rsi", "ema", "sma", "hacim_ort"):
+            dilim_ad = (tanim.get("dilim") if tanim.get("dilim") not in (None, "taban", "ust") else kural["zaman_dilimi"])
+            metin += f" Şu an {per} mum × {_sure_yazisi(g.dilim_dakika(dilim_ad))} = son {_sure_yazisi(per * g.dilim_dakika(dilim_ad))}."
+        return metin
+    if parcalar[0] == "giris":
+        leaf_yolu = ".".join(parcalar[:-1] if son in ("sag", "son_n_mumda", "kaydir", "carpan") else parcalar)
+        if son == "carpan" or son == "kaydir":
+            leaf_yolu = ".".join(parcalar[:-2])
+        kosul = _al(kural, leaf_yolu)
+        op = kosul.get("islem") if isinstance(kosul, dict) else None
+        if son == "son_n_mumda":
+            return ("Şartın doğru olması için kaç mum geriye bakılır: 12 = son 12 mumdan birinde doğru olması yeter. "
+                    "Büyütürsen şart kolaylaşır (daha çok giriş), küçültürsen zorlaşır.")
+        if son == "kaydir":
+            return "Karşılaştırma kaç mum öncesindeki değerle yapılır (3 = 3 mum önceki değer). Fiyatın o andan beri yön değiştirip değiştirmediğine bakar."
+        if son == "carpan":
+            return (f"Çarpan: karşılaştırılan değer bu sayıyla çarpılır (1,2 = yüzde 20 fazlası). Büyütürsen şart {_daha_zor(op, True)}, "
+                    f"küçültürsen {_daha_zor(op, False)}.")
+        if son == "sag" and op:
+            return (f"Eşik değeri. Büyütürsen şart {_daha_zor(op, True)} (giriş sayısı "
+                    f"{'azalır' if _daha_zor(op, True) == 'zorlaşır' else 'artar'}), küçültürsen {_daha_zor(op, False)}.")
+    return _CIKIS_ACIKLAMA.get(son, "")
 
 
 def tum_sayilar(kural: dict) -> list[tuple[str, str, float]]:

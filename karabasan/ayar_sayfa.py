@@ -285,11 +285,12 @@ def _adim(deger) -> float:
     return 0.05 if d < 0.5 else 0.1 if d < 5 else 0.5
 
 
-def _girdi(idx: int, ad: str, deger, ilk) -> str:
+def _girdi(idx: int, ad: str, deger, ilk, ipucu: str = "") -> str:
     tam = isinstance(ilk, int) and not isinstance(ilk, bool)
     adim = _adim(ilk)
     degisti = abs(float(deger) - float(ilk)) > 1e-9
-    return (f'<div class="ay-satir{" degisti" if degisti else ""}"><label for="p{idx}">{escape(ad)}</label>'
+    aciklama = f'<small class="ay-ipucu">{escape(ipucu)}</small>' if ipucu else ""
+    return (f'<div class="ay-satir{" degisti" if degisti else ""}"><label for="p{idx}">{escape(ad)}</label>{aciklama}'
             f'<span class="ay-girdi"><button type="button" class="ay-b ay-ek" data-adim="-{adim:g}" data-hedef="p{idx}" '
             f'aria-label="Azalt">−</button>'
             f'<input id="p{idx}" name="p{idx}" type="text" inputmode="decimal" autocomplete="off" '
@@ -316,9 +317,12 @@ def _kriter_listesi(kural, simdiki: dict, ilkler: dict, olc: list[dict] | None, 
     for k in a.kriterler(kural):
         girdiler = []
         for yol, ad, _eski in k["sayilar"]:
-            girdiler.append(_girdi(idx, ad, simdiki[yol], ilkler[yol]))
+            girdiler.append(_girdi(idx, ad, simdiki[yol], ilkler[yol], a.sayi_aciklamasi(kural, yol)))
             idx += 1
-        engelli = bool(olc and olc[k["sira"]]["engel_sayisi"])
+        bilgi = a.kriter_bilgisi(kural, k["sira"])
+        sozluk = "".join(f"<li>{escape(x)}</li>" for x in bilgi["sozluk"])
+        ne = (f'<div class="ay-bilgi"><p><b>Bu şart ne diyor?</b> {escape(bilgi["anlam"])}</p>'
+              f'{"<ul>" + sozluk + "</ul>" if sozluk else ""}</div>')
         goster = (f'<button class="ay-kucuk{" secili" if istek["goster"] == k["sira"] else ""}" type="submit" '
                   f'name="goster" value="{k["sira"]}" data-goster="{k["sira"]}">Girişi engellediği yerleri grafikte göster</button>')
         ipucu = ("" if girdiler else "<p class=alt>Bu şartın kendi sayısı yok; ilgili göstergenin periyodunu "
@@ -328,13 +332,13 @@ def _kriter_listesi(kural, simdiki: dict, ilkler: dict, olc: list[dict] | None, 
             f'<span class="ay-no" style="background:{renk(k["sira"])}">{k["sira"] + 1}</span>'
             f'<span class="ay-ad">{escape(k["yazi"])}</span>'
             f'<span class="ay-rozet" id="rozet{k["sira"]}">{_rozet(olc[k["sira"]] if olc else None)}</span></summary>'
-            f'<div class="ay-ic">{ipucu}{"".join(girdiler)}{goster}</div></details>')
-        del engelli
+            f'<div class="ay-ic">{ne}{ipucu}{"".join(girdiler)}{goster}</div></details>')
     return "".join(kartlar), idx
 
 
-def _grup(baslik: str, aciklama: str, sayilar, bas: int, simdiki: dict, ilkler: dict) -> str:
-    satirlar = "".join(_girdi(bas + j, ad, simdiki[yol], ilkler[yol]) for j, (yol, ad, _e) in enumerate(sayilar))
+def _grup(baslik: str, aciklama: str, sayilar, bas: int, simdiki: dict, ilkler: dict, kural=None) -> str:
+    satirlar = "".join(_girdi(bas + j, ad, simdiki[yol], ilkler[yol], a.sayi_aciklamasi(kural, yol) if kural else "")
+                       for j, (yol, ad, _e) in enumerate(sayilar))
     if not satirlar:
         return ""
     return (f'<details class="ay-ac"><summary><span class="ay-ad">{escape(baslik)}</span></summary>'
@@ -417,6 +421,9 @@ font-weight:700;align-items:center;justify-content:center}
 .ay-r{font-size:.6875rem;border:1px solid var(--cizgi);border-radius:999px;padding:1px 7px;color:var(--soluk)}
 .ay-r.engel{border-color:var(--altin);color:var(--altin)}
 .ay-ic{padding:0 12px 12px}
+.ay-bilgi{background:rgba(95,212,255,.06);border-radius:10px;padding:8px 10px;margin:0 0 10px;font-size:.8125rem;line-height:1.45}
+.ay-bilgi p{margin:0 0 4px}.ay-bilgi ul{margin:4px 0 0;padding-left:18px;color:var(--soluk)}.ay-bilgi li{margin:3px 0}
+.ay-ipucu{display:block;font-size:.75rem;line-height:1.35;color:var(--soluk);margin:-2px 0 6px}
 .ay-satir{margin:8px 0}.ay-satir.degisti input{border-color:var(--altin)}
 .ay-girdi{display:flex;gap:6px}.ay-girdi input{text-align:center;min-width:0;flex:1}
 .ay-b{display:none;flex:none;width:44px;min-height:44px;align-items:center;justify-content:center;border-radius:12px;
@@ -708,9 +715,10 @@ def ayar_sayfasi(istek: dict, onbellek: a.VeriOnbellegi | None = None, getir=Non
 <div id="ay-ozet">{p["ozet"]}</div></div>
 <details class="ay-aciklama"><summary>Renkler ve işaretler ne demek?</summary><div id="ay-anahtar">{p["anahtar"]}</div></details>
 <div class="ay-liste">
+<p class="ay-giris"><b>Giriş şartları:</b> hepsi aynı anda doğru olunca bot girer. Bir şartı açınca ne dediğini ve her sayının ne işe yaradığını görürsün.</p>
 {kriter_html}
-{_grup("Göstergeler", "Bir gösterge birkaç şartta kullanılır; periyodu değiştirmek hepsini etkiler.", gosterge, kriter_say, ctx["simdiki"], ctx["ilkler"])}
-{_grup("Giriş emri ve çıkış", "Girişin nasıl konduğu ve işlemin nasıl kapandığı.", cikis, kriter_say + len(gosterge), ctx["simdiki"], ctx["ilkler"])}
+{_grup("Göstergeler", "Göstergenin kaç muma baktığı. Aynı gösterge birkaç şartta kullanılır; değiştirmek hepsini etkiler. Ne olduğu ilgili şartın içinde yazıyor.", gosterge, kriter_say, ctx["simdiki"], ctx["ilkler"], kopya)}
+{_grup("Giriş emri ve çıkış", "Girişin nasıl konduğu ve işlemin nasıl kapandığı.", cikis, kriter_say + len(gosterge), ctx["simdiki"], ctx["ilkler"], kopya)}
 </div>
 <details class="ay-ac"><summary><span class="ay-ad">Bu ayarla açılan işlemler</span></summary>
 <div class="ay-ic" id="ay-islemler">{p["islemler"]}</div></details>
