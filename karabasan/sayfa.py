@@ -1445,6 +1445,7 @@ def _kriterler_ekrani() -> str:
 dosyalarından okunur; burada gördüğün, sınamanın gerçekte kullandığıdır. İki değer yazıyorsa ilki alım,
 ikincisi açığa satış içindir. Bu strateji henüz canlı bot değil; panel sınamasında sınanıyor.</p>
 <p><a class="kriter-dugme" href="{escape(DUZENLEME_ADRESI)}">Değerleri değiştir</a></p>
+<p><a class="kriter-dugme" href="/ayar">Kriter ayarı: geçmişe sar ve dene</a></p>
 <p class="not">Düğme claude.ai'deki Bot Kriterleri sayfasını açar: satıra dokun, yeni değeri yaz, İsteği kaydet'e
 bas, sonra Claude'a "kriterleri değiştirdim" yaz. Bu ekran yalnız gösterir; buradan değişiklik yapılmaz.
 Her değişiklik yeni bir deneme sayılır.</p>
@@ -2025,7 +2026,8 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
         f'<a href="#{kimlik}"><span class="menu-ad">{ad}</span>'
         f'<span class="menu-alt">{MENU_ACIKLAMA.get(kimlik, "")}</span></a>'
         for kimlik, ad in EKRANLAR
-    )
+    ) + ('<a href="/ayar"><span class="menu-ad">Kriter ayarı</span>'
+         '<span class="menu-alt">Geçmişe sar, kriterleri dene</span></a>' if yenile_saniye else "")
     t = ozet["toplam"]
     canli_sinif = "uyari" if t["calisan_bot"] < t["bot_sayisi"] else "arti"
 

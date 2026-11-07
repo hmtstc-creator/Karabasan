@@ -11,6 +11,7 @@ Adresler:
     /saglik      Sunucu ayakta mı (izleme için)
     /defter      Emir defteri denemesinin özeti (BTC/USDT vadeli, sanal)
     /islem       Tek bir işlemin fiyat grafiği (?bot=<bot adı>&id=<işlem kimliği>)
+    /ayar        Kriter ayar laboratuvarı: geçmişe sarıp kriter sayılarını denemek (kaydetmez)
 
 Yalnız Python standart kütüphanesi ile karabasan paketini kullanır.
 """
@@ -134,7 +135,8 @@ def isleyici_uret(onbellek: Onbellek):
         server_version = "Karabasan"
         sys_version = ""
 
-        def _yanit(self, kod: int, tur: str, govde: bytes, etiket: str | None = None) -> None:
+        def _yanit(self, kod: int, tur: str, govde: bytes, etiket: str | None = None,
+                   izin: str | None = None) -> None:
             if etiket and self.headers.get("If-None-Match") == etiket:
                 kod, govde = 304, b""
             sikistir = (
@@ -159,7 +161,7 @@ def isleyici_uret(onbellek: Onbellek):
             self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
             self.send_header("Cross-Origin-Opener-Policy", "same-origin")
             self.send_header("Cross-Origin-Resource-Policy", "same-origin")
-            self.send_header("Content-Security-Policy", guvenlik)
+            self.send_header("Content-Security-Policy", izin or guvenlik)
             self.end_headers()
             if self.command != "HEAD":
                 self.wfile.write(govde)
@@ -198,6 +200,14 @@ def isleyici_uret(onbellek: Onbellek):
                     else:
                         govde = islem_grafik.islem_sayfasi(onbellek.klasor, bot, int(kimlik), mum_onbellegi)
                         self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"))
+                elif yol == "/ayar":
+                    from . import ayar_sayfa
+
+                    sorgu = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "",
+                                                  max_num_fields=120)
+                    govde = ayar_sayfa.ayar_sayfasi(ayar_sayfa.sorgu_coz(sorgu))
+                    self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"),
+                                izin=ayar_sayfa.guvenlik_basligi())
                 elif yol in ("/", "/index.html"):
                     govde, etiket = onbellek.html()
                     self._yanit(200, "text/html; charset=utf-8", govde, etiket)
