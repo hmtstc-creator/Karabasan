@@ -107,20 +107,28 @@ class MumOnbellegi:
 
 
 def seviyeler(islem: dict, kural: dict) -> dict:
-    """Giriş fiyatı, stop fiyatı ve (varsa) iz süren stopun devreye girdiği fiyat."""
-    giris = float(islem.get("giris_fiyati") or 0.0)
-    if not giris:
+    """Giriş fiyatları ve çıkış seviyeleri.
+
+    'giris' ilk girişin gerçek fiyatıdır (grafikte mumların üstünde durduğu yer); stop ona göre kurulur.
+    Zararda ek giriş yapıldıysa 'ortalama' ayrı bir çizgidir; iz süren stop tetiği ve kâr hedefi ortalamadan hesaplanır.
+    """
+    ort = float(islem.get("giris_fiyati") or 0.0)
+    ilk = float(islem.get("ilk_giris_fiyati") or ort or 0.0)
+    if not ilk:
         return {}
     yon = 1.0 if islem["yon"] == "aciga_satis" else -1.0   # stop, açığa satışta yukarıda
     cikis = kural.get("cikis", {})
-    sonuc = {"giris": giris}
+    sonuc = {"giris": ilk}
+    if ort and abs(ort - ilk) > ilk * 1e-6:
+        sonuc["ortalama"] = ort
+    taban = ort or ilk
     if cikis.get("zarar_durdur_yuzde"):
-        sonuc["stop"] = giris * (1 + yon * cikis["zarar_durdur_yuzde"] / 100.0)
+        sonuc["stop"] = ilk * (1 + yon * cikis["zarar_durdur_yuzde"] / 100.0)
     iz = cikis.get("iz_suren_stop")
     if iz:
-        sonuc["tetik"] = giris * (1 - yon * iz["tetik_yuzde"] / 100.0)
+        sonuc["tetik"] = taban * (1 - yon * iz["tetik_yuzde"] / 100.0)
     if cikis.get("kar_hedefi_yuzde") and cikis["kar_hedefi_yuzde"] < 100:
-        sonuc["hedef"] = giris * (1 - yon * cikis["kar_hedefi_yuzde"] / 100.0)
+        sonuc["hedef"] = taban * (1 - yon * cikis["kar_hedefi_yuzde"] / 100.0)
     return sonuc
 
 
@@ -140,7 +148,8 @@ def mum_grafigi(mumlar: list, aralik_dk: int, islem: dict, sev: dict, simdi: dat
     from .sayfa import _guzel_adimlar, _tarih_saat, sayi
 
     g, h, sol, sag, ust, alt = 380.0, 260.0, 8.0, 56.0, 12.0, 24.0
-    fiyatlar = [m[2] for m in mumlar] + [m[3] for m in mumlar] + [v for v in sev.values()]
+    fiyatlar = [m[2] for m in mumlar] + [m[3] for m in mumlar] + [v for v in sev.values()] \
+        + [float(e["fiyat"]) for e in islem.get("ek_girisler", [])]
     if islem.get("cikis_fiyati"):
         fiyatlar.append(float(islem["cikis_fiyati"]))
     en_alt, en_ust = min(fiyatlar), max(fiyatlar)
@@ -178,7 +187,7 @@ def mum_grafigi(mumlar: list, aralik_dk: int, islem: dict, sev: dict, simdi: dat
             f'<title>{_tarih_saat(zaman, "Europe/Bucharest")} · A {_fiyat(ac)} T {_fiyat(tepe)} '
             f'D {_fiyat(dip)} K {_fiyat(kap)}</title></g>')
     # Seviyeler
-    adlar = {"giris": "Giriş", "stop": "Stop", "tetik": "İz tetiği", "hedef": "Hedef"}
+    adlar = {"giris": "İlk giriş", "ortalama": "Ortalama giriş", "stop": "Stop", "tetik": "İz tetiği", "hedef": "Hedef"}
     for ad, f in sev.items():
         if y0 <= f <= y1:
             parca.append(f'<line class="ig-seviye {ad}" x1="{sol:g}" x2="{g - sag:g}" y1="{y(f):.1f}" y2="{y(f):.1f}">'
@@ -198,7 +207,10 @@ def mum_grafigi(mumlar: list, aralik_dk: int, islem: dict, sev: dict, simdi: dat
 
     if sev.get("giris"):
         parca.append(ok(islem["giris_zamani"], sev["giris"], satis, "giris",
-                        f'Giriş {_fiyat(sev["giris"])} · {_tarih_saat(islem["giris_zamani"], "Europe/Bucharest")}'))
+                        f'İlk giriş {_fiyat(sev["giris"])} · {_tarih_saat(islem["giris_zamani"], "Europe/Bucharest")}'))
+    for e in islem.get("ek_girisler", []):
+        parca.append(ok(e["zaman"], float(e["fiyat"]), satis, "giris ek",
+                        f'Zararda ek giriş {_fiyat(float(e["fiyat"]))} · {_tarih_saat(e["zaman"], "Europe/Bucharest")}'))
     if islem.get("cikis_zamani") and islem.get("cikis_fiyati"):
         parca.append(ok(islem["cikis_zamani"], float(islem["cikis_fiyati"]), not satis, "cikis",
                         f'Çıkış {_fiyat(float(islem["cikis_fiyati"]))} · '
@@ -222,11 +234,12 @@ background:var(--yuzey);color:var(--buz);text-decoration:none;font-weight:600;fo
 .ig-mum.eksi line{stroke:var(--eksi)}.ig-mum.eksi rect{fill:var(--eksi)}
 .ig-bant{fill:rgba(214,183,121,.07)}
 .ig-seviye{stroke-width:1;stroke-dasharray:5 4;vector-effect:non-scaling-stroke}
-.ig-seviye.giris{stroke:var(--holo)}.ig-seviye.stop{stroke:var(--eksi)}.ig-seviye.tetik{stroke:var(--arti)}
+.ig-seviye.giris{stroke:var(--holo)}.ig-seviye.ortalama{stroke:#ff9f43}.ig-seviye.stop{stroke:var(--eksi)}.ig-seviye.tetik{stroke:var(--arti)}
 .ig-seviye.hedef{stroke:var(--arti)}
 .ig-isaret polygon{stroke:#0d111c;stroke-width:1}.ig-isaret circle{stroke:#0d111c;stroke-width:1.5}
 .ig-isaret.giris polygon,.ig-isaret.giris circle{fill:var(--holo)}
 .ig-isaret.cikis polygon,.ig-isaret.cikis circle{fill:#f2ede2}
+.ig-isaret.ek polygon,.ig-isaret.ek circle{fill:#ff9f43}
 .ig-anahtar{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:.8125rem;color:var(--buz)}
 .ig-anahtar span{display:inline-flex;align-items:center;gap:6px}
 .ig-anahtar i{display:inline-block;width:16px;height:0;border-top:2px dashed}
@@ -250,7 +263,9 @@ def sayfa_uret(islem: dict | None, kural: dict | None, mumlar: list | None, aral
             anahtar = ('<div class="ig-anahtar">'
                        '<span><b style="background:var(--holo)"></b>Giriş</span>'
                        '<span><b style="background:#f2ede2"></b>Çıkış</span>'
-                       '<span><i style="border-color:var(--holo)"></i>Giriş fiyatı</span>'
+                       + ('<span><b style="background:#ff9f43"></b>Zararda ek giriş</span>' if islem.get("ek_girisler") else "")
+                       + '<span><i style="border-color:var(--holo)"></i>İlk giriş fiyatı</span>'
+                       + ('<span><i style="border-color:#ff9f43"></i>Ortalama giriş</span>' if "ortalama" in sev else "")
                        + ('<span><i style="border-color:var(--eksi)"></i>Stop</span>' if "stop" in sev else "")
                        + ('<span><i style="border-color:var(--arti)"></i>İz süren stop tetiği</span>' if "tetik" in sev else "")
                        + ('<span><i style="border-color:var(--arti)"></i>Kâr hedefi</span>' if "hedef" in sev else "")
@@ -271,13 +286,18 @@ def sayfa_uret(islem: dict | None, kural: dict | None, mumlar: list | None, aral
         cikis_satiri = (f'<div><dt>Çıkış</dt><dd>{_fiyat(float(islem["cikis_fiyati"]))}<span class="alt">'
                         f'{_tarih_saat(islem["cikis_zamani"], "Europe/Bucharest")}</span></dd></div>'
                         if islem.get("cikis_fiyati") else "")
+        ek_satiri = "".join(
+            f'<div><dt>Zararda ek giriş</dt><dd>{_fiyat(float(e["fiyat"]))}<span class="alt">'
+            f'{_tarih_saat(e["zaman"], "Europe/Bucharest")}</span></dd></div>' for e in islem.get("ek_girisler", []))
+        if "ortalama" in sev:
+            ek_satiri += f'<div><dt>Ortalama giriş</dt><dd>{_fiyat(sev["ortalama"])}</dd></div>'
         stop_satiri = (f'<div><dt>Stop</dt><dd class="eksi">{_fiyat(sev["stop"])}</dd></div>' if "stop" in sev else "")
         govde = f"""<div class="ig-ust"><span class="kod">{escape(islem["kod"])}</span>{durum}</div>
 <p class="ekran-ozet">{_yon(islem["yon"]).capitalize()} · {escape(islem["bot"])} · {islem.get("tutar") or 0:.0f} USDT</p>
 <div class="kose kart">{grafik}{anahtar}</div>
 <dl class="olcu analiz-olcu">
-<div><dt>Giriş</dt><dd>{_fiyat(sev.get("giris") or 0)}<span class="alt">{_tarih_saat(islem["giris_zamani"], "Europe/Bucharest")}</span></dd></div>
-{cikis_satiri}{stop_satiri}{sonuc_satiri}
+<div><dt>{"İlk giriş" if ek_satiri else "Giriş"}</dt><dd>{_fiyat(sev.get("giris") or 0)}<span class="alt">{_tarih_saat(islem["giris_zamani"], "Europe/Bucharest")}</span></dd></div>
+{ek_satiri}{cikis_satiri}{stop_satiri}{sonuc_satiri}
 </dl>
 <p class="g-not">Grafik Binance'in herkese açık fiyat verisinden çizilir. Sanal işlemdir; borsaya emir gitmez.
 Bir muma dokununca açılış, tepe, dip ve kapanış görünür.</p>"""

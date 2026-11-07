@@ -64,6 +64,47 @@ def zaman_dosyasi_oku(yol: Path) -> datetime | None:
         return None
 
 
+def _giris_emirleri(baglanti, kisa_mi: dict) -> dict:
+    """İşlem kimliği -> o işlemin gerçekleşmiş giriş emirleri [{zaman, fiyat, miktar}], zamana göre.
+
+    Hazır motor işlemin 'open_rate' alanına, zararda ek giriş yapıldıktan sonra ORTALAMA giriş fiyatını
+    yazar; ilk girişin gerçek fiyatı ve ek girişler yalnız 'orders' tablosundadır. Tablo yoksa ya da
+    okunamazsa boş sözlük döner (çağıran 'open_rate'e düşer).
+    """
+    try:
+        sutunlar = {s["name"] for s in baglanti.execute("PRAGMA table_info(orders)")}
+        if not {"ft_trade_id", "ft_order_side"} <= sutunlar:
+            return {}
+        satirlar = baglanti.execute("SELECT * FROM orders ORDER BY id").fetchall()
+    except sqlite3.Error:
+        return {}
+    sonuc: dict = {}
+    for r in satirlar:
+        e = dict(r)
+        kimlik = e.get("ft_trade_id")
+        if kimlik not in kisa_mi:
+            continue
+        giris_tarafi = "sell" if kisa_mi[kimlik] else "buy"
+        if e.get("ft_order_side") != giris_tarafi:
+            continue
+        miktar = e.get("filled")
+        if miktar is None:
+            miktar = e.get("amount")
+        if e.get("status") in ("canceled", "cancelled", "expired", "rejected") and not (miktar or 0):
+            continue
+        if miktar is not None and float(miktar) <= 0:
+            continue
+        fiyat = next((e[a] for a in ("average", "safe_price", "price") if e.get(a)), None)
+        zaman = zaman_coz(e.get("order_filled_date")) or zaman_coz(e.get("order_date"))
+        if fiyat is None or zaman is None:
+            continue
+        sonuc.setdefault(kimlik, []).append({"zaman": zaman, "fiyat": float(fiyat),
+                                             "miktar": float(miktar) if miktar is not None else None})
+    for liste in sonuc.values():
+        liste.sort(key=lambda g: g["zaman"])
+    return sonuc
+
+
 def islemleri_oku(db_yolu: Path) -> dict:
     """Bir botun işlem kayıtlarını okur.
 
@@ -85,6 +126,7 @@ def islemleri_oku(db_yolu: Path) -> dict:
         if eksik:
             return {**bos, "hata": f"İşlem tablosunda beklenen sütunlar yok: {', '.join(eksik)}"}
         satirlar = baglanti.execute("SELECT * FROM trades ORDER BY id").fetchall()
+        emirler = _giris_emirleri(baglanti, {s_["id"]: bool(s_["is_short"]) for s_ in satirlar})
     except sqlite3.Error as hata:
         return {**bos, "hata": f"Kayıt dosyası okunamadı: {hata}"}
     finally:
@@ -102,10 +144,14 @@ def islemleri_oku(db_yolu: Path) -> dict:
             "parite": satir.get("pair"),
             "yon": "aciga_satis" if satir.get("is_short") else "alim",
             "giris_zamani": giris,
-            "giris_fiyati": satir.get("open_rate"),
+            "giris_fiyati": satir.get("open_rate"),   # ek giriş sonrası ORTALAMA giriş
             "tutar": tutar,
             "etiket": satir.get("enter_tag"),
         }
+        giris_emirleri = emirler.get(satir.get("id")) or []
+        # İlk girişin gerçek fiyatı (stop buna göre kurulur) ve varsa zararda ek girişler.
+        islem["ilk_giris_fiyati"] = giris_emirleri[0]["fiyat"] if giris_emirleri else satir.get("open_rate")
+        islem["ek_girisler"] = giris_emirleri[1:]
         if satir.get("is_open"):
             acik.append(islem)
             continue
@@ -220,7 +266,7 @@ def acik_risk(islem: dict, kural: dict, ilk_tutar: float) -> dict:
     yapılmamışsa ve kural izin veriyorsa, ek girişin stoptaki kaybı da eklenir.
     """
     stop = kural["cikis"].get("zarar_durdur_yuzde")
-    fiyat = islem.get("giris_fiyati")
+    fiyat = islem.get("ilk_giris_fiyati") or islem.get("giris_fiyati")   # ek girişte ortalama değil, ilk giriş
     if not stop or not fiyat:
         return {"stop_fiyati": None, "stopta_kayip": None}
     kaldirac = float(kural.get("kaldirac", 1))

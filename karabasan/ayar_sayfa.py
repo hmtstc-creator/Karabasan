@@ -21,6 +21,7 @@ import pandas as pd
 
 from . import ayar as a
 from . import botlar as _botlar
+from .kural import ekleme_fiyati
 
 ONBELLEK = a.VeriOnbellegi()
 HESAP_KAPISI = threading.Semaphore(2)   # aynı anda en çok iki hesap; panel öbür işlerini yapabilsin
@@ -82,6 +83,11 @@ def renk(sira: int) -> str:
     return RENKLER[sira % len(RENKLER)]
 
 
+def _ilk(i: dict) -> float:
+    """İşlemin İLK giriş fiyatı: zararda ek girişte 'giris_fiyati' ortalamadır, mumların üstünde durmaz."""
+    return float(i.get("ilk_giris_fiyati") or i["giris_fiyati"])
+
+
 def _yollar(x_ler: list[float], y_ler: list) -> list[str]:
     """Çizgi parçaları: boş (NaN) olan yerde çizgi kopar."""
     parcalar, simdiki = [], []
@@ -111,7 +117,7 @@ def _kosular(dizi: list[bool]) -> list[tuple[int, int]]:
 
 def grafik(df: pd.DataFrame, pencere_bas: pd.Timestamp, yeni: list[dict], eski: list[dict],
            engel: list[datetime], gun: int, satis: bool, katman: dict | None = None,
-           kriter_adlari: list[str] | None = None) -> str:
+           kriter_adlari: list[str] | None = None, ek_fiyat=None) -> str:
     """Fiyat grafiği (satır içi SVG): mumlar tek renk; giriş bölgesi yeşil; şartların çizgi ve bantları;
     altta her şart için bir şerit ve en altta hepsinin kesişimi. Genişlik mum sayısıyla büyür; kutu yatay kaydırılır."""
     from .sayfa import _guzel_adimlar
@@ -133,7 +139,7 @@ def grafik(df: pd.DataFrame, pencere_bas: pd.Timestamp, yeni: list[dict], eski: 
     serit_ust = h + 4.0
     toplam_h = serit_ust + (len(seritler) + 1) * (serit_h + serit_ara) + 6 if katman else h
     w = max(380.0, sol + sag + n * bw)
-    fiyatlar = list(cubuk["high"]) + list(cubuk["low"]) + [float(i["giris_fiyati"]) for i in yeni + eski] \
+    fiyatlar = list(cubuk["high"]) + list(cubuk["low"]) + [_ilk(i) for i in yeni + eski] \
         + [float(i["cikis_fiyati"]) for i in yeni]
     en_alt, en_ust = min(fiyatlar), max(fiyatlar)
     pay = (en_ust - en_alt) * 0.06 or en_ust * 0.01
@@ -218,10 +224,10 @@ def grafik(df: pd.DataFrame, pencere_bas: pd.Timestamp, yeni: list[dict], eski: 
         parca.append(f'<polygon class="ay-engel" points="{x(z) + bw / 2:.1f},{h - alt - 9:.1f} {x(z) + bw / 2 + 4:.1f},{h - alt - 3:.1f} '
                      f'{x(z) + bw / 2 - 4:.1f},{h - alt - 3:.1f}"><title>Yalnız seçtiğin şart yüzünden giriş olmadı · {_zaman(z)}</title></polygon>')
     for i in eski:
-        parca.append(f'<circle class="ay-eski" cx="{x(i["giris_zamani"]):.1f}" cy="{y(float(i["giris_fiyati"])):.1f}" r="6">'
-                     f'<title>Canlı ayarın girişi · {_fiyat(float(i["giris_fiyati"]))} · {_zaman(i["giris_zamani"])}</title></circle>')
+        parca.append(f'<circle class="ay-eski" cx="{x(i["giris_zamani"]):.1f}" cy="{y(_ilk(i)):.1f}" r="6">'
+                     f'<title>Canlı ayarın girişi · {_fiyat(_ilk(i))} · {_zaman(i["giris_zamani"])}</title></circle>')
     for i in yeni:
-        gx, gy = x(i["giris_zamani"]), y(float(i["giris_fiyati"]))
+        gx, gy = x(i["giris_zamani"]), y(_ilk(i))
         cx, cy = x(i["cikis_zamani"]), y(float(i["cikis_fiyati"]))
         sinif = "arti" if float(i["net_yuzde"]) > 0 else "eksi"
         parca.append(f'<line class="ay-yol {sinif}" x1="{gx:.1f}" y1="{gy:.1f}" x2="{cx:.1f}" y2="{cy:.1f}"/>')
@@ -229,7 +235,14 @@ def grafik(df: pd.DataFrame, pencere_bas: pd.Timestamp, yeni: list[dict], eski: 
         nok = (f"{gx - d:.1f},{gy - d * 1.8:.1f} {gx + d:.1f},{gy - d * 1.8:.1f} {gx:.1f},{gy - 3:.1f}" if satis
                else f"{gx - d:.1f},{gy + d * 1.8:.1f} {gx + d:.1f},{gy + d * 1.8:.1f} {gx:.1f},{gy + 3:.1f}")
         parca.append(f'<g class="ig-isaret giris"><polygon points="{nok}"/><circle cx="{gx:.1f}" cy="{gy:.1f}" r="3.2"/>'
-                     f'<title>Giriş {_fiyat(float(i["giris_fiyati"]))} · {_zaman(i["giris_zamani"])}</title></g>')
+                     f'<title>Giriş {_fiyat(_ilk(i))} · {_zaman(i["giris_zamani"])}</title></g>')
+        if ek_fiyat and i.get("ekleme_zamani") is not None:
+            ef = ek_fiyat(_ilk(i))
+            ex, ey = x(i["ekleme_zamani"]), y(ef)
+            nok2 = (f"{ex - 6:.1f},{ey - 11:.1f} {ex + 6:.1f},{ey - 11:.1f} {ex:.1f},{ey - 2:.1f}" if satis
+                    else f"{ex - 6:.1f},{ey + 11:.1f} {ex + 6:.1f},{ey + 11:.1f} {ex:.1f},{ey + 2:.1f}")
+            parca.append(f'<g class="ig-isaret ek"><polygon points="{nok2}" fill="#ff9f43"/>'
+                         f'<title>Zararda ek giriş ~{_fiyat(ef)} · {_zaman(i["ekleme_zamani"])}</title></g>')
         parca.append(f'<g class="ig-isaret cikis"><circle cx="{cx:.1f}" cy="{cy:.1f}" r="4"/>'
                      f'<title>Çıkış {_fiyat(float(i["cikis_fiyati"]))} · {_zaman(i["cikis_zamani"])} · '
                      f'{NEDENLER.get(i["neden"], i["neden"])} · {float(i["net_yuzde"]):+.2f}%</title></g>')
@@ -349,7 +362,7 @@ def _islem_tablosu(islemler: list[dict]) -> str:
     if not islemler:
         return '<p class="bos">Bu ayarla bu dönemde işlem açılmadı.</p>'
     satirlar = "".join(
-        f'<tr><td>{_zaman(i["giris_zamani"])}</td><td>{_fiyat(float(i["giris_fiyati"]))}</td>'
+        f'<tr><td>{_zaman(i["giris_zamani"])}</td><td>{_fiyat(_ilk(i))}</td>'
         f'<td>{_fiyat(float(i["cikis_fiyati"]))}</td><td>{escape(NEDENLER.get(i["neden"], i["neden"]))}</td>'
         f'<td class="{"arti" if float(i["net_yuzde"]) > 0 else "eksi"}">{float(i["net_yuzde"]):+.2f}%</td></tr>'
         for i in islemler[-40:])
@@ -646,7 +659,8 @@ def parcalar(ctx: dict) -> dict:
         engel = yeni["kriterler"][istek["goster"]]["engel_zamanlari"]
     katman = yeni["katman"]
     adlar = [k["yazi"] for k in a.kriterler(kopya)]
-    sonuc["grafik"] = (f'<div class="kose kart">{grafik(df, ctx["pencere_bas"], yeni["islemler"], eski["islemler"] if degisim else [], engel, gun, satis, katman, adlar)}</div>')
+    ek_fn = (lambda ilk: ekleme_fiyati(kopya, ilk)) if kopya.get("zararda_ekleme") else None
+    sonuc["grafik"] = (f'<div class="kose kart">{grafik(df, ctx["pencere_bas"], yeni["islemler"], eski["islemler"] if degisim else [], engel, gun, satis, katman, adlar, ek_fn)}</div>')
     katman_anahtari = "".join(
         f'<span><i style="border-color:{renk(k["sira"])}{";border-top-width:6px;opacity:.7" if k["tur"] == "bant" else ""}"></i>'
         f'{k["sira"] + 1}. şart: {escape(k["ad"])} ({"bölge" if k["tur"] == "bant" else "çizgi"})</span>'

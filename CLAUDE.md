@@ -202,7 +202,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 
 ## Durum
 
-Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 671 test geçiyor.
+Laboratuvar sürümünün 1. ve 2. parçası yazıldı; 677 test geçiyor.
 
 **Sunucu çalışıyor.** Ahmet 10 Ekim 2026 akşamı Hetzner'de CX33 sunucuyu
 blokla oluşturdu; kurulum gerçek sunucuda ilk denemede baştan sona çalıştı ve
@@ -937,6 +937,15 @@ fiyatını güncelle". Önce 6. kuralı hatırlattım (zararda ekleme kapalı, k
   SMDK2 53, net −476,51 (işlem başına ~−8,3 / −9,0 USDT). Ek giriş, yalnız kaldıracın yapacağından
   (≈ 2 × SMK) kötü: SMK2 +29,68 < 44,26, SMDK2 −8,89 < 27,20; kaldıraç düşüşü de ikiye katladı. Uyum 23
   raporu henüz okunmadı (sunucu oturumuna bulut oturumundan mesaj izni 22 Ekim'de kaydedilemedi).
+
+**Ek girişli işlemde ilk giriş (8 Kasım 2026, Ahmet iPhone ekran görüntüsü gönderdi: "bar gelmeyen yerde nasıl alım yapıyor?").**
+Hazır motor, zararda ek girişten sonra `trades.open_rate`'e ORTALAMA girişi yazar. İşlem grafiği bunu ilk girişin zamanına koyuyordu:
+SMDK2 SPCX işleminde giriş işareti mumların %5 üstünde (133,17; gerçek ilk giriş ~126,4) ve stop 145,16 (doğrusu ilk girişin %9'u ≈ 137,8; işlem
+137,54'te stopla kapanmıştı) çiziliyordu. İşlem doğru çalışmıştı, yalnız gösterim yanlıştı. Düzeltme: `sonuc._giris_emirleri` botun `orders`
+tablosundan gerçekleşmiş giriş emirlerini okur (`islem["ilk_giris_fiyati"]`, `islem["ek_girisler"]`; tablo yoksa `open_rate`); işlem grafiği ilk girişi,
+ek girişi (turuncu işaret) ve ortalamayı ayrı çizer, stop ilk girişten, iz tetiği ortalamadan; `sonuc.acik_risk` da ilk girişi kullanır; `/ayar` grafiği
+benzetimin `ilk_giris_fiyati`'ni kullanır ve ek girişi `kural.ekleme_fiyati` seviyesinde işaretler. Gerçek `orders` tablosu (motorun sütun adları:
+`ft_trade_id`, `ft_order_side`, `average`, `filled`, `order_filled_date`) yalnız sahte tabloyla denendi; sunucuda ilk kez gerçek kayıtla görülecek.
 
 **Kriter istekleri (13 Ekim 2026, Ahmet'in isteği).** Ahmet "kriterleri sitede göster, değiştirebileyim;
 olmaz dersen sana söylerim sen çalıştırırsın" dedi. Sunucudaki sayfa değiştirilemez (sunucu 5 dakikada
