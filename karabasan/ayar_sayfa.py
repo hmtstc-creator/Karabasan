@@ -76,21 +76,64 @@ def _zaman(z) -> str:
 # --------------------------------------------------------------------------
 
 
+RENKLER = ["#5fd4ff", "#ffc24a", "#e879f9", "#a78bfa", "#fb923c", "#f472b6", "#38bdf8", "#facc15",
+           "#c084fc", "#fdba74", "#67e8f9", "#f9a8d4"]
+
+
+def renk(sira: int) -> str:
+    return RENKLER[sira % len(RENKLER)]
+
+
+def _yollar(x_ler: list[float], y_ler: list) -> list[str]:
+    """Çizgi parçaları: boş (NaN) olan yerde çizgi kopar."""
+    parcalar, simdiki = [], []
+    for xx, yy in zip(x_ler, y_ler):
+        if yy is None:
+            if len(simdiki) > 1:
+                parcalar.append(simdiki)
+            simdiki = []
+        else:
+            simdiki.append((xx, yy))
+    if len(simdiki) > 1:
+        parcalar.append(simdiki)
+    return [" ".join(f"{'M' if k == 0 else 'L'}{xx:.1f},{yy:.1f}" for k, (xx, yy) in enumerate(p)) for p in parcalar]
+
+
+def _kosular(dizi: list[bool]) -> list[tuple[int, int]]:
+    """Art arda True olan aralıklar (başlangıç, bitiş dahil)."""
+    sonuc, bas = [], None
+    for i, v in enumerate(dizi + [False]):
+        if v and bas is None:
+            bas = i
+        elif not v and bas is not None:
+            sonuc.append((bas, i - 1))
+            bas = None
+    return sonuc
+
+
 def grafik(df: pd.DataFrame, pencere_bas: pd.Timestamp, yeni: list[dict], eski: list[dict],
-           engel: list[datetime], gun: int, satis: bool) -> str:
-    """Mum grafiği (satır içi SVG). Genişlik mum sayısıyla büyür; kutu yatay kaydırılır."""
+           engel: list[datetime], gun: int, satis: bool, katman: dict | None = None,
+           kriter_adlari: list[str] | None = None) -> str:
+    """Fiyat grafiği (satır içi SVG): mumlar tek renk; giriş bölgesi yeşil; şartların çizgi ve bantları;
+    altta her şart için bir şerit ve en altta hepsinin kesişimi. Genişlik mum sayısıyla büyür; kutu yatay kaydırılır."""
     from .sayfa import _guzel_adimlar
 
     dk = a.parca_secimi(gun)
-    pencere = df[pd.to_datetime(df["date"], utc=True) >= pencere_bas]
+    tum_tarih = pd.to_datetime(df["date"], utc=True)
+    pencere = df[tum_tarih >= pencere_bas]
     if pencere.empty:
         return '<p class="bos">Bu dönemde mum yok.</p>'
-    cubuk = (pencere.set_index(pd.to_datetime(pencere["date"], utc=True))
-             .resample(f"{dk}min").agg({"open": "first", "high": "max", "low": "min", "close": "last"})
-             .dropna().reset_index())
+    anahtar = pd.to_datetime(pencere["date"], utc=True).dt.floor(f"{dk}min")
+    cubuk = (pencere.assign(_k=anahtar.to_numpy()).groupby("_k")
+             .agg(open=("open", "first"), high=("high", "max"), low=("low", "min"), close=("close", "last"))
+             .reset_index().rename(columns={"_k": "date"}))
     n = len(cubuk)
     bw = 6.0 if n < 150 else 4.0
+    seritler = katman["kosullar"] if katman else []
+    serit_h, serit_ara = 11.0, 3.0
     sol, sag, ust, alt, h = 54.0, 10.0, 14.0, 26.0, 300.0
+    serit_ust = h + 4.0
+    toplam_h = serit_ust + (len(seritler) + 1) * (serit_h + serit_ara) + 6 if katman else h
     w = max(380.0, sol + sag + n * bw)
     fiyatlar = list(cubuk["high"]) + list(cubuk["low"]) + [float(i["giris_fiyati"]) for i in yeni + eski] \
         + [float(i["cikis_fiyati"]) for i in yeni]
@@ -107,20 +150,67 @@ def grafik(df: pd.DataFrame, pencere_bas: pd.Timestamp, yeni: list[dict], eski: 
         return ust + (y1 - f) / (y1 - y0) * (h - ust - alt)
 
     parca = []
+    # Pencere içi her 5 dakikalık satırı çizim çubuğuna eşle (şeritler, çizgiler, giriş bölgesi).
+    if katman:
+        ts = pd.DatetimeIndex(katman["tarih"]).floor(f"{dk}min")
+        bar_zamanlari = list(cubuk["date"])
+
+        def gruplu(dizi, nasil: str):
+            seri = pd.Series(list(dizi), index=ts)
+            g = seri.groupby(level=0)
+            sonuc = g.max() if nasil == "any" else g.last()
+            return sonuc.reindex(bar_zamanlari)
+
+    # 1) Giriş bölgesi (yeşil): hepsi doğru olan çubuklar, grafiğin ve şeritlerin tüm yüksekliğinde.
+    if katman:
+        hepsi = gruplu(katman["hepsi"], "any").fillna(False).astype(bool).tolist()
+        kapat = toplam_h - 4
+        for i, v in enumerate(hepsi):
+            if v:
+                xx = x(bar_zamanlari[i])
+                parca.append(f'<rect class="ay-bolge" x="{xx - 1:.1f}" y="{ust:g}" width="{max(bw, 5):.1f}" '
+                             f'height="{kapat - ust:.1f}"><title>Tüm şartlar aynı anda doğru · '
+                             f'{_zaman(bar_zamanlari[i])}</title></rect>')
+    # İşlemin açık kaldığı süre: hafif yeşil bant (fiyat alanında).
+    for i in yeni:
+        gx, cx = x(i["giris_zamani"]), x(i["cikis_zamani"])
+        parca.append(f'<rect class="ay-sure" x="{gx:.1f}" y="{ust:g}" width="{max(cx - gx, 1):.1f}" height="{h - ust - alt:g}"/>')
     for f in _guzel_adimlar(y0, y1, 5):
         if y0 <= f <= y1:
             parca.append(f'<line class="g-izgara" x1="{sol:g}" x2="{w - sag:g}" y1="{y(f):.1f}" y2="{y(f):.1f}"/>'
                          f'<text class="g-eksen" x="4" y="{y(f):.1f}" dominant-baseline="middle">{_fiyat(f)}</text>')
+    # 2) Şartların fiyat üstü çizgi ve bantları (kriter rengiyle).
+    if katman:
+        merkez = [x(z) + bw / 2 for z in bar_zamanlari]
+
+        def kes(deger):   # grafiğin fiyat aralığı dışındaki değer çizilmez
+            return None if (deger != deger or deger < y0 or deger > y1) else y(deger)
+
+        for k in katman["cizgiler"]:
+            c = renk(k["sira"])
+            alt_d = gruplu(k["deger"], "last").tolist()
+            if k["tur"] == "bant":
+                ust_d = gruplu(k["ust"], "last").tolist()
+                for bas_i, son_i in _kosular([(kes(u) is not None and kes(a_) is not None)
+                                              for a_, u in zip(alt_d, ust_d)]):
+                    ust_n = [(merkez[i], kes(ust_d[i])) for i in range(bas_i, son_i + 1)]
+                    alt_n = [(merkez[i], kes(alt_d[i])) for i in range(son_i, bas_i - 1, -1)]
+                    noktalar = " ".join(f"{xx:.1f},{yy:.1f}" for xx, yy in ust_n + alt_n)
+                    parca.append(f'<polygon class="ay-bant" points="{noktalar}" fill="{c}" stroke="{c}">'
+                                 f'<title>{k["sira"] + 1}. şart · {escape(k["ad"])}</title></polygon>')
+            else:
+                for d in _yollar(merkez, [kes(v) for v in alt_d]):
+                    parca.append(f'<path class="ay-cizgi" d="{d}" stroke="{c}"><title>{k["sira"] + 1}. şart · '
+                                 f'{escape(k["ad"])}</title></path>')
+    # 3) Mumlar: tek renk (yön rengi yok).
     for _, m in cubuk.iterrows():
         orta = x(m["date"]) + bw / 2
-        sinif = "arti" if m["close"] >= m["open"] else "eksi"
         ustk, altk = y(max(m["open"], m["close"])), y(min(m["open"], m["close"]))
         parca.append(
-            f'<g class="ig-mum {sinif}"><line x1="{orta:.1f}" x2="{orta:.1f}" y1="{y(m["high"]):.1f}" y2="{y(m["low"]):.1f}"/>'
+            f'<g class="ay-mum"><line x1="{orta:.1f}" x2="{orta:.1f}" y1="{y(m["high"]):.1f}" y2="{y(m["low"]):.1f}"/>'
             f'<rect x="{orta - bw * 0.35:.1f}" y="{ustk:.1f}" width="{bw * 0.7:.1f}" height="{max(altk - ustk, 0.8):.1f}"/>'
             f'<title>{_zaman(m["date"])} · A {_fiyat(m["open"])} T {_fiyat(m["high"])} D {_fiyat(m["low"])} '
             f'K {_fiyat(m["close"])}</title></g>')
-    # "Bu şart olmasaydı burada da girerdik" işaretleri (seçilen kriter).
     gorulen = set()
     for z in engel:
         k = int(pd.Timestamp(z).timestamp() // (dk * 60))
@@ -129,7 +219,6 @@ def grafik(df: pd.DataFrame, pencere_bas: pd.Timestamp, yeni: list[dict], eski: 
         gorulen.add(k)
         parca.append(f'<polygon class="ay-engel" points="{x(z) + bw / 2:.1f},{h - alt - 9:.1f} {x(z) + bw / 2 + 4:.1f},{h - alt - 3:.1f} '
                      f'{x(z) + bw / 2 - 4:.1f},{h - alt - 3:.1f}"><title>Yalnız seçtiğin şart yüzünden giriş olmadı · {_zaman(z)}</title></polygon>')
-    # Eski (canlı ayar) girişleri: içi boş halka.
     for i in eski:
         parca.append(f'<circle class="ay-eski" cx="{x(i["giris_zamani"]):.1f}" cy="{y(float(i["giris_fiyati"])):.1f}" r="6">'
                      f'<title>Canlı ayarın girişi · {_fiyat(float(i["giris_fiyati"]))} · {_zaman(i["giris_zamani"])}</title></circle>')
@@ -150,8 +239,24 @@ def grafik(df: pd.DataFrame, pencere_bas: pd.Timestamp, yeni: list[dict], eski: 
         t = t0 + (t1 - t0) * (0.03 + 0.94 * k / 5)
         z = datetime.fromtimestamp(t, tz=timezone.utc)
         parca.append(f'<text class="g-eksen" x="{x(z):.1f}" y="{h - 8:g}" text-anchor="middle">{escape(_zaman(z))}</text>')
+    # 4) Şeritler: her şart bir satır (doğru olduğu yerler boyalı), en altta kesişim (yeşil).
+    if katman:
+        satirlar = [(f"{i + 1}", renk(i), gruplu(d, "any").fillna(False).astype(bool).tolist(),
+                     (kriter_adlari[i] if kriter_adlari and i < len(kriter_adlari) else f"{i + 1}. şart"))
+                    for i, d in enumerate(seritler)]
+        satirlar.append(("✓", "#5af0b2", hepsi, "Hepsi aynı anda doğru: giriş sinyali"))
+        for r, (etiket, c, dizi, ad) in enumerate(satirlar):
+            yy = serit_ust + r * (serit_h + serit_ara)
+            parca.append(f'<rect class="ay-serit" x="{sol:g}" y="{yy:g}" width="{w - sol - sag:g}" height="{serit_h:g}"/>')
+            parca.append(f'<text class="ay-serit-no" x="{sol - 6:g}" y="{yy + serit_h / 2 + 0.5:g}" text-anchor="end" '
+                         f'dominant-baseline="middle" fill="{c}">{etiket}</text>')
+            for bas_i, son_i in _kosular(dizi):
+                xx = x(bar_zamanlari[bas_i])
+                ww = max(x(bar_zamanlari[son_i]) + bw - xx, 2)
+                parca.append(f'<rect class="ay-serit-dolu" x="{xx:.1f}" y="{yy:g}" width="{ww:.1f}" height="{serit_h:g}" '
+                             f'fill="{c}"><title>{escape(ad)} · doğru ({_zaman(bar_zamanlari[bas_i])})</title></rect>')
     return (f'<div class="ay-kaydir"><svg class="g-svg ig-svg" style="width:{w:g}px;min-width:100%" '
-            f'viewBox="0 0 {w:g} {h:g}" role="img" aria-label="Fiyat grafiği, giriş ve çıkışlar işaretli">'
+            f'viewBox="0 0 {w:g} {toplam_h:g}" role="img" aria-label="Fiyat grafiği: giriş bölgesi yeşil, şartların çizgileri ve şeritleri">'
             f'{"".join(parca)}</svg></div>')
 
 
@@ -200,7 +305,7 @@ def _kriter_kartlari(kural, simdiki: dict, olc: list[dict] | None, istek: dict, 
             rozet = f'<p class="ay-olcum"><span>{dogru}</span><span>{engel_yazi}</span>{dugme}</p>'
         else:
             rozet = ""
-        kartlar.append(f'<section class="ay-kart"><h3><span class="ay-no">{k["sira"] + 1}</span>{escape(k["yazi"])}</h3>'
+        kartlar.append(f'<section class="ay-kart"><h3><span class="ay-no" style="background:{renk(k["sira"])}">{k["sira"] + 1}</span>{escape(k["yazi"])}</h3>'
                        f'{rozet}{"".join(girdiler)}'
                        f'{"" if girdiler else "<p class=alt>Bu şartın kendi sayısı yok; ilgili göstergenin periyodunu aşağıdaki Göstergeler bölümünden değiştirebilirsin.</p>"}</section>')
     return "".join(kartlar), idx
@@ -256,6 +361,14 @@ text-decoration:none;font-size:.875rem}
 .ay-kaydir{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .ay-yol{stroke-width:1.5;stroke-dasharray:3 3;vector-effect:non-scaling-stroke}
 .ay-yol.arti{stroke:var(--arti)}.ay-yol.eksi{stroke:var(--eksi)}
+.ay-bolge{fill:rgba(90,240,178,.22);stroke:rgba(90,240,178,.55);stroke-width:1;vector-effect:non-scaling-stroke}
+.ay-sure{fill:rgba(90,240,178,.06)}
+.ay-mum line{stroke:#9fb3c8;stroke-width:1;vector-effect:non-scaling-stroke}
+.ay-mum rect{fill:rgba(159,179,200,.28);stroke:#9fb3c8;stroke-width:.8;vector-effect:non-scaling-stroke}
+.ay-cizgi{fill:none;stroke-width:1.6;vector-effect:non-scaling-stroke}
+.ay-bant{fill-opacity:.16;stroke-opacity:.8;stroke-width:1;vector-effect:non-scaling-stroke}
+.ay-serit{fill:rgba(159,179,200,.08)}.ay-serit-dolu{fill-opacity:.7}
+.ay-serit-no{font:600 9px var(--rakam,monospace)}
 .ay-eski{fill:none;stroke:var(--soluk);stroke-width:1.5}
 .ay-engel{fill:var(--altin)}
 .ay-ozetler{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
@@ -382,9 +495,19 @@ düştüğünü gör. <b>Canlı botlar değişmez</b>: burada yaptığın hiçbi
     engel_zamanlari = []
     if istek["goster"] is not None and istek["goster"] < len(yeni["kriterler"]):
         engel_zamanlari = yeni["kriterler"][istek["goster"]]["engel_zamanlari"]
-    cizim = grafik(df, pencere_bas, yeni["islemler"], eski["islemler"] if degisim else [], engel_zamanlari, gun, satis)
-    anahtar = ('<div class="ig-anahtar"><span><b style="background:var(--holo)"></b>Giriş</span>'
+    katman = yeni["katman"]
+    adlar = [k["yazi"] for k in a.kriterler(kopya)]
+    cizim = grafik(df, pencere_bas, yeni["islemler"], eski["islemler"] if degisim else [], engel_zamanlari, gun, satis,
+                   katman, adlar)
+    katman_anahtari = "".join(
+        f'<span><i style="border-color:{renk(k["sira"])}{";border-top-width:6px;opacity:.7" if k["tur"] == "bant" else ""}"></i>'
+        f'{k["sira"] + 1}. şart: {escape(k["ad"])} ({"bölge" if k["tur"] == "bant" else "çizgi"})</span>'
+        for k in katman["cizgiler"])
+    anahtar = ('<div class="ig-anahtar"><span><b style="background:rgba(90,240,178,.55);border-radius:2px"></b>'
+               'Giriş bölgesi: tüm şartlar aynı anda doğru</span>'
+               '<span><b style="background:var(--holo)"></b>Giriş</span>'
                '<span><b style="background:#f2ede2"></b>Çıkış</span>'
+               + katman_anahtari
                + ('<span><b style="background:transparent;border:1.5px solid var(--soluk)"></b>Canlı ayarın girişi</span>'
                   if degisim else "")
                + ('<span><b style="background:var(--altin);border-radius:2px"></b>Seçili şart yüzünden olmayan giriş</span>'

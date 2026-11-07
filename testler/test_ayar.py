@@ -136,6 +136,37 @@ class Gecmis(unittest.TestCase):
         self.assertEqual(bir, iki)
 
 
+class Katmanlar(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.kural = a.kural_hazirla("smk-vadeli")
+        cls.df, cls.ek = a.veri_topla(cls.kural, "ETH", "vadeli", SIMDI, 5, sahte_getir)
+        cls.bas = pd.Timestamp(SIMDI - timedelta(days=5))
+
+    def test_fiyat_ustu_katmanlar_fiyatla_ayni_olcekli_olanlardir(self):
+        tablo = a.sinyal_uret(self.df, self.kural, self.ek)
+        katmanlar = a.fiyat_katmanlari(self.kural, tablo)
+        adlar = [k["ad"] for k in katmanlar]
+        self.assertTrue(any("EMA 20" in x for x in adlar))
+        self.assertTrue(any("denge çizgisi" in x for x in adlar))
+        self.assertTrue(any(k["tur"] == "bant" and "bölgesi" in k["ad"] for k in katmanlar))
+        for k in katmanlar:   # RSI / hacim fiyat grafiğine çizilmez
+            self.assertNotIn("rsi", k["sutun"])
+            self.assertNotIn("hacim", k["sutun"])
+
+    def test_katman_verisi_sinyalle_tutarli(self):
+        sonuc = a.calistir(self.kural, self.df, self.ek, self.bas, kriter_olc=True)
+        kat = sonuc["katman"]
+        self.assertEqual(int(kat["hepsi"].sum()), sonuc["sinyal_sayisi"])
+        self.assertEqual(len(kat["kosullar"]), len(self.kural["giris"]["hepsi"]))
+        self.assertEqual(len(kat["tarih"]), len(kat["hepsi"]))
+        # Kesişim = bütün şartların aynı anda doğru olduğu mumlar (şart başına son_n_mumda dahil değil: üst düzey şartlar).
+        hepsi = kat["kosullar"][0].copy()
+        for k in kat["kosullar"][1:]:
+            hepsi &= k
+        self.assertTrue((kat["hepsi"] == hepsi).all())
+
+
 class Sayfa(unittest.TestCase):
     def sayfa(self, **sorgu):
         ham = {k: [str(v)] for k, v in sorgu.items()}
@@ -150,6 +181,23 @@ class Sayfa(unittest.TestCase):
             self.assertNotIn("<script", html)
             self.assertIn("<svg", html)
             self.assertIn("Canlı botlar değişmez", html)
+
+    def test_grafikte_giris_bolgesi_yesil_mumlar_tek_renk(self):
+        import unittest.mock as mock
+
+        kural = a.kural_hazirla("smk-vadeli")
+        kural["giris"]["hepsi"][0] = {"sol": "kapanis", "islem": ">", "sag": 0}   # yapay veride sinyal çıksın
+        for i in (1, 4, 5):
+            kural["giris"]["hepsi"][i]["sag"] = 100
+        kural["giris"]["hepsi"][9]["sag"]["carpan"] = 0.0
+        with mock.patch.object(a, "kural_hazirla", side_effect=lambda b: copy.deepcopy(kural)):
+            html = self.sayfa(bot="smk-vadeli", gun=3)
+        self.assertIn('class="ay-bolge" x', html)
+        self.assertIn("Giriş bölgesi", html)
+        self.assertIn("ay-serit-dolu", html)   # şart şeritleri
+        self.assertIn("ay-cizgi", html)        # fiyat üstü çizgi
+        self.assertNotIn('class="ig-mum', html)  # yön rengi (yeşil / kırmızı mum) yok
+        self.assertIn('class="ay-mum"', html)
 
     def test_sorgu_guvenligi(self):
         i = s.sorgu_coz({"bot": ["../../etc"], "coin": ["<script>"], "gun": ["999"], "once": ["-5"],

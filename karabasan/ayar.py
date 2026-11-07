@@ -30,7 +30,7 @@ import pandas as pd
 from . import botlar as _botlar
 from . import gostergeler as g
 from .benzetim import benzet
-from .kural import KuralHatasi, _kosul, gereken_ek_mum, gereken_mum, kural_dogrula, kural_yukle, sinyal_uret
+from .kural import KuralHatasi, _kosul, _sutun_adi, gereken_ek_mum, gereken_mum, kural_dogrula, kural_yukle, sinyal_uret
 from .stop_sonrasi import SPOT_ADRESI, VADELI_ADRESI, sembol
 
 COINLER = ["BTC", "ETH", "SOL", "XRP", "DOGE", "BNB", "ADA", "LINK", "AVAX", "LTC", "BCH", "TRX"]
@@ -81,7 +81,10 @@ _TABAN = {"yuksek": "Mum tepesi", "dusuk": "Mum dibi", "kapanis": "Kapanış", "
 _SONEK = {"_yon": "yönü", "_denge": "denge çizgisi", "_kirilim": "kırılımı", "_sblok_alt": "satış bloğunun alt sınırı",
           "_sblok_ust": "satış bloğunun üst sınırı", "_ablok_alt": "alış bloğunun alt sınırı",
           "_ablok_ust": "alış bloğunun üst sınırı", "_boga": "boğa uyumsuzluğu sayısı",
-          "_ayi": "ayı uyumsuzluğu sayısı", "_hist": "histogramı", "_fark": "histogramı"}
+          "_ayi": "ayı uyumsuzluğu sayısı", "_hist": "histogramı", "_fark": "histogramı",
+          "_blok_alt": "alış bloğunun alt sınırı", "_blok_ust": "alış bloğunun üst sınırı", "_tepe": "son tepesi",
+          "_dip": "son dibi", "_boga_ust": "boğa boşluğunun üst sınırı", "_boga_alt": "boğa boşluğunun alt sınırı",
+          "_ayi_ust": "ayı boşluğunun üst sınırı", "_ayi_alt": "ayı boşluğunun alt sınırı"}
 
 
 def _gosterge_adi(ad: str, tanim: dict) -> str:
@@ -368,12 +371,86 @@ def _ozet(islemler: list[dict]) -> dict:
             "en_kotu": min(net) if net else None}
 
 
+def _gosterge_bul(kural: dict, sutun: str):
+    """Bir sütunun hangi göstergeden geldiği: (gösterge adı, sonek) ya da (None, "")."""
+    en_uyan = None
+    for ad in kural["gostergeler"]:
+        if (sutun == ad or sutun.startswith(ad + "_")) and (en_uyan is None or len(ad) > len(en_uyan)):
+            en_uyan = ad
+    return (en_uyan, sutun[len(en_uyan):]) if en_uyan else (None, "")
+
+
+def _kosul_sutunlari(kosul: dict, cikti: list) -> None:
+    for alt in ("hepsi", "herhangi"):
+        if alt in kosul:
+            for parca in kosul[alt]:
+                _kosul_sutunlari(parca, cikti)
+            return
+    for taraf in (kosul["sol"], kosul["sag"]):
+        if isinstance(taraf, str):
+            cikti.append(taraf)
+        elif isinstance(taraf, dict):
+            cikti.append(taraf["ad"])
+            if taraf.get("ekle"):
+                cikti.append(taraf["ekle"]["ad"])
+
+
+_CIZGI_SONEKLERI = ("_denge", "_tepe", "_dip")
+_BANT_SONEKLERI = {"_sblok_alt": "_sblok_ust", "_blok_alt": "_blok_ust", "_boga_alt": "_boga_ust", "_ayi_alt": "_ayi_ust"}
+
+
+def fiyat_katmanlari(kural: dict, tablo: pd.DataFrame) -> list[dict]:
+    """Fiyat grafiğinin üstüne çizilebilecek göstergeler: kriter sırası, çizgi ya da bant, düz ad, sütunlar.
+
+    Yalnız fiyatla aynı ölçekte olanlar (ortalamalar, denge çizgisi, son tepe / dip, emir bloğu, boşluk) çizilir;
+    RSI ve hacim gibi başka ölçekli şartlar grafiğin altındaki şeritlerde görünür.
+    """
+    katmanlar, gorulen = [], set()
+    for sira, kosul in enumerate(kural["giris"]["hepsi"]):
+        sutunlar: list = []
+        _kosul_sutunlari(kosul, sutunlar)
+        for ham in sutunlar:
+            sutun = _sutun_adi(ham)
+            ad, ek = _gosterge_bul(kural, sutun)
+            if ad is None or sutun not in tablo or (sira, sutun) in gorulen:
+                continue
+            tanim = kural["gostergeler"][ad]
+            gorulen.add((sira, sutun))
+            if tanim.get("tur") in ("ema", "sma") and ek == "" and tanim.get("periyot", 0) > 1:
+                katmanlar.append({"sira": sira, "tur": "cizgi", "ad": sutun_etiketi(kural, sutun), "sutun": sutun})
+            elif tanim.get("tur") == "yapi" and ek in _CIZGI_SONEKLERI:
+                katmanlar.append({"sira": sira, "tur": "cizgi", "ad": sutun_etiketi(kural, sutun), "sutun": sutun})
+            elif ek in _BANT_SONEKLERI and ad + _BANT_SONEKLERI[ek] in tablo:
+                ust = ad + _BANT_SONEKLERI[ek]
+                if (sira, ust) not in gorulen:
+                    gorulen.add((sira, ust))
+                    katmanlar.append({"sira": sira, "tur": "bant",
+                                      "ad": sutun_etiketi(kural, sutun).replace("alt sınırı", "bölgesi"),
+                                      "sutun": sutun, "ust": ust})
+    return katmanlar
+
+
+def katman_verisi(tablo: pd.DataFrame, kural: dict, maske, seriler: list) -> dict:
+    """Grafiğin altındaki şeritler (her şart + kesişim) ve fiyat üstü çizgi / bantlar; hepsi pencere içi."""
+    tarih = pd.to_datetime(tablo["date"], utc=True)[maske]
+    cizgiler = []
+    for k in fiyat_katmanlari(kural, tablo):
+        kayit = {"sira": k["sira"], "tur": k["tur"], "ad": k["ad"],
+                 "deger": tablo[k["sutun"]].astype(float).to_numpy()[maske]}
+        if k["tur"] == "bant":
+            kayit["ust"] = tablo[k["ust"]].astype(float).to_numpy()[maske]
+        cizgiler.append(kayit)
+    return {"tarih": list(tarih), "kosullar": [s[maske] for s in seriler],
+            "hepsi": tablo["sinyal"].to_numpy(dtype=bool)[maske], "cizgiler": cizgiler}
+
+
 def calistir(kural: dict, df: pd.DataFrame, ek_veri: dict, pencere_bas: pd.Timestamp,
              kriter_olc: bool = False) -> dict:
     """Kuralı verilen mumlarda çalıştırır; pencere içinde açılan işlemleri döndürür.
 
-    kriter_olc: her giriş şartı için pencerede kaç mumda doğru olduğu ve "yalnız bu şart yüzünden
-    giriş olmadı" mumları (şartı gevşetirsen sinyale dönecek yerler).
+    kriter_olc: her giriş şartı için pencerede kaç mumda doğru olduğu, "yalnız bu şart yüzünden
+    giriş olmadı" mumları (şartı gevşetirsen sinyale dönecek yerler) ve grafiğin katman verisi
+    (şartların kesişimi, fiyat üstü çizgi ve bantlar).
     """
     tablo = sinyal_uret(df, kural, ek_veri)
     islemler = benzet(df, kural, komisyon_yuzde=KOMISYON_YUZDE, ek_veri=ek_veri, hazir_tablo=tablo)
@@ -381,13 +458,14 @@ def calistir(kural: dict, df: pd.DataFrame, ek_veri: dict, pencere_bas: pd.Times
     maske = (pd.to_datetime(tablo["date"], utc=True) >= pencere_bas).to_numpy()
     sonuc = {"islemler": islemler, "ozet": _ozet(islemler), "sinyal_sayisi": int(tablo["sinyal"].to_numpy()[maske].sum())}
     if kriter_olc:
-        sonuc["kriterler"] = kriter_olcumu(tablo, kural, maske)
+        seriler = [_kosul(tablo, k).fillna(False).astype(bool).to_numpy() for k in kural["giris"]["hepsi"]]
+        sonuc["kriterler"] = kriter_olcumu(tablo, seriler, maske)
+        sonuc["katman"] = katman_verisi(tablo, kural, maske, seriler)
     return sonuc
 
 
-def kriter_olcumu(tablo: pd.DataFrame, kural: dict, maske) -> list[dict]:
+def kriter_olcumu(tablo: pd.DataFrame, seriler: list, maske) -> list[dict]:
     """Her giriş şartı için: doğru mum oranı, tek başına engellediği mum sayısı ve o mumların zamanı."""
-    seriler = [_kosul(tablo, k).fillna(False).astype(bool).to_numpy() for k in kural["giris"]["hepsi"]]
     tarih = pd.to_datetime(tablo["date"], utc=True)
     sonuc = []
     for i, seri in enumerate(seriler):
