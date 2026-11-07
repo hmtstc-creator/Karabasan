@@ -11,6 +11,7 @@ Adresler:
     /saglik      Sunucu ayakta mı (izleme için)
     /defter      Emir defteri denemesinin özeti (BTC/USDT vadeli, sanal)
     /islem       Tek bir işlemin fiyat grafiği (?bot=<bot adı>&id=<işlem kimliği>)
+    /detay       Bot detayı: işlem listesi, oranlar, günlük bütçe kullanımı (?bot=<bot adı>)
     /ayar        Kriter ayar laboratuvarı: geçmişe sarıp kriter sayılarını denemek (kaydetmez)
 
 Yalnız Python standart kütüphanesi ile karabasan paketini kullanır.
@@ -200,6 +201,13 @@ def isleyici_uret(onbellek: Onbellek):
                     else:
                         govde = islem_grafik.islem_sayfasi(onbellek.klasor, bot, int(kimlik), mum_onbellegi)
                         self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"))
+                elif yol == "/detay":
+                    from . import detay
+
+                    sorgu = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+                    bot = (sorgu.get("bot") or [""])[0][:40]
+                    govde = detay.sayfa_uret(bot, onbellek.klasor)
+                    self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"))
                 elif yol == "/ayar":
                     from . import ayar_sayfa
 
