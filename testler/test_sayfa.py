@@ -118,10 +118,9 @@ class SayfaTesti(unittest.TestCase):
         html = sayfa.html_uret(ozet)
         self.assertEqual([k for k, _ in sayfa.EKRANLAR], ["ana", "botlar", "islemler", "islemgrafik", "dersler", "rapor", "grafikler", "zaman", "analiz", "sinav", "kriterler"])
         self.assertIn("Henüz izlenmiş stop yok.", html)
-        sirada = sum(b["nedenler"].get("stop", 0) for b in ozet["botlar"])
-        self.assertIn(f"Şu an {sirada} stop sırada.", html)
         self.assertIn("Henüz ders yok. Bir botun 30 stopu izlenince", html)
         self.assertIn("Karar hiçbir ayarı değiştirmez.", html)
+        self.assertIn('class="ders-radyo"', html)              # bot seçimi betiksiz
         self.assertNotIn("Son ders,", html)
 
     def test_dersler_ekrani_izlenen_stoplari_ve_dersi_gosterir(self):
@@ -147,14 +146,12 @@ class SayfaTesti(unittest.TestCase):
             html = sayfa.html_uret(sonuc.genel_ozet(klasor, SIMDI))
         duz = " ".join(html.split())
         self.assertIn("12 stop izlendi; 8 tanesinde fiyat süre dolmadan kâr hedefini gördü.", duz)
-        self.assertIn("1 stop için fiyat verisi alınamadı; hesaba girmiyor.", duz)
-        self.assertIn("Stop 1,5 kat geniş olsaydı (%4,5)", duz)
-        self.assertIn("8 tanesi hedefe ulaşır, 4 tanesi yine stop olur<", duz)
-        # 12 stop karar için az: fark soluk yazılır, artı diye renklendirilmez.
-        self.assertIn('<span class="secenek-net erken">+9,80', duz)        # (8×2,7 − 4×0,5) × 50 / 100
+        self.assertIn("1 stopun fiyat verisi alınamadı", duz)
+        self.assertIn("Stop 1,5 kat", duz)                                      # tablo satırı
+        self.assertIn('<td class="secenek-net erken">+9,80', duz)        # (8×2,7 − 4×0,5) × 50 / 100
         self.assertIn('<span class="karar yetersiz">Veri yetersiz</span>', duz)
-        # Ders kaydı ve ana ekrandaki şerit; ders metni HTML olarak çalışmaz.
-        self.assertIn("<strong>Son ders, 01.11 10:00:</strong> S1 Yükselişte düşüşü al.", duz)
+        # Bot paneli: yalnız o botun dersleri; ders metni HTML olarak çalışmaz.
+        self.assertIn("<strong>Yükselişte düşüşü al</strong>", duz)
         self.assertIn("Stop yerinde görünüyor. &lt;b&gt;örnek&lt;/b&gt;", duz)
         self.assertNotIn("<b>örnek", html)
         self.assertIn("Son izleme turu: 02.11 11:20.", duz)

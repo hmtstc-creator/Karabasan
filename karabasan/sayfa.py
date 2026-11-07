@@ -1257,103 +1257,79 @@ Az veriyle yüksek kazanma oranı yanıltabilir: bir stop birçok küçük kazan
 # --------------------------------------------------------------------------
 
 
-def _ders_karti(bot: dict) -> str:
+DERS_EN_FAZLA = 16
+
+
+def _ders_paneli(k: int, bot: dict, dersler: list[dict], saat_dilimi: str) -> str:
+    """Bir botun Dersler paneli: izlenen stop sayısı, stop daha geniş olsaydı sonuç, o botun son dersleri."""
     izleme = bot["stop_sonrasi"]
-    adet = izleme["stop_sayisi"]
     karar = izleme["karar"]
-    bekleyen = izleme.get("izlenmeyi_bekleyen") or 0
-    if adet:
-        cumle = f'{adet} stop izlendi; {izleme["hedefi_goren"]} tanesinde fiyat {esik_metni(izleme.get("esik", "hedef"))}.'
-    else:
-        cumle = "Henüz izlenmiş stop yok."
-    if bekleyen:
-        cumle += f" {bekleyen} stop daha izlenmeyi bekliyor."
-    if izleme.get("izlenemeyen"):
-        cumle += f' {izleme["izlenemeyen"]} stop için fiyat verisi alınamadı; hesaba girmiyor.'
-    # Karar için yeterli stop yokken farklar renklendirilmez: az veriyle büyük görünen
-    # bir artı, sonuç gibi okunmasın.
+    adet = izleme["stop_sayisi"]
     yeterli = karar["kod"] != "yetersiz"
-    secenekler = []
-    for s in izleme["carpanlar"]:
-        etiket = f'Stop {carpan_metni(s["carpan"])} kat geniş olsaydı'
-        if s.get("stop_yuzde") is not None:
-            etiket += f' ({kisa_yuzde(s["stop_yuzde"])})'
-        secenekler.append(
-            f'<li><span>{etiket}<span class="alt">{escape(secenek_metni(s))}</span></span>'
-            f'<span class="secenek-net {_isaret_sinifi(s["fark_tutar"]) if yeterli else "erken"}">'
-            f'{isaretli(s["fark_tutar"])}'
-            '<span class="alt">USDT fark</span></span></li>'
-        )
+    if adet:
+        ozet_satir = (f'{adet} stop izlendi; {izleme["hedefi_goren"]} tanesinde fiyat '
+                      f'{esik_metni(izleme.get("esik", "hedef"))}.')
+    else:
+        ozet_satir = "Henüz izlenmiş stop yok."
+    notlar = []
+    if izleme.get("izlenmeyi_bekleyen"):
+        notlar.append(f'{izleme["izlenmeyi_bekleyen"]} stop sırada')
+    if izleme.get("izlenemeyen"):
+        notlar.append(f'{izleme["izlenemeyen"]} stopun fiyat verisi alınamadı')
+    satirlar = "".join(
+        f'<tr><td>Stop {carpan_metni(s["carpan"])} kat</td>'
+        f'<td>{("%" + carpan_metni(round(s["stop_yuzde"], 1))) if s.get("stop_yuzde") is not None else "–"}</td>'
+        f'<td class="secenek-net {_isaret_sinifi(s["fark_tutar"]) if yeterli else "erken"}">'
+        f'{isaretli(s["fark_tutar"])} USDT</td></tr>'
+        for s in izleme["carpanlar"])
+    ders_satirlari = "".join(
+        f'<li><span class="islem-zaman">{_tarih_saat(d["zaman"], saat_dilimi)}</span> '
+        f'<strong>{escape(str(d.get("ad", "")))}</strong><span class="alt">{escape(str(d.get("metin", "")))}</span></li>'
+        for d in dersler[:5])
     return (
-        f'<article class="ders-kart kose"><div class="kart-ust"><span class="kod">{escape(bot["kod"])}</span>'
-        f'<h4>{escape(bot["ad"])}</h4><span class="karar {karar["kod"]}">{KARAR_ADI[karar["kod"]]}</span></div>'
-        f'<p class="ders-cumle">{cumle}</p>'
-        + (f'<ul class="secenekler">{"".join(secenekler)}</ul>' if secenekler else "")
-        + f'<p class="alt">{escape(karar["metin"])}</p></article>'
+        f'<article class="ders-p ders-p-{k} kose">'
+        f'<div class="ders-bas"><span class="kod">{escape(bot["kod"])}</span>'
+        f'<span class="karar {karar["kod"]}">{KARAR_ADI[karar["kod"]]}</span></div>'
+        f'<h4 class="ders-ad">{escape(bot["ad"])}</h4>'
+        f'<p class="ders-cumle">{ozet_satir}'
+        + (f' <span class="alt">({"; ".join(notlar)})</span>' if notlar else "") + '</p>'
+        + (f'<table class="ders-tablo"><thead><tr><th>Stop daha geniş olsaydı</th><th>Yeni stop</th>'
+           f'<th>Fark</th></tr></thead><tbody>{satirlar}</tbody></table>' if adet else "")
+        + (f'<h5 class="ders-alt">Son dersler</h5><ul class="ders-mini">{ders_satirlari}</ul>' if ders_satirlari else "")
+        + "</article>"
     )
 
 
 def _dersler_ekrani(ozet: dict, saat_dilimi: str) -> str:
     izleme = ozet.get("stop_izleme") or {}
     en_az = izleme.get("en_az_stop", 30)
-    # Her bot bir kart: izlenmiş stopu olmayan bot da görünür, kaç stopunun sırada olduğuyla.
-    botlar = [b for b in ozet["botlar"] if b.get("stop_sonrasi")]
-    bekleyen = sum((b.get("stop_sonrasi") or {}).get("izlenmeyi_bekleyen") or 0 for b in ozet["botlar"])
-    ek = f" Şu an {bekleyen} stop sırada." if bekleyen else ""
-    zamanlama = (
-        '<p class="not">Stop olan işlem, kendi süresi dolunca izlenir. Süre sınırı olmayan botlarda '
-        "(iz süren stoplu, bugünkü botların hepsi) girişten 3 gün sonra, stoptan en az 1 gün sonra "
-        f"sonuç görünür; o anda hâlâ açık olacak seçenek son fiyattan sayılır.{ek}</p>"
-    )
-    if any((b["stop_sonrasi"].get("stop_sayisi") or 0) for b in botlar):
-        kartlar = f'<div class="ders-kartlar">{"".join(_ders_karti(b) for b in botlar)}</div>' + zamanlama
-    else:
-        kartlar = (
-            '<p class="bos">Henüz izlenmiş stop yok. Bir işlem stop olduktan sonra, o işlemin süresi '
-            f"dolunca sonucu burada görünür.{ek}</p>"
-            + (f'<div class="ders-kartlar">{"".join(_ders_karti(b) for b in botlar)}</div>' if botlar else "")
-            + zamanlama.replace(ek, "")
-        )
-
+    botlar = [b for b in ozet["botlar"] if b.get("stop_sonrasi")][:DERS_EN_FAZLA]
     dersler = ozet.get("dersler") or []
-    if dersler:
-        ders_listesi = '<ul class="ders-listesi">' + "".join(
-            f'<li><div class="ders-ust"><span class="islem-zaman">{_tarih_saat(d["zaman"], saat_dilimi)}</span>'
-            f'<span class="kod">{escape(str(d.get("kod", "")))}</span><strong>{escape(str(d.get("ad", "")))}</strong></div>'
-            f'{escape(str(d.get("metin", "")))}</li>'
-            for d in dersler
-        ) + "</ul>"
+    if not botlar:
+        return '<section id="dersler" class="ekran"><h2 class="ekran-baslik">Dersler</h2><p class="bos">Bot yok.</p></section>'
+    secim = "".join(
+        f'<input type="radio" name="ders-bot" id="dr-{k}" class="ders-radyo"{" checked" if k == 0 else ""}>'
+        for k in range(len(botlar)))
+    etiketler = "".join(f'<label for="dr-{k}">{escape(b["kod"])}</label>' for k, b in enumerate(botlar))
+    paneller = "".join(
+        _ders_paneli(k, b, [d for d in dersler if d.get("bot") == b["bot"]], saat_dilimi)
+        for k, b in enumerate(botlar))
+    if not dersler:
+        ders_notu = f'<p class="alt">Henüz ders yok. Bir botun {en_az} stopu izlenince ilk karar yazılır.</p>'
     else:
-        ders_listesi = (
-            f'<p class="bos">Henüz ders yok. Bir botun {en_az} stopu izlenince ilk karar buraya yazılır; '
-            "karar sonradan değişirse yenisi eklenir.</p>"
-        )
+        ders_notu = ""
     son_tur = izleme.get("son_tur")
-    tur_notu = (
-        f"Son izleme turu: {_tarih_saat(son_tur, saat_dilimi)}."
-        if son_tur
-        else "İzleme henüz ilk turunu tamamlamadı."
-    )
+    tur_notu = f"Son izleme turu: {_tarih_saat(son_tur, saat_dilimi)}." if son_tur else "İzleme henüz ilk turunu tamamlamadı."
     return f"""<section id="dersler" class="ekran">
 <h2 class="ekran-baslik">Dersler</h2>
-<p class="sinav-durum">Her botun stop olan işlemleri izleniyor. Soru şu: stop daha geniş olsaydı sonuç
-daha mı iyi olurdu, yoksa zarar mı büyürdü? Geniş stoplu hal botun kendi çıkış kuralıyla (iz süren stop
-dahil) yeniden oynatılır.</p>
-<h3>Stop dar mı?</h3>
-{kartlar}
-<h3>Ders kaydı</h3>
-{ders_listesi}
-<h3>Bunu okurken</h3>
-<ul class="okuma-notlari">
-<li>Fark, yalnız stop olan işlemlerin toplamıdır. Geniş stop bazı işlemleri kurtarır, kurtaramadıklarının
-zararını büyütür; önemli olan ikisinin toplamı.</li>
-<li>Stop geniş olsaydı işlem daha uzun açık kalır, o sırada gelen başka sinyaller atlanırdı. Bu hesaba girmez.</li>
-<li>Bu bir geriye bakıştır. Geçmişte iyi görünen stop gelecekte de iyi olacak demek değildir. Bu yüzden
-“stop dar” demek için en az {en_az} stop, şansla açıklanamayacak kadar büyük bir fark ve bu farkın dönemin
-iki yarısına da yayılması aranır. {en_az} stoptan önce farklar soluk yazılır.</li>
-<li>Karar hiçbir ayarı değiştirmez. “Stop dar” çıkarsa geniş stoplu hal ayrı bir sanal botla denenir.</li>
-</ul>
-<p class="not">{tur_notu}</p>
+<p class="not">Stop olan işlemler: stop daha geniş olsaydı ne olurdu? Bot seç.</p>
+{secim}
+<div class="ders-secim" role="group" aria-label="Bot seç">{etiketler}</div>
+<div class="ders-paneller">{paneller}</div>
+{ders_notu}
+<details class="aciklama-kutu"><summary>Nasıl ölçülüyor?</summary>
+<p>Stop olan işlem, süresi dolunca izlenir. Süre sınırı olmayan botlarda girişten 3 gün, stoptan en az 1 gün sonra
+sonuç görünür; o anda açık kalan seçenek son fiyattan sayılır. {tur_notu} Karar hiçbir ayarı değiştirmez.</p></details>
 </section>"""
 
 
@@ -1686,7 +1662,19 @@ font-size:.8125rem;margin-top:4px}
 .cizelge-karar.gecti{color:var(--arti)}.cizelge-karar.kaldi{color:var(--eksi)}
 .anahtar{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 0;color:var(--soluk);font-size:.875rem}
 
-.rapor-radyo{position:absolute;opacity:0;pointer-events:none}
+.rapor-radyo,.ders-radyo{position:absolute;opacity:0;pointer-events:none}
+.ders-secim{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.ders-secim label{padding:7px 14px;border:1px solid var(--cizgi);color:var(--soluk);font-weight:600;font-size:.875rem;cursor:pointer;background:var(--yuzey);border-radius:999px}
+DERS_SECILI{color:var(--holo);border-color:var(--holo);background:rgba(95,212,255,.14)}
+.ders-paneller .ders-p{display:none}
+DERS_GOSTER{display:block}
+.ders-bas{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ders-ad{margin:8px 0 0;font:700 1rem/1.3 var(--rakam);letter-spacing:.02em}
+.ders-tablo{width:100%;border-collapse:collapse;font-size:.8125rem;margin:10px 0}
+.ders-tablo th,.ders-tablo td{padding:6px 4px;text-align:left;border-bottom:1px solid var(--cizgi)}
+.ders-alt{margin:14px 0 4px;font-size:.8125rem;color:var(--soluk)}
+.ders-mini{list-style:none;margin:0;padding:0}
+.ders-mini li{padding:6px 0;border-bottom:1px solid var(--cizgi);font-size:.8125rem;display:flex;flex-direction:column;gap:2px}
 .rapor-secim{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
 .rapor-secim label{padding:7px 12px;border:1px solid var(--cizgi);color:var(--soluk);font-weight:600;
 font-size:.875rem;cursor:pointer;background:var(--cam)}
@@ -1942,6 +1930,8 @@ STIL = (
     .replace("RAPOR_SECILI", ",".join(f"#rb-{k}:checked~.rapor-secim label[for=rb-{k}]" for k in range(RAPOR_EN_FAZLA)))
     .replace("RAPOR_ODAK", ",".join(f"#rb-{k}:focus-visible~.rapor-secim label[for=rb-{k}]" for k in range(RAPOR_EN_FAZLA)))
     .replace("RAPOR_GOSTER", ",".join(f"#rb-{k}:checked~.rapor-paneller .rp-{k}" for k in range(RAPOR_EN_FAZLA)))
+    .replace("DERS_SECILI", ",".join(f"#dr-{k}:checked~.ders-secim label[for=dr-{k}]" for k in range(DERS_EN_FAZLA)))
+    .replace("DERS_GOSTER", ",".join(f"#dr-{k}:checked~.ders-paneller .ders-p-{k}" for k in range(DERS_EN_FAZLA)))
 )
 
 
@@ -1977,7 +1967,7 @@ var yeni=new DOMParser().parseFromString(m,'text/html').getElementById('govde');
 if(!yeni)throw 0;
 kok.style.setProperty('--gecen','-'+(performance.now()/1000).toFixed(1)+'s');
 kok.classList.add('acildi');
-var r=document.querySelectorAll('.rapor-radyo:checked'),rid=[];for(var j=0;j<r.length;j++)rid.push(r[j].id);
+var r=document.querySelectorAll('.rapor-radyo:checked,.ders-radyo:checked'),rid=[];for(var j=0;j<r.length;j++)rid.push(r[j].id);
 govde.innerHTML=yeni.innerHTML;
 for(var j=0;j<rid.length;j++){var s=document.getElementById(rid[j]);if(s)s.checked=true;}
 kok.classList.remove('kopuk');sonBasari=new Date();
