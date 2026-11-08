@@ -114,5 +114,20 @@ class SinavKarari(unittest.TestCase):
         self.assertFalse(sonuc["gecti"])
 
 
+class GercekTutarTestleri(unittest.TestCase):
+    def test_gercek_usdt_varsa_yuzde_carpi_sabit_tutar_kullanilmaz(self):
+        # Kaldıraçlı / ek girişli işlemde yüzde × 50 yanıltır; kayıttaki USDT esas alınır.
+        a = islem(-10)
+        a.update(net_tutar=-15.0, tutar=150.0)
+        b = islem(2, gun=0.6)
+        b.update(net_tutar=1.0, tutar=50.0)
+        self.assertAlmostEqual(kr.karne([a, b])["net_tutar"], -14.0)
+        kaymali = kr.ek_kayma_uygula([a, b], 0.1)
+        self.assertAlmostEqual(kr.karne(kaymali)["net_tutar"], -14.0 - 0.001 * 200.0)
+
+    def test_gercek_usdt_yoksa_eski_hesap(self):
+        self.assertAlmostEqual(kr.karne(dizi([2]), islem_tutari=50)["net_tutar"], 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()

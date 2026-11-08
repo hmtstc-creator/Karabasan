@@ -24,14 +24,21 @@ SINAV_ESIKLERI = {
 
 def ek_kayma_uygula(islemler: list[dict], ek_kayma_yuzde: float) -> list[dict]:
     """Her işlemin sonucundan ek kayma payını düşer (yeni liste döndürür)."""
-    return [{**i, "net_yuzde": i["net_yuzde"] - ek_kayma_yuzde} for i in islemler]
+    sonuc = []
+    for i in islemler:
+        yeni = {**i, "net_yuzde": i["net_yuzde"] - ek_kayma_yuzde}
+        if i.get("net_tutar") is not None:
+            # Gerçek USDT sonucu olan işlemde kayma, işlemin kendi tutarından düşülür.
+            yeni["net_tutar"] = float(i["net_tutar"]) - ek_kayma_yuzde / 100.0 * float(i.get("tutar") or 0.0)
+        sonuc.append(yeni)
+    return sonuc
 
 
 def karne(islemler: list[dict], islem_tutari: float = 50.0, bakiye: float = 1000.0) -> dict:
     """İşlem listesinin ölçümlerini hesaplar.
 
     Yüzdeler işlem tutarına göredir; 'net_tutar' ve 'en_buyuk_dusus_yuzde'
-    sanal bakiyeye göredir.
+    sanal bakiyeye göredir. İşlemde 'net_tutar' (gerçek USDT) varsa toplam onunla hesaplanır.
     """
     n = len(islemler)
     bos = {
@@ -69,7 +76,12 @@ def karne(islemler: list[dict], islem_tutari: float = 50.0, bakiye: float = 1000
     basabas = abs(ort_kayip) / payda * 100.0 if payda > 0 else None
 
     # Sanal bakiye eğrisi ve tepe noktasından en büyük düşüş.
-    tutarlar = [x / 100.0 * islem_tutari for x in netler]
+    # Kayıttaki gerçek USDT sonucu varsa o kullanılır (kaldıraç ve zararda ek giriş
+    # yüzde × sabit tutarı yanıltır); yoksa (benzetim) yüzde × işlem tutarı.
+    tutarlar = [
+        float(i["net_tutar"]) if i.get("net_tutar") is not None else float(i["net_yuzde"]) / 100.0 * islem_tutari
+        for i in sirali
+    ]
     bakiye_egrisi = bakiye
     tepe = bakiye
     en_buyuk_dusus = 0.0
