@@ -465,14 +465,19 @@ def _islem_tablosu(islemler: list[dict]) -> str:
 def _tarama_tablosu(satirlar: list[dict], simdiki) -> str:
     govde = "".join(
         f'<tr class="{"secili" if abs(s["deger"] - simdiki) < 1e-9 else ""}"><td>{_deger_yazisi(s["deger"])}</td>'
-        + (f'<td colspan="3" class="alt">{escape(s["hata"])}</td></tr>' if s.get("hata") else
-           f'<td>{s["ozet"]["islem"]}</td><td>{s["ozet"]["kazanan"]}</td>'
+        + (f'<td colspan="4" class="alt">{escape(s["hata"])}</td></tr>' if s.get("hata") else
+           f'<td>{s.get("sinyal", 0)}</td><td>{s["ozet"]["islem"]}</td><td>{s["ozet"]["kazanan"]}</td>'
            f'<td class="{"arti" if s["ozet"]["net_toplam"] > 0 else "eksi" if s["ozet"]["net_toplam"] < 0 else ""}">'
            f'{s["ozet"]["net_toplam"]:+.2f}%</td></tr>')
         for s in satirlar)
-    return ('<p class="alt">Yalnız bu sayı değişir. Çok değer denedikçe birinin geçmişte şans eseri iyi görünmesi '
+    hepsi_sifir = all(not s.get("hata") and s["ozet"]["islem"] == 0 for s in satirlar)
+    not_ = ('<p class="ay-uyari">Her satırda 0 işlem: bu botun giriş şartları birlikte çok nadir doğru oluyor, tek sayıyı '
+            'oynatmak onları açmaya yetmiyor. "Sinyal" sütunu şartların aynı anda doğru olduğu mum sayısıdır; '
+            'sıfırsa önce Kriterler listesindeki "engel" rozetine bak ve en çok engelleyen şartı, ya da daha uzun bir dönemi dene.</p>'
+            if hepsi_sifir and satirlar else "")
+    return (not_ + '<p class="alt">Yalnız bu sayı değişir. Çok değer denedikçe birinin geçmişte şans eseri iyi görünmesi '
             'kolaylaşır: en iyi görüneni seçmek ayar değil, ezberdir.</p>'
-            '<table class="ay-tablo"><thead><tr><th>Değer</th><th>İşlem</th><th>Kazanan</th><th>Net</th></tr></thead>'
+            '<table class="ay-tablo"><thead><tr><th>Değer</th><th>Sinyal</th><th>İşlem</th><th>Kazanan</th><th>Net</th></tr></thead>'
             f'<tbody>{govde}</tbody></table>')
 
 
@@ -802,7 +807,8 @@ def hesapla(istek: dict, onbellek: a.VeriOnbellegi | None = None, getir=None,
                         k2 = a.uygula(ekran, {yol: v})
                         if pasif:
                             k2 = a.pasifla(k2, pasif)
-                        satirlar.append({"deger": v, "ozet": a.calistir(k2, df, ek, pencere_bas)["ozet"]})
+                        r2 = a.calistir(k2, df, ek, pencere_bas)
+                        satirlar.append({"deger": v, "ozet": r2["ozet"], "sinyal": r2["sinyal_sayisi"]})
                     except a.AyarHatasi as hata:
                         satirlar.append({"deger": v, "hata": str(hata)[:90]})
                 ctx["tarama"] = (satirlar, ctx["simdiki"][yol])

@@ -12,6 +12,7 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 | 2026-11-08 | Ek girişli işlemde ilk giriş doğru çizilir (orders tablosu) | Ahmet iPhone ekran görüntüsü | stop9-ve-kaldirac |
 | 2026-11-09 | /ayar: şart ve çıkış parçaları pasif / etkili; botun bütün sayıları adlı kayıt (ad değiştirme dahil); Caddy yalnız POST /ayar/kayit'e izin verir | Ahmet: "her parametreyi ben seçeyim, ayrı kayıt, pasif seçeneği" | kriter-ayar-laboratuvari |
 | 2026-11-09 | CLAUDE.md 108 KB → ~10 KB; geçmiş `docs/wiki/` konu sayfalarına taşındı; `/yenikonu` komutu eklendi | Ahmet: "her sorduğumda 150 bin token harcama; kalıcı arşive not al" | README |
+| 2026-11-08 | /ayar tarama tablosuna "Sinyal" sütunu ve "her satırda 0 işlem" açıklaması | Ahmet: "ne değiştirirsem her satırda sıfır yazıyor". Hata değil: giriş şartları birlikte çok seyrek doğru, tek sayı oynatmak işlem açmıyor (yapay veride 4 botta satırların ~%88'i 0 işlem) | kriter-ayar-laboratuvari |
 
 ## Açık işler (güncel)
 

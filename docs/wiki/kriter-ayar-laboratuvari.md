@@ -46,3 +46,6 @@ bir de parametre etkili / pasif seçeneği olsun."
   kapısı (`araclar/internet.sh`) artık yalnız bu yola POST geçirir (parolalı; ötesi yine 405). Ahmet internet adresinden de kaydedebilir.
 - **Gerçek sunucuda ilk kez:** Caddy ayarının yeniden yazılması (`internet.sh` değişti), panelin `user_data/kayit/` altına yazması (başka
   kapsayıcılar da orada yazıyor), telefondaki Safari'de `window.prompt` ile ad değiştirme. Yalnız buradaki Chromium'da (390 px) ve sahte veriyle denendi.
+
+## 8 Kasım 2026: "her satırda sıfır" şikâyeti
+Ahmet: ayarda ne değiştirsem tarama tablosunda her satır 0 yazıyor. İnceleme (yapay veri, 30 gün, dört bot): satırların ~%88'i 0 işlem; temel ayarda bile 30 günde yalnız 1 sinyal var. Yani sayfa doğru hesaplıyor, ama giriş şartlarının hepsi aynı anda çok nadir doğru olduğundan bir sayıyı ±%50 oynatmak işlem açmıyor. Düzeltme: tarama tablosuna "Sinyal" sütunu ve hepsi 0 ise açıklayıcı not eklendi. Gerçek Binance verisinde durum farklı olabilir; **gerçek sunucuda ilk kez** görülecek. Henüz yok: tarama için "bu şartı gevşet" önerisi.
