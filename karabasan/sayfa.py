@@ -326,7 +326,7 @@ def _halka(ozet: dict) -> str:
     boyut = 46 if len(metin) <= 6 else 38 if len(metin) <= 8 else 30
     parcalar.append(
         '<g class="r-kat k5"><circle class="r-cekirdek" cx="200" cy="200" r="88"/>'
-        '<text class="r-ad" x="200" y="166">Toplam sanal sonuç</text>'
+        f'<text class="r-ad" x="200" y="166">{"Net kâr" if kurulu and net > 0 else "Net zarar" if kurulu and net < 0 else "Net sonuç"}</text>'
         f'<text class="r-sayi {sinif}" x="200" y="{203 + boyut * 0.34:.0f}" font-size="{boyut}">{metin}</text>'
         '<text class="r-ad" x="200" y="243">USDT</text></g>'
     )

@@ -376,7 +376,10 @@ def bot_ozeti(
         "basabas_orani": ham["basabas_orani"],
         "net_beklenti": ham["net_beklenti"],
         "kar_faktoru": ham["kar_faktoru"],
-        "net_tutar": ham["net_tutar"],
+        # Cüzdan sonucu: kayıttaki gerçek USDT toplamı (kaç x kaldıraç olduğundan bağımsız).
+        # Rapor ekranı ve ana sayfa aynı rakamı kullanır. Sınav kararı karne'yi kendisi hesaplar.
+        "net_tutar": sum(float(i["net_tutar"]) for i in islemler),
+        "karne_net_tutar": ham["net_tutar"],
         "en_buyuk_dusus_yuzde": ham["en_buyuk_dusus_yuzde"],
         "ort_sure_dakika": ham["ort_sure_dakika"],
         "son_islem": max((i["cikis_zamani"] for i in islemler), default=None),
