@@ -4,6 +4,7 @@ import copy
 import tempfile
 import threading
 import unittest
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -11,6 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 from karabasan import ayar as a
+from karabasan import ayar_kayit
 from karabasan import ayar_sayfa as s
 from karabasan import botlar, panel
 from testler.veri import sahte_sinav_klasoru, yapay_mumlar
@@ -331,6 +333,211 @@ class Sayfa(unittest.TestCase):
 
     def test_az_islem_uyarisi(self):
         self.assertIn("30'dan az işlem", self.sayfa(bot="smk-vadeli", gun=3))
+
+
+class Pasif(unittest.TestCase):
+    """Etkili / pasif seçenekleri (9 Kasım 2026)."""
+
+    def test_pasif_sart_her_zaman_dogru_olur_sira_korunur(self):
+        kural = a.kural_hazirla("smk-vadeli")
+        kopya = a.pasifla(kural, {"k0"})
+        self.assertEqual(kopya["giris"]["hepsi"][0], a.KAPALI_KOSUL)
+        self.assertEqual(kopya["giris"]["hepsi"][1:], kural["giris"]["hepsi"][1:])
+        self.assertNotEqual(kural["giris"]["hepsi"][0], a.KAPALI_KOSUL)   # asıl kural dokunulmadı
+
+    def test_pasif_secenek_kuraldan_kalkar(self):
+        kural = a.kural_hazirla("smk2-vadeli")
+        kopya = a.pasifla(kural, {"giris_limiti", "zararda_ekleme", "bekleme_dakika"})
+        for alan in ("giris_limiti", "zararda_ekleme", "bekleme_dakika"):
+            self.assertNotIn(alan, kopya)
+            self.assertIn(alan, kural)
+
+    def test_tek_cikis_yolu_kapatilamaz_ve_bilinmeyen_anahtar_yok_sayilir(self):
+        kural = a.kural_hazirla("smk-vadeli")
+        with self.assertRaises(a.AyarHatasi):
+            a.pasifla(kural, {"iz_suren_stop"})
+        with self.assertRaises(a.AyarHatasi):
+            a.pasifla(kural, {f"k{i}" for i in range(len(kural["giris"]["hepsi"]))})
+        self.assertEqual(a.pasifla(kural, {"yok_boyle_bir_sey"}), kural)
+
+    def test_her_botun_pasif_sartlari_hesaplanir(self):
+        for bot in BOT_ADLARI:
+            kural = a.kural_hazirla(bot)
+            a.pasifla(kural, {"k1"})   # doğrulamadan geçer
+
+    def test_pasif_sart_giris_sayisini_azaltmaz(self):
+        kural = a.kural_hazirla("smk-vadeli")
+        istek = s.sorgu_coz({"bot": ["smk-vadeli"], "bot0": ["smk-vadeli"], "gun": ["10"], "pasif": ["k4", "k9"]})
+        ctx = s.hesapla(istek, a.VeriOnbellegi(), sahte_getir, SIMDI)
+        self.assertIsNone(ctx["hata"], ctx["hata"])
+        self.assertTrue(ctx["degisti"])
+        self.assertGreaterEqual(ctx["yeni"]["sinyal_sayisi"], ctx["eski"]["sinyal_sayisi"])
+        self.assertEqual(len(ctx["yeni"]["kriterler"]), len(kural["giris"]["hepsi"]))
+
+    def test_pasif_sayfada_isaretli_gelir(self):
+        istek = s.sorgu_coz({"bot": ["smk-vadeli"], "bot0": ["smk-vadeli"], "gun": ["5"], "pasif": ["k2", "giris_limiti"]})
+        html = s.ayar_sayfasi(istek, a.VeriOnbellegi(), sahte_getir, SIMDI)
+        self.assertIn('name="pasif" value="k2" checked', html)
+        self.assertIn('name="pasif" value="giris_limiti" checked', html)
+        self.assertIn('class="ay-ac pasif" id="k2"', html)
+        self.assertIn("(pasif)", html)
+
+    def test_pasif_baska_bottan_gelirse_yok_sayilir(self):
+        istek = s.sorgu_coz({"bot": ["smk-vadeli"], "bot0": ["smdk-vadeli"], "gun": ["5"], "pasif": ["k2"]})
+        c = s.cozumle(istek)
+        self.assertEqual(c["pasif"], set())
+
+    def test_kaldirac_ve_ek_giris_sayilari_ayarlanabilir(self):
+        yollar = [y for y, _ad, _e in a.tum_sayilar(a.kural_hazirla("smk2-vadeli"))]
+        for y in ("kaldirac", "zararda_ekleme.kat", "zararda_ekleme.stopa_kala_yuzde"):
+            self.assertIn(y, yollar)
+        self.assertNotIn("kaldirac", [y for y, _ad, _e in a.tum_sayilar(a.kural_hazirla("smk-vadeli"))])
+
+
+class Kayitlar(unittest.TestCase):
+    """Adlı ayar kayıtları (9 Kasım 2026)."""
+
+    def setUp(self):
+        self.gecici = tempfile.TemporaryDirectory()
+        self.depo = ayar_kayit.Depo(Path(self.gecici.name))
+
+    def tearDown(self):
+        self.gecici.cleanup()
+
+    def _istek(self, **ek):
+        sorgu = {"bot": ["smk-vadeli"], "bot0": ["smk-vadeli"], "gun": ["5"]}
+        sorgu.update({k: v for k, v in ek.items()})
+        return s.sorgu_coz(sorgu)
+
+    def test_kaydet_listele_adlandir_sil(self):
+        k = self.depo.kaydet("smk-vadeli", "Deneme 1", {"cikis.zarar_durdur_yuzde": 6, "x.y": 0.5}, ["k1"])
+        self.assertEqual(self.depo.listele("smk-vadeli")[0]["ad"], "Deneme 1")
+        self.assertEqual(self.depo.listele("smdk-vadeli"), [])
+        self.assertEqual(self.depo.getir(k["id"])["degerler"]["cikis.zarar_durdur_yuzde"], 6)
+        self.depo.adlandir(k["id"], "  Yeni   ad ")
+        self.assertEqual(self.depo.getir(k["id"])["ad"], "Yeni ad")
+        self.depo.sil(k["id"])
+        self.assertIsNone(self.depo.getir(k["id"]))
+
+    def test_ayni_bota_birden_cok_kayit_ve_ust_uste_yazma(self):
+        k1 = self.depo.kaydet("smk-vadeli", "A", {"a": 1}, [])
+        self.depo.kaydet("smk-vadeli", "B", {"a": 2}, [])
+        self.assertEqual(len(self.depo.listele("smk-vadeli")), 2)
+        self.depo.kaydet("smk-vadeli", "", {"a": 3}, ["k0"], kimlik=k1["id"])
+        guncel = self.depo.getir(k1["id"])
+        self.assertEqual((guncel["ad"], guncel["degerler"]["a"], guncel["pasif"]), ("A", 3, ["k0"]))
+        self.assertEqual(len(self.depo.listele("smk-vadeli")), 2)
+
+    def test_gecersiz_girdiler_reddedilir(self):
+        with self.assertRaises(ayar_kayit.KayitHatasi):
+            self.depo.kaydet("smk-vadeli", "   ", {}, [])
+        with self.assertRaises(ayar_kayit.KayitHatasi):
+            self.depo.kaydet("yok-bot", "A", {}, [])
+        with self.assertRaises(ayar_kayit.KayitHatasi):
+            self.depo.kaydet("smk-vadeli", "A", {"a": "sayı değil"}, [])
+        with self.assertRaises(ayar_kayit.KayitHatasi):
+            self.depo.sil("deadbeef")
+        uzun = self.depo.kaydet("smk-vadeli", "x" * 500, {}, [])
+        self.assertEqual(len(uzun["ad"]), ayar_kayit.EN_FAZLA_AD)
+
+    def test_bozuk_dosya_yedeklenir_ve_sayfa_calisir(self):
+        yol = Path(self.gecici.name) / ayar_kayit.DOSYA
+        yol.parent.mkdir(parents=True)
+        yol.write_text("{bozuk", encoding="utf-8")
+        self.assertEqual(self.depo.listele("smk-vadeli"), [])
+        self.assertTrue(yol.with_suffix(".bozuk").exists())
+
+    def test_kayit_islemi_butun_sayilari_ve_pasifleri_saklar(self):
+        istek = self._istek(p0=["7"], pasif=["k1", "iz_suren_stop"])
+        kapali = s.kayit_islemi(self.depo, self._istek(pasif=["iz_suren_stop"]), "yeni", "", "Olmaz")
+        self.assertFalse(kapali["ok"])   # tek çıkış yolu kapatılamaz: kayıt da açılmaz
+        istek = self._istek(p0=["7"], pasif=["k1"])
+        sonuc = s.kayit_islemi(self.depo, istek, "yeni", "", "Denemem")
+        self.assertTrue(sonuc["ok"], sonuc["mesaj"])
+        kayit = self.depo.getir(sonuc["id"])
+        kural = a.kural_hazirla("smk-vadeli")
+        self.assertEqual(set(kayit["degerler"]), {y for y, _ad, _e in a.tum_sayilar(kural)})   # bütün sayılar
+        self.assertEqual(kayit["pasif"], ["k1"])
+        self.assertEqual(kayit["degerler"][a.tum_sayilar(kural)[0][0]], 7)   # p0 = ilk sayı
+        self.assertIn("Denemem", sonuc["liste"])
+
+    def test_kayit_acilinca_degerler_ve_pasifler_forma_gelir(self):
+        istek = self._istek(p0=["7"], pasif=["k1"])
+        kimlik = s.kayit_islemi(self.depo, istek, "yeni", "", "Açılacak")["id"]
+        acilis = s.sorgu_coz({"bot": ["smk-vadeli"], "kayit": [kimlik], "gun": ["5"]})
+        html = s.ayar_sayfasi(acilis, a.VeriOnbellegi(), sahte_getir, SIMDI, depo=self.depo)
+        self.assertIn('name="pasif" value="k1" checked', html)
+        self.assertIn('value="7"', html)
+        self.assertIn(f'name="kayit" value="{kimlik}"', html)
+        self.assertIn("Üstüne yaz: Açılacak", html)
+
+    def test_baska_botun_kaydi_acilmaz(self):
+        kimlik = s.kayit_islemi(self.depo, self._istek(), "yeni", "", "SMK kaydı")["id"]
+        istek = s.sorgu_coz({"bot": ["smdk-vadeli"], "kayit": [kimlik]})
+        c = s.cozumle(istek, self.depo)
+        self.assertIsNone(c["kayit"])
+
+    def test_eski_sayfadan_kayit_gelmez(self):
+        istek = s.sorgu_coz({"bot": ["smk-vadeli"], "bot0": ["smdk-vadeli"]})
+        sonuc = s.kayit_islemi(self.depo, istek, "yeni", "", "X")
+        self.assertFalse(sonuc["ok"])
+        self.assertEqual(self.depo.listele("smk-vadeli"), [])
+
+    def test_kayit_canli_kural_dosyasini_degistirmez(self):
+        import json
+        yol = Path(__file__).resolve().parent.parent / "karabasan" / "stratejiler" / "SMK.json"
+        once = yol.read_bytes()
+        s.kayit_islemi(self.depo, self._istek(p0=["7"], pasif=["k1"]), "yeni", "", "Güvenli")
+        self.assertEqual(yol.read_bytes(), once)
+        json.loads(once)
+
+
+class KayitUcNoktasi(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.gecici = tempfile.TemporaryDirectory()
+        klasor = sahte_sinav_klasoru(Path(cls.gecici.name) / "veri", datetime.now(timezone.utc))
+        cls.klasor = klasor
+        cls.sunucu = panel.sunucu_kur(klasor, adres="127.0.0.1", port=0)
+        cls.adres = f"http://127.0.0.1:{cls.sunucu.server_address[1]}"
+        threading.Thread(target=cls.sunucu.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sunucu.shutdown()
+        cls.sunucu.server_close()
+        cls.gecici.cleanup()
+
+    def _gonder(self, yol, govde, baslik=True):
+        istek = urllib.request.Request(self.adres + yol, data=govde.encode("utf-8"), method="POST",
+                                       headers={"Content-Type": "application/x-www-form-urlencoded",
+                                                **({"X-Karabasan": "1"} if baslik else {})})
+        return urllib.request.urlopen(istek, timeout=5)
+
+    def test_baslik_olmadan_reddedilir(self):
+        with self.assertRaises(urllib.error.HTTPError) as h:
+            self._gonder("/ayar/kayit", "bot=smk-vadeli&eylem=yeni", baslik=False)
+        self.assertEqual(h.exception.code, 403)
+
+    def test_baska_adrese_yazilamaz(self):
+        with self.assertRaises(urllib.error.HTTPError) as h:
+            self._gonder("/ayar", "x=1")
+        self.assertEqual(h.exception.code, 405)
+
+    def test_kaydet_ve_dosyaya_yazilir(self):
+        import json
+        with self._gonder("/ayar/kayit", "bot=smk-vadeli&bot0=smk-vadeli&eylem=yeni&ad=Sunucu+denemesi&pasif=k1") as y:
+            veri = json.loads(y.read().decode("utf-8"))
+        self.assertTrue(veri["ok"], veri)
+        dosya = self.klasor / "kayit" / "ayar_kayitlari.json"
+        self.assertIn("Sunucu denemesi", dosya.read_text(encoding="utf-8"))
+        with urllib.request.urlopen(self.adres + f"/ayar?bot=smk-vadeli&kayit={veri['id']}&gun=2", timeout=60) as y:
+            self.assertIn("Sunucu denemesi", y.read().decode("utf-8"))
+
+    def test_internet_kapisi_yalniz_bu_yola_yazma_izni_verir(self):
+        metin = (Path(__file__).resolve().parent.parent / "araclar" / "internet.sh").read_text(encoding="utf-8")
+        self.assertIn("not method GET HEAD", metin)
+        self.assertIn("not path /ayar/kayit", metin)
 
 
 class Sunucu(unittest.TestCase):

@@ -2,7 +2,7 @@
 
 12 Ekim 2026'da beş farklı okuldan uzman rolündeki ajanlar (SMC, kantitatif, trend,
 mikro yapı, risk) üç tur tartıştı ve aday botlarla birlikte bir sınama protokolü
-üzerinde anlaştı. Bu modül o protokoldür (bkz. CLAUDE.md "Uzman paneli"):
+üzerinde anlaştı. Bu modül o protokoldür (bkz. docs/wiki/uzman-paneli-ve-ahmet-ozel.md):
 
 - Veri: ~20 vadeli parite, 4 yıl. İlk 3 yıl geliştirme dönemidir; son yıl AYRILMIŞTIR
   ve AYRILMIS_ACIK True yapılana kadar hiçbir hesapta kullanılmaz. Açılması bütün

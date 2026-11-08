@@ -6,7 +6,7 @@
 #   Kullanıcı: ahmet   Parola: sunucuda üretilir, depoya girmez, Telegram'dan bir kez gelir
 #   Araç:     Caddy (docker); sertifikayı kendisi alır ve yeniler
 #
-# Yalnız okuma: GET / HEAD dışındaki her istek 405 alır. Sayfa yalnız sanal sonuçları gösterir.
+# Yalnız okuma: GET / HEAD dışındaki her istek 405 alır (tek istisna: parola korumalı POST /ayar/kayit, ayar laboratuvarının adlı kayıtları). Sayfa yalnız sanal sonuçları gösterir.
 # Yeniden çalıştırmak güvenlidir (kur.sh her güncellemede çağırır). Çıkış kodu: 0 = yayında, 1 = değil.
 
 set -uo pipefail
@@ -82,7 +82,10 @@ YENI_AYAR="{
 
 $ADRES {
 	encode zstd gzip
-	@yazma not method GET HEAD
+	@yazma {
+		not method GET HEAD
+		not path /ayar/kayit
+	}
 	respond @yazma 405
 	header {
 		Strict-Transport-Security \"max-age=31536000\"

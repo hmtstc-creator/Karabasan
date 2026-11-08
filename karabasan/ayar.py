@@ -260,7 +260,63 @@ def cikis_sayilari(kural: dict) -> list[tuple[str, str, float]]:
         cikti.append(("cikis.sure_asimi_dakika", "En uzun süre (dakika)", cikis["sure_asimi_dakika"]))
     if _say(kural.get("bekleme_dakika")):
         cikti.append(("bekleme_dakika", "Stoptan sonra bekleme (dakika)", kural["bekleme_dakika"]))
+    if _say(kural.get("kaldirac")):
+        cikti.append(("kaldirac", "Kaldıraç (kat)", kural["kaldirac"]))
+    ekleme = kural.get("zararda_ekleme")
+    if ekleme:
+        cikti += [("zararda_ekleme.stopa_kala_yuzde", "Zararda ek giriş: stopa kaç % kala", ekleme["stopa_kala_yuzde"]),
+                  ("zararda_ekleme.kat", "Zararda ek giriş: ilk tutarın kaç katı", ekleme["kat"])]
     return cikti
+
+
+# --------------------------------------------------------------------------
+# Etkili / pasif (9 Kasım 2026, Ahmet'in isteği)
+# --------------------------------------------------------------------------
+
+KAPALI_KOSUL = {"sol": "kapanis", "islem": ">", "sag": 0}   # her zaman doğru: şart "yok" gibi davranır
+_SECENEKLER = (
+    ("giris_limiti", "Giriş emri (limit)", lambda k: k.get("giris_limiti")),
+    ("kar_hedefi_yuzde", "Kâr hedefi", lambda k: k["cikis"].get("kar_hedefi_yuzde")),
+    ("iz_suren_stop", "İz süren stop", lambda k: k["cikis"].get("iz_suren_stop")),
+    ("sure_asimi_dakika", "En uzun süre", lambda k: k["cikis"].get("sure_asimi_dakika")),
+    ("bekleme_dakika", "Stoptan sonra bekleme", lambda k: k.get("bekleme_dakika")),
+    ("zararda_ekleme", "Zararda ek giriş", lambda k: k.get("zararda_ekleme")),
+)
+
+
+def pasif_secenekleri(kural: dict) -> list[tuple[str, str]]:
+    """Kapatılabilen isteğe bağlı parçalar: (anahtar, ad). Giriş şartları 'k<sıra>' anahtarıyla ayrıca kapatılır."""
+    return [(anahtar, ad) for anahtar, ad, oku in _SECENEKLER if oku(kural)]
+
+
+def pasif_anahtarlari(kural: dict) -> set[str]:
+    return {f"k{i}" for i in range(len(kural["giris"]["hepsi"]))} | {a for a, _ad in pasif_secenekleri(kural)}
+
+
+def pasifla(kural: dict, pasif) -> dict:
+    """Kuralın kopyasında seçilen şartları ve isteğe bağlı parçaları devre dışı bırakır (asıl kural dokunulmaz).
+
+    Pasif şart her zaman doğru olan bir şartla değişir; sıra ve sayılar korunur, grafikteki şeritler kayık düşmez.
+    """
+    kopya = copy.deepcopy(kural)
+    gecerli = pasif_anahtarlari(kural)
+    pasif = {p for p in pasif if p in gecerli}
+    sartlar = kopya["giris"]["hepsi"]
+    kapanan = [int(p[1:]) for p in pasif if p[:1] == "k" and p[1:].isdigit()]
+    if kapanan and len(kapanan) >= len(sartlar):
+        raise AyarHatasi("En az bir giriş şartı etkin kalmalı.")
+    for i in kapanan:
+        sartlar[i] = dict(KAPALI_KOSUL)
+    for anahtar in pasif:
+        if anahtar in ("giris_limiti", "bekleme_dakika", "zararda_ekleme"):
+            kopya.pop(anahtar, None)
+        elif anahtar in ("kar_hedefi_yuzde", "iz_suren_stop", "sure_asimi_dakika"):
+            kopya["cikis"].pop(anahtar, None)
+    try:
+        kural_dogrula(kopya)
+    except KuralHatasi as hata:
+        raise AyarHatasi(f"Bu parçalar birlikte kapatılamaz: {hata}") from hata
+    return kopya
 
 
 # --------------------------------------------------------------------------
@@ -380,6 +436,9 @@ _CIKIS_ACIKLAMA = {
     "en_az_yuzde": "Giriş emrinin fiyattan en az uzaklığı (yüzde); oynaklık çok düşükse bile bu kadar uzağa konur.",
     "en_fazla_yuzde": "Giriş emrinin fiyattan en çok uzaklığı (yüzde); oynaklık çok yüksekse bile bundan uzağa konmaz.",
     "sure_dakika": "Giriş emri dolmazsa bu kadar dakika beklenir, sonra iptal edilir.",
+    "kaldirac": "Kaldıraç: pozisyon, teminatın bu katı büyüklükte açılır (2 = kazanç da kayıp da iki katı). Yalnız sanal.",
+    "stopa_kala_yuzde": "Zararda ek giriş: fiyat stopa bu yüzde kadar kalınca bir kez daha girilir. Büyütürsen ek giriş daha erken yapılır.",
+    "kat": "Zararda ek giriş büyüklüğü: ilk teminatın bu katı kadar. Büyütürsen ortalama giriş daha çok iyileşir ama stopta kayıp büyür.",
 }
 
 _GOSTERGE_SAYI_ACIKLAMA = {

@@ -130,6 +130,9 @@ def isleyici_uret(onbellek: Onbellek):
     from . import islem_grafik
 
     guvenlik = guvenlik_basligi()
+    from . import ayar_kayit
+
+    ayar_deposu = ayar_kayit.Depo(onbellek.klasor)
     mum_onbellegi = islem_grafik.MumOnbellegi()
 
     class Isleyici(BaseHTTPRequestHandler):
@@ -216,9 +219,10 @@ def isleyici_uret(onbellek: Onbellek):
                     istek = ayar_sayfa.sorgu_coz(sorgu)
                     if (sorgu.get("json") or [""])[0] == "1":
                         self._yanit(200, "application/json; charset=utf-8",
-                                    ayar_sayfa.ayar_json(istek).encode("utf-8"), izin=ayar_sayfa.guvenlik_basligi())
+                                    ayar_sayfa.ayar_json(istek, depo=ayar_deposu).encode("utf-8"),
+                                    izin=ayar_sayfa.guvenlik_basligi())
                     else:
-                        govde = ayar_sayfa.ayar_sayfasi(istek)
+                        govde = ayar_sayfa.ayar_sayfasi(istek, depo=ayar_deposu)
                         self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"),
                                     izin=ayar_sayfa.guvenlik_basligi())
                 elif yol in ("/", "/index.html"):
@@ -233,6 +237,37 @@ def isleyici_uret(onbellek: Onbellek):
                 self._yanit(500, "text/html; charset=utf-8", govde.encode("utf-8"))
 
         do_HEAD = do_GET  # noqa: N815
+
+        def do_POST(self) -> None:  # noqa: N802
+            """Tek yazma yolu: /ayar/kayit (ayar laboratuvarının adlı kayıtları). Canlı bota dokunmaz."""
+            yol = self.path.split("?", 1)[0]
+            try:
+                if yol != "/ayar/kayit":
+                    self._yanit(405, "text/plain; charset=utf-8", "Bu adres yalnız okunur.\n".encode("utf-8"))
+                    return
+                # Başka bir sitenin formu bu başlığı gönderemez (tarayıcı önce izin sorar, sunucu vermez).
+                if self.headers.get("X-Karabasan") != "1":
+                    self._yanit(403, "text/plain; charset=utf-8", "İstek reddedildi.\n".encode("utf-8"))
+                    return
+                try:
+                    uzunluk = int(self.headers.get("Content-Length") or 0)
+                except ValueError:
+                    uzunluk = -1
+                if not 0 < uzunluk <= 8192:
+                    self._yanit(413, "text/plain; charset=utf-8", "İstek çok büyük.\n".encode("utf-8"))
+                    return
+                from . import ayar_sayfa
+
+                alanlar = urllib.parse.parse_qs(self.rfile.read(uzunluk).decode("utf-8", "replace"),
+                                                max_num_fields=140)
+                istek = ayar_sayfa.sorgu_coz(alanlar)
+                tek = lambda ad: (alanlar.get(ad) or [""])[0]  # noqa: E731
+                sonuc = ayar_sayfa.kayit_islemi(ayar_deposu, istek, tek("eylem")[:12], tek("kimlik")[:12], tek("ad")[:200])
+                self._yanit(200, "application/json; charset=utf-8", json.dumps(sonuc, ensure_ascii=False).encode("utf-8"),
+                            izin=ayar_sayfa.guvenlik_basligi())
+            except Exception:  # noqa: BLE001
+                gunluk.exception("Ayar kaydı işlenemedi")
+                self._yanit(500, "text/plain; charset=utf-8", "Kayıt işlenemedi.\n".encode("utf-8"))
 
         def log_message(self, bicim, *degerler) -> None:
             gunluk.debug("%s %s", self.address_string(), bicim % degerler)

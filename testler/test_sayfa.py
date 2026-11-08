@@ -323,7 +323,7 @@ class SunucuTesti(unittest.TestCase):
         istek = urllib.request.Request(self.adres + "/", data=b"x=1", method="POST")
         with self.assertRaises(urllib.error.HTTPError) as hata:
             urllib.request.urlopen(istek, timeout=5)
-        self.assertEqual(hata.exception.code, 501)
+        self.assertEqual(hata.exception.code, 405)
 
 
 class OnbellekTesti(unittest.TestCase):

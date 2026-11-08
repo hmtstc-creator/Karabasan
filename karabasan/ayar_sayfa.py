@@ -3,7 +3,9 @@
 Üstte açılır seçim (bot, coin, dönem); yukarıda sabit duran fiyat grafiği (giriş ve çıkışlar işaretli);
 altında her kriter bir açılır kutu: sayılar + / − düğmeleriyle değiştirilir ve grafik anında yenilenir
 (küçük bir betik formu `/ayar?...&json=1` adresine gönderir, yanıttaki parçaları yerine koyar).
-Betik çalışmazsa sayfa düz bir form olarak da çalışır (GET). Hiçbir şey kaydedilmez, canlı bota hiçbir şey gitmez.
+Betik çalışmazsa sayfa düz bir form olarak da çalışır (GET). Canlı bota hiçbir şey gitmez. 9 Kasım 2026'dan beri:
+şartlar ve isteğe bağlı çıkış parçaları pasif yapılabilir; bir botun bütün sayıları adlı kayıt olarak saklanır
+(ad değiştirilebilir; bkz. karabasan.ayar_kayit). Kayıtlar yalnız bu sayfadaki denemelerdir.
 Hesap ve açıklamalar için bkz. karabasan.ayar.
 """
 
@@ -12,6 +14,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 import threading
 import urllib.parse
 from datetime import datetime, timedelta, timezone
@@ -20,6 +23,7 @@ from html import escape
 import pandas as pd
 
 from . import ayar as a
+from . import ayar_kayit as _kayit
 from . import botlar as _botlar
 from .kural import ekleme_fiyati
 
@@ -48,7 +52,9 @@ def sorgu_coz(sorgu: dict[str, list[str]]) -> dict:
 
     istek = {"bot": bot, "bot0": bir("bot0"), "coin": coin,
              "gun": tam("gun", VARSAYILAN_GUN, 1, a.EN_FAZLA_GUN),
-             "once": tam("once", 0, 0, a.EN_FAZLA_GERI), "p": {}, "goster": None, "tara": None}
+             "once": tam("once", 0, 0, a.EN_FAZLA_GERI), "p": {}, "goster": None, "tara": None,
+             "pasif": {x for x in (v[:40] for v in sorgu.get("pasif", [])[:40]) if re.fullmatch(r"[A-Za-z0-9_]{1,40}", x)},
+             "kayit": bir("kayit") if re.fullmatch(r"[0-9a-f]{8}", bir("kayit")) else ""}
     for ad, deger in sorgu.items():
         if ad[:1] == "p" and ad[1:].isdigit() and len(ad) <= 4 and deger:
             istek["p"][int(ad[1:])] = deger[0][:20]
@@ -325,7 +331,14 @@ def _rozet(olcum: dict | None) -> str:
                if engel else ""))
 
 
-def _kriter_listesi(kural, simdiki: dict, ilkler: dict, olc: list[dict] | None, istek: dict) -> tuple[str, int]:
+def _pasif_kutusu(anahtar: str, aciklama: str, pasif) -> str:
+    isaret = " checked" if anahtar in pasif else ""
+    return (f'<label class="ay-pasif"><input type="checkbox" name="pasif" value="{escape(anahtar)}"{isaret}> '
+            f'<span>Pasif: {escape(aciklama)}</span></label>')
+
+
+def _kriter_listesi(kural, simdiki: dict, ilkler: dict, olc: list[dict] | None, istek: dict,
+                    pasif=frozenset()) -> tuple[str, int]:
     kartlar, idx = [], 0
     for k in a.kriterler(kural):
         girdiler = []
@@ -340,22 +353,101 @@ def _kriter_listesi(kural, simdiki: dict, ilkler: dict, olc: list[dict] | None, 
                   f'name="goster" value="{k["sira"]}" data-goster="{k["sira"]}">Girişi engellediği yerleri grafikte göster</button>')
         ipucu = ("" if girdiler else "<p class=alt>Bu şartın kendi sayısı yok; ilgili göstergenin periyodunu "
                  "aşağıdaki Göstergeler bölümünden değiştirebilirsin.</p>")
+        anahtar = f"k{k['sira']}"
         kartlar.append(
-            f'<details class="ay-ac" id="k{k["sira"]}"><summary>'
+            f'<details class="ay-ac{" pasif" if anahtar in pasif else ""}" id="k{k["sira"]}"><summary>'
             f'<span class="ay-no" style="background:{renk(k["sira"])}">{k["sira"] + 1}</span>'
             f'<span class="ay-ad">{escape(k["yazi"])}</span>'
             f'<span class="ay-rozet" id="rozet{k["sira"]}">{_rozet(olc[k["sira"]] if olc else None)}</span></summary>'
-            f'<div class="ay-ic">{ne}{ipucu}{"".join(girdiler)}{goster}</div></details>')
+            f'<div class="ay-ic">{_pasif_kutusu(anahtar, "bot bu şarta bakmasın (şart her zaman doğru sayılır)", pasif)}'
+            f'{ne}{ipucu}{"".join(girdiler)}{goster}</div></details>')
     return "".join(kartlar), idx
 
 
-def _grup(baslik: str, aciklama: str, sayilar, bas: int, simdiki: dict, ilkler: dict, kural=None) -> str:
+def _grup(baslik: str, aciklama: str, sayilar, bas: int, simdiki: dict, ilkler: dict, kural=None, ek: str = "") -> str:
     satirlar = "".join(_girdi(bas + j, ad, simdiki[yol], ilkler[yol], a.sayi_aciklamasi(kural, yol) if kural else "")
                        for j, (yol, ad, _e) in enumerate(sayilar))
     if not satirlar:
         return ""
     return (f'<details class="ay-ac"><summary><span class="ay-ad">{escape(baslik)}</span></summary>'
-            f'<div class="ay-ic"><p class="alt">{escape(aciklama)}</p>{satirlar}</div></details>')
+            f'<div class="ay-ic"><p class="alt">{escape(aciklama)}</p>{ek}{satirlar}</div></details>')
+
+
+def kayit_kutusu(depo, bot: str, istek: dict, acik: dict | None) -> str:
+    """Kayıtlar bölümü: adlı kayıt oluştur / üstüne yaz, açılabilir liste, ad değiştir, sil (betik /ayar/kayit'a gönderir)."""
+    if depo is None:
+        return ""
+    sorgu = f"bot={urllib.parse.quote(bot)}&coin={istek['coin']}&gun={istek['gun']}&once={istek['once']}"
+    satirlar = []
+    for k in depo.listele(bot):
+        etkin = acik is not None and k["id"] == acik["id"]
+        pasifler = len(k.get("pasif", []))
+        satirlar.append(
+            f'<li class="ay-kayit{" secili" if etkin else ""}"><a class="ay-kayit-ad" href="/ayar?{sorgu}&amp;kayit={k["id"]}">{escape(k["ad"])}</a>'
+            f'<small>{escape(k.get("guncelleme", "")[:16].replace("T", " "))} UTC · {len(k.get("degerler", {}))} sayı'
+            f'{f" · {pasifler} pasif" if pasifler else ""}</small>'
+            f'<span class="ay-kayit-dugmeler"><button type="button" class="ay-kucuk" data-kayit="adlandir" data-id="{k["id"]}" '
+            f'data-ad="{escape(k["ad"], quote=True)}">Adı değiştir</button>'
+            f'<button type="button" class="ay-kucuk" data-kayit="sil" data-id="{k["id"]}" data-ad="{escape(k["ad"], quote=True)}">Sil</button></span></li>')
+    liste = "".join(satirlar) or '<li class="alt">Bu bot için henüz kayıt yok.</li>'
+    uzerine = ""
+    if acik is not None:
+        uzerine = (f'<button type="button" class="ay-dugme" data-kayit="guncelle" data-id="{acik["id"]}">'
+                   f'Üstüne yaz: {escape(acik["ad"])}</button>')
+    return (f'<ul class="ay-kayitlar" id="ay-kayitlar">{liste}</ul>'
+            f'<div class="ay-kayit-yeni"><label for="kayit-ad">Kayıt adı</label>'
+            f'<input id="kayit-ad" type="text" maxlength="{_kayit.EN_FAZLA_AD}" autocomplete="off" placeholder="örn. RSI sıkı, stop 6" '
+            f'value="{escape(acik["ad"], quote=True) if acik else ""}">'
+            f'<div class="ay-kayit-dugmeler"><button type="button" class="ay-dugme" data-kayit="yeni">Yeni kayıt olarak kaydet</button>{uzerine}</div>'
+            f'<p class="alt" id="ay-kayit-mesaj" role="status"></p></div>')
+
+
+def kayit_bolumu(depo, bot: str, istek: dict, acik: dict | None) -> str:
+    if depo is None:
+        return ""
+    return (f'<details class="ay-ac" id="ay-kayit-kutu"{" open" if acik else ""}><summary><span class="ay-ad">Kayıtlar (bu botun ayarları)</span></summary>'
+            '<div class="ay-ic"><p class="alt">Kaydedince bu botun bütün sayıları ve pasif seçimleri adıyla saklanır. '
+            'Adı sonradan değiştirebilirsin. Bir kaydı açmak onu forma yükler.</p>'
+            f'{kayit_kutusu(depo, bot, istek, acik)}</div></details>')
+
+
+def kayit_kutusu_listesi(depo, bot: str, istek: dict, acik: dict | None) -> str:
+    html = kayit_kutusu(depo, bot, istek, acik)
+    return html[html.index('<ul'):html.index('</ul>') + 5]
+
+
+def kayit_islemi(depo, istek: dict, eylem: str, kimlik: str, ad: str) -> dict:
+    """Betiğin gönderdiği kayıt işlemi (yeni / guncelle / adlandir / sil). Yanıt: {ok, mesaj, id, liste}."""
+    bot = istek["bot"]
+    kimlik = kimlik if re.fullmatch(r"[0-9a-f]{8}", kimlik or "") else ""
+    try:
+        if eylem in ("yeni", "guncelle"):
+            if istek["bot0"] != bot:
+                raise _kayit.KayitHatasi("Sayfa eski kalmış; yenileyip tekrar dene.")
+            c = cozumle(dict(istek, kayit="", p=dict(istek["p"]), pasif=set(istek["pasif"])), None)
+            if c["mesajlar"]:
+                raise _kayit.KayitHatasi(c["mesajlar"][0])
+            degerler = {yol: a._al(c["ekran"], yol) for yol, _ad, _e in c["sayilar"]}
+            bakis = {"coin": istek["coin"], "gun": istek["gun"], "once": istek["once"]}
+            if eylem == "yeni":
+                varsayilan = f"{[b[2] for b in _botlar.BOTLAR if b[0] == bot][0]} · {datetime.now(timezone.utc):%d.%m %H:%M}"
+                kayit = depo.kaydet(bot, ad or varsayilan, degerler, c["pasif"], bakis)
+                mesaj = f"Kaydedildi: {kayit['ad']}"
+            else:
+                kayit = depo.kaydet(bot, "", degerler, c["pasif"], bakis, kimlik=kimlik)
+                mesaj = f"Üstüne yazıldı: {kayit['ad']}"
+        elif eylem == "adlandir":
+            kayit = depo.adlandir(kimlik, ad)
+            mesaj = f"Yeni ad: {kayit['ad']}"
+        elif eylem == "sil":
+            depo.sil(kimlik)
+            kayit, mesaj = None, "Kayıt silindi."
+        else:
+            raise _kayit.KayitHatasi("Bilinmeyen işlem.")
+    except _kayit.KayitHatasi as hata:
+        return {"ok": False, "mesaj": str(hata), "id": "", "liste": kayit_kutusu_listesi(depo, bot, istek, None)}
+    return {"ok": True, "mesaj": mesaj, "id": kayit["id"] if kayit else "",
+            "liste": kayit_kutusu_listesi(depo, bot, istek, kayit)}
 
 
 def _islem_tablosu(islemler: list[dict]) -> str:
@@ -385,6 +477,17 @@ def _tarama_tablosu(satirlar: list[dict], simdiki) -> str:
 
 
 AYAR_STIL = """
+.ay-pasif{display:flex;align-items:center;gap:10px;min-height:44px;padding:4px 0;font-size:.8125rem;color:var(--altin);cursor:pointer}
+.ay-pasif input{width:22px;height:22px;flex:none;accent-color:var(--altin)}
+.ay-ac.pasif>summary .ay-ad{text-decoration:line-through;opacity:.55}
+.ay-ac.pasif>summary::before{content:"PASİF";font-size:.6875rem;font-weight:700;color:var(--altin);border:1px solid var(--altin);border-radius:6px;padding:1px 6px;flex:none}
+.ay-kayitlar{list-style:none;margin:0 0 10px;padding:0}
+.ay-kayit{display:grid;gap:4px;padding:10px 0;border-bottom:1px solid var(--cizgi)}
+.ay-kayit.secili .ay-kayit-ad{color:var(--altin)}
+.ay-kayit-ad{font-weight:600;text-decoration:none;color:var(--holo);overflow-wrap:anywhere}
+.ay-kayit small{color:var(--soluk)}
+.ay-kayit-dugmeler{display:flex;flex-wrap:wrap;gap:8px}
+.ay-kayit-yeni input{width:100%;min-height:44px;box-sizing:border-box;margin:4px 0 8px}
 .ay-form{display:block}
 .ay-giris{margin:4px 0 8px;font-size:.8125rem;color:var(--soluk)}
 .ay-secim{border:1px solid var(--cizgi);border-radius:12px;background:var(--cam);margin:0 0 8px}
@@ -509,9 +612,34 @@ f.addEventListener('change',function(e){
   var t=e.target;
   if(t.id==='bot'){f.submit();}      // bot değişince alanlar da değişir: sayfa yenilenir (submit olayı tetiklenmez)
   else if(t.id==='coin'){sonra();}
+  else if(t.name==='pasif'){
+    var kt=t.closest('details.ay-ac');if(kt&&/^k[0-9]+$/.test(t.value))kt.classList.toggle('pasif',t.checked);
+    sonra();
+  }
 });
+function kayit(eylem,id,eskiAd){
+  var ad='',m=document.getElementById('ay-kayit-mesaj');
+  function yaz(x){if(m)m.textContent=x;}
+  if(eylem==='yeni'){ad=document.getElementById('kayit-ad').value;}
+  else if(eylem==='adlandir'){ad=window.prompt('Kaydın yeni adı',eskiAd||'');if(ad===null)return;}
+  else if(eylem==='sil'){if(!window.confirm('"'+(eskiAd||'')+'" kaydı silinsin mi?'))return;}
+  var g=sorgu();g.delete('json');g.set('eylem',eylem);g.set('kimlik',id||'');g.set('ad',ad);
+  yaz('Kaydediliyor…');
+  fetch('/ayar/kayit',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-Karabasan':'1'},body:g.toString()})
+   .then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.json();})
+   .then(function(v){
+     var u=document.getElementById('ay-kayitlar');if(u&&v.liste)u.outerHTML=v.liste;
+     yaz(v.mesaj||'');
+     if(v.ok&&(eylem==='yeni'||eylem==='guncelle')&&v.id){
+       var q=new URLSearchParams({bot:f.elements['bot'].value,coin:f.elements['coin'].value,gun:f.elements['gun'].value,once:f.elements['once'].value,kayit:v.id});
+       location.href='/ayar?'+q.toString();
+     }else if(v.ok&&eylem==='sil'&&f.elements['kayit']&&f.elements['kayit'].value===id){f.elements['kayit'].value='';}
+   })
+   .catch(function(e){yaz('Kaydedilemedi ('+(e&&e.message?e.message:'bağlantı hatası')+'). Kaydetme yalnız bu sayfanın kendi adresinden çalışır.');});
+}
 f.addEventListener('click',function(e){
   var b=e.target.closest('button');if(!b||!f.contains(b))return;
+  if(b.dataset.kayit){e.preventDefault();kayit(b.dataset.kayit,b.dataset.id,b.dataset.ad);return;}
   if(b.dataset.adim){
     e.preventDefault();
     var i=document.getElementById(b.dataset.hedef);
@@ -578,20 +706,38 @@ def _temel_sonuc(anahtar, uret):
     return deger
 
 
-def hesapla(istek: dict, onbellek: a.VeriOnbellegi | None = None, getir=None,
-            simdi: datetime | None = None) -> dict:
-    """İsteği hesaplar; sayfa ve canlı yanıt (JSON) aynı sonucu kullanır."""
-    onbellek = onbellek or ONBELLEK
-    getir = getir or a.binance_getir
-    simdi = (simdi or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
-    simdi -= timedelta(minutes=simdi.minute % 5)
-    bot, coin, gun, once = istek["bot"], istek["coin"], istek["gun"], istek["once"]
+def cozumle(istek: dict, depo=None) -> dict:
+    """Veri indirmeden: istekteki sayıları ve pasif seçimlerini kurala uygular.
+
+    Dönen: kural (canlı), ekran (sayılar uygulanmış, pasifler hâlâ açık: formun gösterdiği kural),
+    kopya (pasifler de uygulanmış: hesaplanan kural), sayilar, degisim, pasif, mesajlar, kayit (açılan kayıt).
+    """
+    bot = istek["bot"]
     kural = a.kural_hazirla(bot)
     sayilar = a.tum_sayilar(kural)
     mesajlar: list[str] = []
-
+    acilan = None
+    if depo is not None and istek.get("kayit") and not istek["p"]:
+        acilan = depo.getir(istek["kayit"])
+        if acilan and acilan.get("bot") == bot:
+            sira = {yol: idx for idx, (yol, _ad, _e) in enumerate(sayilar)}
+            eksik = 0
+            for yol, deger in acilan["degerler"].items():
+                if yol in sira:
+                    istek["p"][sira[yol]] = _deger_yazisi(deger)
+                else:
+                    eksik += 1
+            istek["pasif"] = {x for x in acilan["pasif"] if x in a.pasif_anahtarlari(kural)}
+            istek["bot0"] = bot
+            if eksik:
+                mesajlar.append(f"Kayıttaki {eksik} değer bu botta artık yok; atlandı.")
+        else:
+            acilan = None
+            mesajlar.append("Açılmak istenen kayıt bulunamadı.")
     degisim: dict[str, float] = {}
+    pasif: set[str] = set()
     if istek["bot0"] == bot:
+        pasif = {x for x in istek["pasif"] if x in a.pasif_anahtarlari(kural)}
         for idx, (yol, ad, eski) in enumerate(sayilar):
             if idx in istek["p"]:
                 try:
@@ -601,35 +747,61 @@ def hesapla(istek: dict, onbellek: a.VeriOnbellegi | None = None, getir=None,
                     continue
                 if abs(yeni_deger - float(eski)) > 1e-9:
                     degisim[yol] = yeni_deger
-    kopya = kural
+    ekran = kural
     if degisim:
         try:
-            kopya = a.uygula(kural, degisim)
+            ekran = a.uygula(kural, degisim)
         except a.AyarHatasi as hata:
             mesajlar.append(str(hata) + " Canlı ayar gösteriliyor.")
             degisim = {}
-    ctx = {"istek": istek, "kural": kural, "kopya": kopya, "sayilar": sayilar, "degisim": degisim, "mesajlar": mesajlar,
-           "simdiki": {yol: a._al(kopya, yol) for yol, _ad, _e in sayilar},
+    kopya = ekran
+    if pasif:
+        try:
+            kopya = a.pasifla(ekran, pasif)
+        except a.AyarHatasi as hata:
+            mesajlar.append(str(hata) + " Pasif seçimler yok sayıldı.")
+            pasif = set()
+    return {"kural": kural, "ekran": ekran, "kopya": kopya, "sayilar": sayilar, "degisim": degisim,
+            "pasif": pasif, "mesajlar": mesajlar, "kayit": acilan}
+
+
+def hesapla(istek: dict, onbellek: a.VeriOnbellegi | None = None, getir=None,
+            simdi: datetime | None = None, depo=None) -> dict:
+    """İsteği hesaplar; sayfa ve canlı yanıt (JSON) aynı sonucu kullanır."""
+    onbellek = onbellek or ONBELLEK
+    getir = getir or a.binance_getir
+    simdi = (simdi or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+    simdi -= timedelta(minutes=simdi.minute % 5)
+    bot, coin, gun, once = istek["bot"], istek["coin"], istek["gun"], istek["once"]
+    c = cozumle(istek, depo)
+    kural, ekran, kopya, sayilar, degisim, pasif, mesajlar = (
+        c["kural"], c["ekran"], c["kopya"], c["sayilar"], c["degisim"], c["pasif"], c["mesajlar"])
+    degisti = bool(degisim or pasif)
+    ctx = {"istek": istek, "kural": kural, "ekran": ekran, "kopya": kopya, "sayilar": sayilar, "degisim": degisim,
+           "pasif": pasif, "degisti": degisti, "kayit": c["kayit"], "mesajlar": mesajlar,
+           "simdiki": {yol: a._al(ekran, yol) for yol, _ad, _e in sayilar},
            "ilkler": {yol: eski for yol, _ad, eski in sayilar}, "hata": None, "tarama": None}
     bitis = simdi - timedelta(days=once)
     pencere_bas = pd.Timestamp(bitis - timedelta(days=gun))
     ctx.update(bitis=bitis, pencere_bas=pencere_bas)
     try:
         with HESAP_KAPISI:
-            df, ek = a.veri_topla(kural, coin, "vadeli", bitis, gun, getir, onbellek, diger=kopya if degisim else None)
+            df, ek = a.veri_topla(kural, coin, "vadeli", bitis, gun, getir, onbellek, diger=kopya if degisti else None)
             if df.empty or not len(df[pd.to_datetime(df["date"], utc=True) >= pencere_bas]):
                 raise a.AyarHatasi("Bu coin için bu dönemde mum bulunamadı.")
             temel = _temel_sonuc((bot, coin, gun, once, int(bitis.timestamp()),
                                   hashlib.sha1(json.dumps(kural, sort_keys=True).encode()).hexdigest()),
                                  lambda: a.calistir(kural, df, ek, pencere_bas, kriter_olc=True))
-            yeni = a.calistir(kopya, df, ek, pencere_bas, kriter_olc=True) if degisim else temel
+            yeni = a.calistir(kopya, df, ek, pencere_bas, kriter_olc=True) if degisti else temel
             ctx.update(df=df, yeni=yeni, eski=temel)
             if istek["tara"] is not None and 0 <= istek["tara"] < len(sayilar):
                 yol = sayilar[istek["tara"]][0]
                 satirlar = []
                 for v in a.tarama_degerleri(ctx["simdiki"][yol]):
                     try:
-                        k2 = a.uygula(kopya, {yol: v})
+                        k2 = a.uygula(ekran, {yol: v})
+                        if pasif:
+                            k2 = a.pasifla(k2, pasif)
                         satirlar.append({"deger": v, "ozet": a.calistir(k2, df, ek, pencere_bas)["ozet"]})
                     except a.AyarHatasi as hata:
                         satirlar.append({"deger": v, "hata": str(hata)[:90]})
@@ -643,7 +815,7 @@ def hesapla(istek: dict, onbellek: a.VeriOnbellegi | None = None, getir=None,
 
 def parcalar(ctx: dict) -> dict:
     """Canlı güncellenen parçalar (HTML metni). Hata varsa grafik None: ekrandaki son grafik kalır."""
-    istek, kural, kopya, degisim = ctx["istek"], ctx["kural"], ctx["kopya"], ctx["degisim"]
+    istek, kural, kopya, degisim = ctx["istek"], ctx["kural"], ctx["kopya"], ctx["degisti"]
     coin, gun = istek["coin"], istek["gun"]
     sonuc = {"secim": f'{[b[2] for b in _botlar.BOTLAR if b[0] == istek["bot"]][0]} · {coin} · {gun} gün'
                       + (f' · {istek["once"]} gün geri' if istek["once"] else ""),
@@ -658,7 +830,7 @@ def parcalar(ctx: dict) -> dict:
     if istek["goster"] is not None and istek["goster"] < len(yeni["kriterler"]):
         engel = yeni["kriterler"][istek["goster"]]["engel_zamanlari"]
     katman = yeni["katman"]
-    adlar = [k["yazi"] for k in a.kriterler(kopya)]
+    adlar = [k["yazi"] + (" (pasif)" if f"k{k['sira']}" in ctx["pasif"] else "") for k in a.kriterler(ctx["ekran"])]
     ek_fn = (lambda ilk: ekleme_fiyati(kopya, ilk)) if kopya.get("zararda_ekleme") else None
     sonuc["grafik"] = (f'<div class="kose kart">{grafik(df, ctx["pencere_bas"], yeni["islemler"], eski["islemler"] if degisim else [], engel, gun, satis, katman, adlar, ek_fn)}</div>')
     katman_anahtari = "".join(
@@ -685,17 +857,17 @@ def parcalar(ctx: dict) -> dict:
     return sonuc
 
 
-def ayar_json(istek: dict, onbellek=None, getir=None, simdi=None) -> str:
-    ctx = hesapla(istek, onbellek, getir, simdi)
+def ayar_json(istek: dict, onbellek=None, getir=None, simdi=None, depo=None) -> str:
+    ctx = hesapla(istek, onbellek, getir, simdi, depo)
     return json.dumps(parcalar(ctx), ensure_ascii=False)
 
 
 def ayar_sayfasi(istek: dict, onbellek: a.VeriOnbellegi | None = None, getir=None,
-                 simdi: datetime | None = None) -> str:
-    ctx = hesapla(istek, onbellek, getir, simdi)
+                 simdi: datetime | None = None, depo=None) -> str:
+    ctx = hesapla(istek, onbellek, getir, simdi, depo)
     p = parcalar(ctx)
     bot, coin, gun, once = istek["bot"], istek["coin"], istek["gun"], istek["once"]
-    kopya, kural = ctx["kopya"], ctx["kural"]
+    kopya, kural = ctx["ekran"], ctx["kural"]
     botlar = "".join(f'<option value="{escape(b[0])}"{" selected" if b[0] == bot else ""}>{escape(b[2])}</option>'
                      for b in _botlar.BOTLAR)
     coinler = "".join(f'<option{" selected" if c == coin else ""}>{c}</option>' for c in a.COINLER)
@@ -710,18 +882,22 @@ def ayar_sayfasi(istek: dict, onbellek: a.VeriOnbellegi | None = None, getir=Non
 </div></details>"""
     if ctx["hata"]:
         govde = (f'<form id="ay-form" class="ay-form" method="get" action="/ayar"><input type="hidden" name="bot0" value="{escape(bot)}">'
-                 f'<input type="hidden" name="goster" value="">{secim}<div id="ay-mesaj">{p["mesaj"]}</div>'
-                 '<div id="ay-grafik"></div><div id="ay-ozet"></div></form>')
+                 f'<input type="hidden" name="goster" value=""><input type="hidden" name="kayit" value="{ctx["kayit"]["id"] if ctx["kayit"] else ""}">'
+                 f'{secim}<div id="ay-mesaj">{p["mesaj"]}</div>'
+                 f'<div id="ay-grafik"></div><div id="ay-ozet"></div>{kayit_bolumu(depo, bot, istek, ctx["kayit"])}</form>')
         return _kabuk(govde)
     istek_g = istek
-    kriter_html, nk = _kriter_listesi(kopya, ctx["simdiki"], ctx["ilkler"], ctx["yeni"]["kriterler"], istek_g)
+    kriter_html, nk = _kriter_listesi(kopya, ctx["simdiki"], ctx["ilkler"], ctx["yeni"]["kriterler"], istek_g, ctx["pasif"])
     kriter_say = sum(len(k["sayilar"]) for k in a.kriterler(kural))
     gosterge = a.gosterge_sayilari(kural)
     cikis = a.cikis_sayilari(kural)
+    secenek_html = "".join(_pasif_kutusu(k, ad.lower() + " kapalı olsun", ctx["pasif"]) for k, ad in a.pasif_secenekleri(kural))
     govde = f"""<form id="ay-form" class="ay-form" method="get" action="/ayar">
 <input type="hidden" name="bot0" value="{escape(bot)}">
 <input type="hidden" name="goster" value="{istek['goster'] if istek['goster'] is not None else ''}">
-<p class="ay-giris">Sayıyı değiştir ya da + / − bas: grafik anında yenilenir. Canlı botlar değişmez, hiçbir şey kaydedilmez.</p>
+<input type="hidden" name="kayit" value="{ctx['kayit']['id'] if ctx['kayit'] else ''}">
+<p class="ay-giris">Sayıyı değiştir ya da + / − bas: grafik anında yenilenir. Bir şartı ya da çıkış parçasını “Pasif” işaretleyerek devre dışı bırakabilirsin.
+Canlı botlar değişmez; aşağıdaki Kayıtlar yalnız bu sayfadaki deneme ayarlarının listesidir.</p>
 {secim}
 <div class="ay-sabitust" id="ay-sabit"><span class="ay-durum" id="ay-durum"></span>
 <div id="ay-mesaj">{p["mesaj"]}</div>
@@ -732,8 +908,9 @@ def ayar_sayfasi(istek: dict, onbellek: a.VeriOnbellegi | None = None, getir=Non
 <p class="ay-giris"><b>Giriş şartları:</b> hepsi aynı anda doğru olunca bot girer. Bir şartı açınca ne dediğini ve her sayının ne işe yaradığını görürsün.</p>
 {kriter_html}
 {_grup("Göstergeler", "Göstergenin kaç muma baktığı. Aynı gösterge birkaç şartta kullanılır; değiştirmek hepsini etkiler. Ne olduğu ilgili şartın içinde yazıyor.", gosterge, kriter_say, ctx["simdiki"], ctx["ilkler"], kopya)}
-{_grup("Giriş emri ve çıkış", "Girişin nasıl konduğu ve işlemin nasıl kapandığı.", cikis, kriter_say + len(gosterge), ctx["simdiki"], ctx["ilkler"], kopya)}
+{_grup("Giriş emri ve çıkış", "Girişin nasıl konduğu ve işlemin nasıl kapandığı. Stop her zaman açık kalır; yanında en az bir çıkış yolu da açık olmalı.", cikis, kriter_say + len(gosterge), ctx["simdiki"], ctx["ilkler"], kopya, secenek_html)}
 </div>
+{kayit_bolumu(depo, bot, istek, ctx["kayit"])}
 <details class="ay-ac"><summary><span class="ay-ad">Bu ayarla açılan işlemler</span></summary>
 <div class="ay-ic" id="ay-islemler">{p["islemler"]}</div></details>
 <p class="g-not">Hesap, bağımsız mum benzetimidir (hazır motor değil); Binance’in herkese açık fiyat verisinden.
