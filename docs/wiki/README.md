@@ -20,6 +20,7 @@ Bu klasör projenin kalıcı hafızasıdır. `CLAUDE.md` kısa tutulur; geçmiş
 | [sonuc-sayfasi.md](sonuc-sayfasi.md) | Sonuç sayfasının ekranları, görünüm, işlem grafiği |
 | [internet-erisimi.md](internet-erisimi.md) | Parolalı internet adresi (Caddy) |
 | [dogrulanacaklar.md](dogrulanacaklar.md) | Sunucuda henüz doğrulanmamış varsayımlar |
+| [site-yeni-sayfalar-istemi.md](site-yeni-sayfalar-istemi.md) | 5 trader + görsel + programcı ajanlı "yeni sayfalar" istemi (yapıştırılacak metin; henüz çalıştırılmadı) |
 | [siradaki-isler.md](siradaki-isler.md) | 9 Kasım öncesi sıradaki işler listesi (eski; güncel liste günlükte) |
 
 ## Yazma kuralları
