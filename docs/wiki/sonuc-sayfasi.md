@@ -70,3 +70,30 @@ grafikler, zaman, analiz, sınav, kriterler.
 ## Coin listesi (`/coinler`, 10 Kasım 2026)
 
 `karabasan/coinler.py`: Binance vadeli `exchangeInfo` (işlemde, sürekli, USDT) + `ticker/24hr` (`quoteVolume`). Stable coinler `STABLE` kümesiyle çıkarılır (botların `SABIT_COINLER` listesini kapsar; test bunu doğrular). Hacim sınırı `?hacim=<milyon USDT>` (varsayılan 5, botlarla aynı); sayfada kutu ve hazır düğmeler var, betik yok. 5 dakika önbellek. Tablo hacme göre sıralı: coin, hacim, fiyat, 24 saatlik değişim. Yalnız bilgi: botların işlem evreni (`yapilandirma_uret.py`) değişmedi. Sınanmayan: gerçek Binance yanıtı (burada erişim yok; testler sahte veriyle).
+
+**Beş ek ekran: Risk, Rejim, Likidite, Güven, Disiplin (10 Kasım 2026; Ahmet'in isteği, istem: `site-yeni-sayfalar-istemi.md`).**
+Beş ekip (her biri trader + görsel + programcı rolünde; 15 yerine 5 ajan, maliyet yüzünden) birer ekran yazdı. Yalnız Menü'de
+açılır; alt çubuk ve eski ekranlar aynı. Hepsi yalnız okur, betik eklemez, bot ayarı yazmaz.
+- Bağlantı: `karabasan/ek_sayfalar.py` (`EK_EKRANLAR`, `EK_MENU_ACIKLAMA`). `sonuc.genel_ozet` her ekran için `sonuc_<ad>.hesapla(baglam)`
+  çağırır (`ozet["ek"]`); `sayfa.html_uret` `sayfa_<ad>.ekran()` ve `STIL`'i ekler. Bir ekran hata verirse yalnız o "hazırlanamadı" der.
+- **Risk:** açık pozisyonların stopta kaybı (toplam bütçe = 4 × 1.000 USDT payda), "hepsi stopa giderse", tepeden düşüş ve su altı süresi,
+  yön / coin yoğunlaşması (hepsi açığa satış), son 14 günün günlük teminat kullanımı, SMK2 / SMDK2 ek giriş yapılmış / bekleyen ayrı.
+  "Düşük / orta / yüksek" (%1, %3) yalnız okuma kolaylığı, botların kuralı değil. Karne ile kayıtlı net farkı (ek girişli işlem) yan yana.
+- **Rejim:** **canlı Karabasan puanı, durumu ve veto kaydı yoktur** (büyük uyarı kutusu). Kurallar (ağırlık, eşik, veto) `puan.py`'den
+  metin olarak okunur; `kuresel.csv`'den son 30 günün dominans / TOTAL2 seyri ve kayıt boşlukları; işlem kaydından yeniden kurulan
+  "art arda stop" pencereleri (canlı motor kaydı değil). Bulgu: botlar `izinli_durumlar`'a bakmıyor (aşağıda).
+- **Likidite:** coin başına fonlama (short için alır / öder), açık faiz değişimi (1 / 4 / 24 saat), spread, 24 saatlik hacim ve kaba "sıkışma
+  riski" etiketi (eşikler **sınanmadı**, sayfa da söyler); BTC defter dengesi `defter.sqlite`'tan; tasfiye kümeleri "veri yok". Veriyi yalnız
+  panel süreci arka planda çeker (`panel.main` → `sonuc_likidite.ag_ac()`), 5 dakikada bir en çok 13 GET (`fapi.binance.com`, anahtarsız);
+  hatada bekleme 5 dk'dan 1 saate kadar ikiye katlanır. Telegram dosya hali ve testlerde ağ kapalı ("yalnız canlı sayfada dolar").
+- **Güven:** tek cümlelik hüküm, bot başına gün bazında t ve p (Student t, standart kütüphane), 100 işlem sayacı ve hız, kazanma oranı
+  Wilson %95 aralığı ile başa baş karşılaştırması, en iyi / en kötü coin ve en iyi gün çıkarılınca sonuç, 12 aylık test farkı, çoklu bakış
+  uyarısı (17 bakış). Yeşil rozet çıtası: t ≥ 2,5, p ≤ %1, ≥ 100 işlem, aralık başa başın üstünde, tek coine / güne bağlı değil.
+- **Disiplin:** yedi kural denetimi (günlük bütçe, aynı coinde iki pozisyon, 1 kat botta ek giriş, tek ek giriş hakkı, stoptan sonra bekleme,
+  stopun üstünde kayıp, sessiz bot: temiz / ihlal / denetlenemedi), stopa giden işlemlerin saat (4 saatlik) / gün / coin / bot kırılımı,
+  yaklaşık komisyon ve ek kayma payı, kazanan / kaybeden süresi, stop genişliği dersi bağı, "bugün dikkat edilecek 3 şey" (kural tabanlı).
+- Testler: 866 (1 atlanan: Güven'in pandas'sız `hesapla` denemesi; `sonuc` → `karne` pandas ister, panel kapsayıcısında sorun değil).
+  Yalnız buradaki Chromium'da sahte veriyle 390 ve 1280 px, betikli ve betiksiz denendi; yatay taşma yok.
+- **Gerçek sunucuda ilk kez:** bütün hesaplar gerçek kayıtla; Likidite'nin Binance yanıt biçimleri (ezberden yazıldı) ve HTTP 451 olasılığı;
+  büyük `kuresel.csv`'nin sondan okunması; Disiplin'in bekleme ve stop taşma denetimleri gerçek veride yanlış alarm verebilir;
+  ek girişlerin `orders` tablosundan okunması; Ahmet'in iPhone Safari'si.

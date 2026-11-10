@@ -167,6 +167,8 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
   geri getir, yeni sayfaları da silme"; `/klasik` aynı sayfa). **Yeni pano `/pano`'da** (menüde "Yeni pano"): Karabasan Uzayı, ayar ve
   geçmiş test laboratuvarı, ajan (Opus 5.5, düşük çaba; yalnız okur, test eder, laboratuvara kayıt yazar; canlı botu değiştiremez). Yazma yolları `/ayar/kayit` ve `/api/*`. Ayrıntı ve
   "gerçek sunucuda ilk kez" listesi: `docs/wiki/pano-uzay-ajan.md`. Renk Ahmet'in isteğiyle siyah.
+- Sonuç sayfasında beş ek ekran (10 Kasım, Menü'de): Risk, Rejim, Likidite, Güven, Disiplin (`ek_sayfalar.py`). **Botlar Karabasan durumuna
+  bakmıyor; puan canlıda hesaplanmıyor** (Rejim ekranı bunu söyler; karar Ahmet'in).
 - Eski sonuç sayfası ekranları, `/ayar` laboratuvarı (9 Kasım 2026'dan beri parametre pasif / etkili seçimi ve adlı kayıtlar; kayıtlar yalnız
   deneme listesidir, canlı botları değiştirmez): `docs/wiki/sonuc-sayfasi.md`, `kriter-ayar-laboratuvari.md`.
 - Açık iş: 22 Ekim uyum 23 ve 12 aylık test 11 raporlarının sunucu oturumundan okunması; Ahmet'in yön kararı. Güncel liste: `docs/wiki/gunluk.md`.

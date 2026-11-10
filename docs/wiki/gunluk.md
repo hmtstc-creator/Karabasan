@@ -17,6 +17,8 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 | 2026-11-10 | Sonuç sayfasına `/coinler` (menüde "Coin listesi"): Binance vadeli USDT coinleri, stable hariç, 24 saatlik USDT hacim sınırını geçenler (varsayılan 5 milyon, botlarla aynı; sınır sayfadan seçilir). Yalnız bakmak için; botların evrenini değiştirmez | Ahmet: "sitede Binance'deki tüm coinler olsun, stable hariç, hacim filtresi koy" | sonuc-sayfasi |
 | 2026-11-10 | Yeni pano canlıda: ana sayfa Karabasan Uzayı (coinlerin girişe uzaklığı, üç boyut), ayar ve geçmiş test laboratuvarı, ajan (Opus 5.5, düşük çaba; arşivli hafıza). Eski sayfa `/klasik`. Renk siyah. Caddy `/api/*` yazma yoluna izin verir | Ahmet: "akıl almaz bir site; coinleri uzayda göster; ayarlarımla anında geçmiş test; siteye ajan ekle; canlıya al; mordan siyaha çevir" | pano-uzay-ajan |
 | 2026-11-10 | Ana sayfa yine kazancı gösteren sonuç sayfası (`/` = `/klasik`); yeni pano silinmedi, `/pano`'ya taşındı (Menü'de "Yeni pano") | Ahmet: "kaç para kazandığımı gösteren ekranlar kayboldu, tüm ekranları geri getir, senin sayfalarını da silme" | pano-uzay-ajan |
+| 2026-11-10 | Sonuç sayfasına beş ek ekran (Menü'de): Risk, Rejim, Likidite, Güven, Disiplin. Yalnız okur; bot dosyası değişmedi | Ahmet: istemdeki aksiyonları al (`/yenikonu site-yeni-sayfalar-istemi`) | sonuc-sayfasi |
+| 2026-11-10 | Bulgu: botlar Karabasan durumuna (`izinli_durumlar`) bakmıyor; puan / durum / veto canlıda hesaplanmıyor, kaydedilmiyor. Kural yalnız yazım denetiminden geçiyor | Rejim ekibi buldu, kodla doğrulandı. Sınav sürerken değiştirilmez (3. kural); Ahmet'in kararı | sonuc-sayfasi |
 
 ## Açık işler (güncel)
 
@@ -26,3 +28,5 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 4. Gerçek sunucuda ilk kez: `/coinler` Binance `exchangeInfo` + `ticker/24hr` çağrıları (panel kapsayıcısından). Ahmet botların evreni de aynı süzgeçle genişlesin isterse ayrı karar (3. kural: sınav sürerken bot ayarı değişmez).
 5. Yeni pano gerçek sunucuda ilk kez çalışıyor: mum dosyalarının okunması, Binance çekimi, WebGL, Caddy `/api/*`, Anthropic çağrısı (liste: pano-uzay-ajan). Ahmet anahtarı girince ajanın ilk gerçek yanıtına bak.
 6. Ahmet ajan için Anthropic API anahtarı alacak (console.anthropic.com; abonelikten ayrı fatura) ve panoda Ajan sekmesinden girecek.
+7. Ahmet'in kararı: Karabasan durum süzgeci canlıda yok (botlar durumdan bağımsız işlem açıyor). Yeni bot ve kendi 30 günü mü, sınav sonuna mı bırakılsın? Canlı puan kaydı için bir servis gerekir (fiyat verisi + `puan.py`, pandas'lı kapsayıcıda).
+8. Gerçek sunucuda ilk kez: beş ek ekran, özellikle Likidite'nin Binance çağrıları (panel kapsayıcısından, 5 dakikada bir en çok 13 GET).
