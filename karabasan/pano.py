@@ -35,7 +35,7 @@ STATIK = Path(__file__).resolve().parent / "statik"
 TURLER = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
           ".js": "text/javascript; charset=utf-8", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8"}
 GUVENLIK = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; "
-            "img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+            "img-src 'self' data:; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 EN_FAZLA_GOVDE = 32768
 JSON_TURU = "application/json; charset=utf-8"
 
@@ -111,6 +111,11 @@ class Pano:
             kisa["gunluk"] = [{k: g.get(k) for k in ("gun", "islem", "kazanan", "net_tutar")} for g in ozet.get("gunluk_toplam", [])[-35:]]
             kisa["uretildi"] = ozet.get("uretildi")
             return _json(kisa)
+        if yol == "/api/ekranlar":
+            # Sonuçlar sekmesindeki ekran listesi (eski ve yeni bütün ekranlar, sonuç sayfasındaki sırayla).
+            from .sayfa import EKRANLAR, MENU_ACIKLAMA
+
+            return _json([{"kimlik": k, "ad": a, "aciklama": MENU_ACIKLAMA.get(k, "")} for k, a in EKRANLAR])
         if yol == "/api/bot":
             bot = tek("bot")
             if bot not in uzay.bot_adlari():

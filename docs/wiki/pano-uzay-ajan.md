@@ -5,6 +5,16 @@
 > **Düzeltme (10 Kasım 2026 akşamı):** Ahmet "kaç para kazandığımı gösteren ekranlar kayboldu, tüm ekranları geri getir, senin
 > sayfalarını da silme" dedi. Ana sayfa (`/`) yine eski sonuç sayfasıdır (`/klasik` aynı); pano silinmedi, `/pano` adresinde ve
 > sonuç sayfasının Menü'sünde "Yeni pano". Panonun üst bağlantısı "Kazanç ve bütün ekranlar" `/`'a döner.
+>
+> **Birleştirme (10 Kasım 2026 gecesi):** Ahmet "uzay sayfası ve yeni format nereye gitti? Eski ile yeni formatın hepsini bütün yapıp
+> yeni formatta yapman lazım" dedi. Ana sayfa (`/`) yeniden panodur ve ilk sekmesi **Sonuçlar**'dır: üstte 16 ekranın yatay kayan listesi
+> (`/api/ekranlar`, `sayfa.EKRANLAR` sırası), altta çerçevede `/klasik?gomulu=1` (eski sonuç sayfası; kendi başlığı ve alt çubuğu gizli,
+> site bağlantıları bütün pencerede açılır). Eski sayfanın rengi panonunkine çekildi (`sayfa.SIYAH_STIL`: siyah zemin, düz kartlar, ay sarısı).
+> Çerçeve yalnız aynı kökenden: `/klasik?gomulu=1` `X-Frame-Options: SAMEORIGIN` ve `frame-ancestors 'self'`; düz `/klasik` yine `DENY`.
+> Pano izin başlığına `frame-src 'self'` eklendi. Ekran geçişi çerçevede `history.replaceState` ile (# ile gezinmek dış sayfayı kaydırıyordu).
+> Adresler: `#sonuc` (Ana ekran), `#sonuc-rapor`, `#sonuc-risk` vb. Pano açılamazsa `/` eski sayfaya döner. 872 test; yalnız buradaki
+> Chromium'da sahte veriyle 390 ve 1280 px denendi, yatay taşma ve konsol hatası yok. **Gerçek sunucuda ilk kez:** çerçevenin Caddy
+> arkasında (parolalı) açılması, iPhone Safari'de çerçeve içi kaydırma.
 
 ## Ahmet ne istedi
 

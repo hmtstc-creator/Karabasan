@@ -9,9 +9,9 @@
 </head>
 <body>
 <header class="bas">
-  <a class="marka" href="#uzay">Karabasan</a>
+  <a class="marka" href="#sonuc">Karabasan</a>
   <nav class="gez" aria-label="Ana gezinti">
-    <a href="#uzay">Uzay</a><a href="#lab">Ayar ve geçmiş test</a><a href="#ajan">Ajan</a><a href="/">Kazanç ve bütün ekranlar</a>
+    <a href="#sonuc">Sonuçlar</a><a href="#uzay">Uzay</a><a href="#lab">Ayar ve geçmiş test</a><a href="#ajan">Ajan</a>
   </nav>
   <span class="bosluk"></span>
   <div class="seg" id="botsec" role="group" aria-label="Bot"></div>
@@ -19,6 +19,14 @@
 </header>
 
 <main>
+<!-- SONUÇLAR: kazanç ve bütün ekranlar (eski sonuç sayfası, panonun biçiminde; /klasik?gomulu=1) -->
+<section class="gorunum" id="g-sonuc" hidden>
+  <nav class="ekranlar" id="ekranlar" aria-label="Sonuç ekranları">
+    <a href="#sonuc">Ana ekran</a><a href="#sonuc-rapor">Rapor</a><a href="#sonuc-botlar">Botlar</a><a href="#sonuc-islemgrafik">İşlemler</a>
+  </nav>
+  <div class="sonuc-kutu levha"><iframe id="sonucCerceve" title="Sonuç ekranları" src="/klasik?gomulu=1"></iframe></div>
+</section>
+
 <!-- UZAY -->
 <section class="gorunum" id="g-uzay">
   <aside class="sol levha" aria-label="Süzgeçler">

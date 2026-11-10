@@ -622,9 +622,41 @@ function botYukle(sessiz) {
 }
 function botSec(b) { bot = b; sakla('kb-bot', bot); botKur(); secili = -1; acikHesapla(); var p = botYukle(); uzayYukle(); return p; }
 $('botsec').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b && b.dataset.b !== bot) botSec(b.dataset.b); });
+// Sonuçlar sekmesi: eski ve yeni bütün sonuç ekranları, çerçevedeki /klasik?gomulu=1 sayfasında. #sonuc-<ekran> o ekranı açar.
+var sonucEkran = 'ana';
+function ekranListesi(liste) {
+  $('ekranlar').innerHTML = liste.map(function (e) {
+    return '<a href="#sonuc' + (e.kimlik === 'ana' ? '' : '-' + esc(e.kimlik)) + '" title="' + esc(e.aciklama) + '">' + esc(e.ad) + '</a>';
+  }).join('');
+  sonucIsaretle();
+}
+function sonucIsaretle() {
+  document.querySelectorAll('#ekranlar a').forEach(function (a) {
+    var k = a.getAttribute('href').replace(/^#sonuc-?/, '') || 'ana';
+    if (k === sonucEkran) { a.setAttribute('aria-current', 'page'); var l = $('ekranlar'); l.scrollLeft = Math.max(0, a.offsetLeft - l.offsetLeft - 16); } else a.removeAttribute('aria-current');
+  });
+}
+function sonucGoster(ekran) {
+  sonucEkran = ekran || 'ana'; sonucIsaretle();
+  sonucUygula();
+}
+// Çerçevedeki ekranı adres işaretiyle (#) değil geçmiş kaydıyla değiştir: # ile gezinmek dış sayfayı da kaydırıyordu.
+function sonucUygula() {
+  try {
+    var w = $('sonucCerceve').contentWindow;
+    if (!w || w.location.pathname !== '/klasik' || w.document.readyState === 'loading') return;
+    if (w.location.hash.slice(1) === sonucEkran || (!w.location.hash && sonucEkran === 'ana')) return;
+    w.history.replaceState(null, '', '#' + sonucEkran);
+    w.dispatchEvent(new HashChangeEvent('hashchange'));
+  } catch (h) { /* henüz yüklenmedi: yüklenince uygulanır */ }
+}
 function goster() {
-  var ad = location.hash.slice(1); if (['uzay', 'lab', 'ajan'].indexOf(ad) < 0) ad = 'uzay'; gorunum = ad;
-  ['uzay', 'lab', 'ajan'].forEach(function (x) { $('g-' + x).hidden = x !== ad; });
+  var ad = location.hash.slice(1), ekran = null;
+  if (ad.indexOf('sonuc') === 0) { ekran = ad.slice(6) || 'ana'; ad = 'sonuc'; }
+  if (['sonuc', 'uzay', 'lab', 'ajan'].indexOf(ad) < 0) ad = 'sonuc'; gorunum = ad;
+  ['sonuc', 'uzay', 'lab', 'ajan'].forEach(function (x) { $('g-' + x).hidden = x !== ad; });
+  $('botsec').hidden = ad === 'sonuc';   // bot seçimi Uzay ve laboratuvar içindir; Sonuçlar'ın kendi bot seçimi var
+  if (ad === 'sonuc') sonucGoster(ekran);
   document.querySelectorAll('.gez a').forEach(function (a) { if (a.getAttribute('href') === '#' + ad) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   $('dok').hidden = ad === 'ajan'; window.scrollTo(0, 0);
   if (ad === 'uzay') { boyut(); kirli = true; if (uzayBayat) { uzayBayat = false; uzayYukle(); } if (sekme === 'hizli') hizliYaz(); }
@@ -641,6 +673,12 @@ function ozetYukle() {
 botKur();
 try { sahneKur(); } catch (h) { gl = null; $('uzayDurum').hidden = false; $('uzayDurum').textContent = 'Bu cihaz üç boyutlu çizimi açamadı. Yandaki paneller yine çalışır.'; cv.hidden = true; }
 goster(); sohbetYaz();
+$('sonucCerceve').addEventListener('load', function () {
+  // Çerçevenin içinden başka ekrana geçilirse (ör. Ana ekrandaki bir bağlantı) üstteki liste de onu işaretlesin.
+  sonucUygula();
+  try { var w = $('sonucCerceve').contentWindow; w.addEventListener('hashchange', function () { sonucEkran = w.document.documentElement.getAttribute('data-ekran') || 'ana'; sonucIsaretle(); }); } catch (h) { /* farklı köken: yok say */ }
+});
+api('/api/ekranlar').then(ekranListesi, function () { /* liste alınamazsa sabit dört ekran kalır */ });
 ozetYukle(); botYukle().then(function () { if (gorunum === 'lab') labYaz(); }); uzayYukle();
 ajanDurumYukle(); api('/api/ajan/gecmis').then(function (v) { mesajlar = v.mesajlar || []; sohbetYaz(); }, function () { /* sessiz */ });
 requestAnimationFrame(kare);

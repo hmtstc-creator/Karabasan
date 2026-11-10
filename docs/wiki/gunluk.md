@@ -20,6 +20,7 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 | 2026-11-10 | Sonuç sayfasına beş ek ekran (Menü'de): Risk, Rejim, Likidite, Güven, Disiplin. Yalnız okur; bot dosyası değişmedi | Ahmet: istemdeki aksiyonları al (`/yenikonu site-yeni-sayfalar-istemi`) | sonuc-sayfasi |
 | 2026-11-10 | Bulgu: botlar Karabasan durumuna (`izinli_durumlar`) bakmıyor; puan / durum / veto canlıda hesaplanmıyor, kaydedilmiyor. Kural yalnız yazım denetiminden geçiyor | Rejim ekibi buldu, kodla doğrulandı. Sınav sürerken değiştirilmez (3. kural); Ahmet'in kararı | sonuc-sayfasi |
 | 2026-11-10 | Ajan varsayılanı ücretsiz Gemini (DeepSeek ve Claude seçenek); ajana "geliştirme raporu" eklendi: kayıtlı değerleri gruplar, test eder, `user_data/kayit/ajan/raporlar/` altına yazar; öneri yeni sanal bot olarak bulut oturumuna gelir | Ahmet: "ajan için para ödemek istemiyorum"; "değerlerimi organize etmeli, rapor hazırlayıp sana sunmalı, botları geliştirmeli" | pano-uzay-ajan |
+| 2026-11-10 | Tek bütün site: ana sayfa pano, ilk sekme "Sonuçlar" (kazanç ve eski / yeni 16 ekran, panonun siyah biçiminde), sonra Uzay, Ayar ve geçmiş test, Ajan | Ahmet: "uzay sayfası ve yeni format nereye gitti? Eski ile yeni formatın hepsini bütün yapıp yeni formatta yapman lazım" | pano-uzay-ajan |
 
 ## Açık işler (güncel)
 

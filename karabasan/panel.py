@@ -6,8 +6,8 @@ sunar. Salt okunurdur; hiçbir ayarı değiştirmez, hiçbir botu yönetmez.
     python3 -m karabasan.panel
 
 Adresler:
-    /            Türkçe sonuç sayfası (kazanç ve bütün ekranlar); /klasik aynı sayfadır
-    /pano        Yeni pano: Karabasan Uzayı, ayar ve geçmiş test laboratuvarı, ajan (karabasan.pano)
+    /            Pano (karabasan.pano): Sonuçlar (bütün ekranlar), Uzay, ayar ve geçmiş test, ajan; /pano aynı
+    /klasik      Türkçe sonuç sayfası tek başına; ?gomulu=1 panonun Sonuçlar sekmesindeki hali
     /s/, /api/   Panonun dosyaları ve veri adresleri (karabasan.pano)
     /veri.json   Aynı özetin ham hali
     /saglik      Sunucu ayakta mı (izleme için)
@@ -84,7 +84,7 @@ class Onbellek:
         self._zaman = 0.0
         self._deneme = 0.0
         self.son_hata: str | None = None
-        self._html: tuple[int, bytes, str] | None = None
+        self._html: dict = {}
         self._surum = 0
 
     def ozet(self) -> dict:
@@ -109,15 +109,16 @@ class Onbellek:
     def yas_saniye(self) -> float | None:
         return None if self._ozet is None else time.monotonic() - self._zaman
 
-    def html(self) -> tuple[bytes, str]:
-        """(sayfa baytları, ETag). Özet değişmedikçe aynı baytlar döner."""
+    def html(self, gomulu: bool = False) -> tuple[bytes, str]:
+        """(sayfa baytları, ETag). Özet değişmedikçe aynı baytlar döner. gomulu: panonun Sonuçlar sekmesindeki hali."""
         self.ozet()
         with self._kilit:
-            if self._html is None or self._html[0] != self._surum:
-                govde = html_uret(self._ozet, yenile_saniye=YENILE_SANIYE).encode("utf-8")
+            eldeki = self._html.get(gomulu)
+            if eldeki is None or eldeki[0] != self._surum:
+                govde = html_uret(self._ozet, yenile_saniye=YENILE_SANIYE, gomulu=gomulu).encode("utf-8")
                 etiket = '"' + hashlib.sha256(govde).hexdigest()[:20] + '"'
-                self._html = (self._surum, govde, etiket)
-            return self._html[1], self._html[2]
+                eldeki = self._html[gomulu] = (self._surum, govde, etiket)
+            return eldeki[1], eldeki[2]
 
 
 HATA_SAYFASI = """<!doctype html><html lang="tr"><meta charset="utf-8">
@@ -154,7 +155,7 @@ def isleyici_uret(onbellek: Onbellek, pano_ayari: dict | None = None):
         sys_version = ""
 
         def _yanit(self, kod: int, tur: str, govde: bytes, etiket: str | None = None,
-                   izin: str | None = None) -> None:
+                   izin: str | None = None, cerceve: bool = False) -> None:
             if etiket and self.headers.get("If-None-Match") == etiket:
                 kod, govde = 304, b""
             sikistir = (
@@ -175,11 +176,15 @@ def isleyici_uret(onbellek: Onbellek, pano_ayari: dict | None = None):
                 self.send_header("ETag", etiket)
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("X-Frame-Options", "DENY")
+            # cerceve: yalnız bu sitenin kendi panosu içinde (aynı köken) açılabilir.
+            self.send_header("X-Frame-Options", "SAMEORIGIN" if cerceve else "DENY")
             self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
             self.send_header("Cross-Origin-Opener-Policy", "same-origin")
             self.send_header("Cross-Origin-Resource-Policy", "same-origin")
-            self.send_header("Content-Security-Policy", izin or guvenlik)
+            izin = izin or guvenlik
+            if cerceve:
+                izin = izin.replace("frame-ancestors 'none'", "frame-ancestors 'self'")
+            self.send_header("Content-Security-Policy", izin)
             self.end_headers()
             if self.command != "HEAD":
                 self.wfile.write(govde)
@@ -187,10 +192,11 @@ def isleyici_uret(onbellek: Onbellek, pano_ayari: dict | None = None):
         def do_GET(self) -> None:  # noqa: N802 - http.server böyle adlandırır
             yol = self.path.split("?", 1)[0]
             try:
-                # 10 Kasım 2026 (Ahmet'in isteği): ana sayfa yine kazancı gösteren eski ekranlardır; yeni pano /pano'da.
-                if yol in ("/", "/index.html"):
+                # 10 Kasım 2026 akşamı (Ahmet: "eski ile yeni formatın hepsini bütün yap, yeni formatta"): ana sayfa
+                # panodur ve ilk sekmesi "Sonuçlar" bütün eski ve yeni ekranları gösterir. Pano açılamazsa eski sayfa.
+                if yol in ("/", "/index.html") and pano is None:
                     yol = "/klasik"
-                if yol.startswith(("/s/", "/api/")) or yol == "/pano":
+                if yol.startswith(("/s/", "/api/")) or yol in ("/", "/index.html", "/pano"):
                     sorgu = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "",
                                                   max_num_fields=20)
                     if pano is not None:
@@ -259,8 +265,9 @@ def isleyici_uret(onbellek: Onbellek, pano_ayari: dict | None = None):
                         self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"),
                                     izin=ayar_sayfa.guvenlik_basligi())
                 elif yol == "/klasik":
-                    govde, etiket = onbellek.html()
-                    self._yanit(200, "text/html; charset=utf-8", govde, etiket)
+                    gomulu = "gomulu=1" in (self.path.split("?", 1)[1] if "?" in self.path else "").split("&")
+                    govde, etiket = onbellek.html(gomulu)
+                    self._yanit(200, "text/html; charset=utf-8", govde, etiket, cerceve=gomulu)
                 else:
                     self._yanit(404, "text/plain; charset=utf-8", "Böyle bir sayfa yok.\n".encode("utf-8"))
             except Exception:  # noqa: BLE001 - sayfa her durumda bir yanıt vermeli

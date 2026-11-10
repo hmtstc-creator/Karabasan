@@ -1938,6 +1938,26 @@ STIL = (
     .replace("DERS_GOSTER", ",".join(f"#dr-{k}:checked~.ders-paneller .ders-p-{k}" for k in range(DERS_EN_FAZLA)))
 )
 
+# Siyah katman (10 Kasım 2026, Ahmet: "eski ile yeni formatın hepsini bütün yap, yeni formatta"). Panonun
+# (karabasan/statik/pano.css) renkleri: siyah zemin, düz kartlar, ay sarısı vurgu. Yalnız görünüm; ekranlar ve sınıflar aynı.
+SIYAH_STIL = """
+:root{--gece:#000;--yuzey:#0b0b0b;--yuzey2:#141414;--cizgi:#2b2b2b;--cam:#0b0b0b;--holo:#f3d9a4;--altin:#f3d9a4;
+--buz:#f4f4f4;--soluk:#9b9b9b;--arti:#6fdcae;--eksi:#ff8a7a;--uyari:#ffb65c;
+--rakam:"Bricolage","Avenir Next","Segoe UI",system-ui,sans-serif;--r-buyuk:8px;--r-orta:8px;--yaricap:8px}
+html{background:#000}
+body::before{display:none}
+.kose,.kart,.ders-kart,.okumalar{background:var(--yuzey);border:1px solid var(--cizgi);box-shadow:none;border-radius:8px}
+.marka{letter-spacing:-.02em;font-weight:800;color:var(--buz)}
+.marka::before{display:none}
+.gezinti{background:rgba(0,0,0,.92);border-top:1px solid var(--cizgi)}
+.kopuk-uyari{background:#1c1505}
+/* Panonun içinde (Sonuçlar sekmesi) açılan hali: kendi başlığı ve alt çubuğu panodadır. */
+.gomulu .baslik-cubugu,.gomulu .gezinti{display:none}
+.gomulu .sayfa{padding:4px 0 24px;max-width:none}
+.gomulu body{min-height:0}
+"""
+STIL = STIL + SIYAH_STIL
+
 
 # --------------------------------------------------------------------------
 # Betik: ekran geçişi ve yerinde tazeleme
@@ -1965,7 +1985,7 @@ if(u)u.textContent=metin+' Ekrandaki sayılar '+saat(sonBasari)+' güncellemesin
 function yenile(){
 if(suruyor||document.hidden)return;suruyor=true;
 var iptal=window.AbortController?new AbortController():null,sure=setTimeout(function(){if(iptal)iptal.abort();},15000);
-fetch(location.pathname,{cache:'no-cache',signal:iptal?iptal.signal:undefined}).then(function(y){
+fetch(location.pathname+location.search,{cache:'no-cache',signal:iptal?iptal.signal:undefined}).then(function(y){
 if(!y.ok)throw y.status;return y.text();}).then(function(m){
 var yeni=new DOMParser().parseFromString(m,'text/html').getElementById('govde');
 if(!yeni)throw 0;
@@ -1994,7 +2014,7 @@ def betik(yenile_saniye: int) -> str:
     return _BETIK.replace("EKRAN_LISTESI", liste).replace("SURE", str(int(yenile_saniye) * 1000))
 
 
-def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: int = 60) -> str:
+def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: int = 60, gomulu: bool = False) -> str:
     """Özeti tam bir HTML sayfasına çevirir.
 
     yenile_saniye sıfırsa sayfa betiksiz ve kendini yenilemeyen tek bir dosya
@@ -2022,15 +2042,15 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
         for kimlik, ad in EKRANLAR
     ) + ('<a href="/ayar"><span class="menu-ad">Kriter ayarı</span>'
          '<span class="menu-alt">Geçmişe sar, kriterleri dene</span></a>'
-         '<a href="/pano"><span class="menu-ad">Yeni pano</span>'
-         '<span class="menu-alt">Karabasan Uzayı, laboratuvar, ajan</span></a>'
+         '<a href="/"><span class="menu-ad">Pano</span>'
+         '<span class="menu-alt">Uzay, laboratuvar, ajan</span></a>'
          '<a href="/coinler"><span class="menu-ad">Coin listesi</span>'
          '<span class="menu-alt">Stable hariç, hacim süzgeçli</span></a>' if yenile_saniye else "")
     t = ozet["toplam"]
     canli_sinif = "uyari" if t["calisan_bot"] < t["bot_sayisi"] else "arti"
 
-    return f"""<!doctype html>
-<html lang="tr">
+    sayfa_html = f"""<!doctype html>
+<html lang="tr"{' class="gomulu"' if gomulu else ''}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -2069,3 +2089,7 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
 </body>
 </html>
 """
+    if gomulu:
+        # Panonun çerçevesi içinde açılır: sitenin başka sayfalarına giden bağlantılar bütün pencerede açılsın.
+        sayfa_html = sayfa_html.replace(' href="/', ' target="_top" href="/')
+    return sayfa_html

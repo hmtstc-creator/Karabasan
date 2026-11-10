@@ -611,16 +611,29 @@ class Sunucu(unittest.TestCase):
             except ValueError:
                 return hata.code, {}
 
-    def test_ana_sayfa_kazanci_gosteren_eski_ekranlardir(self):
-        """10 Kasım 2026, Ahmet: kazancı gösteren ekranlar ana sayfada kalır; yeni pano /pano adresindedir."""
+    def test_ana_sayfa_pano_ve_sonuclar_sekmesi_butun_ekranlari_tasir(self):
+        """10 Kasım 2026 akşamı, Ahmet: eski ve yeni bütün ekranlar tek sitede, panonun biçiminde."""
         ana = self.al("/")[2].decode("utf-8")
-        self.assertEqual(ana, self.al("/klasik")[2].decode("utf-8"))
-        self.assertIn('<section id="rapor"', ana)
-        self.assertIn('href="/pano"', ana)                             # menüden yeni panoya gidilir
-        self.assertIn('href="/"', self.al("/pano")[2].decode("utf-8"))  # panodan geri dönülür
+        self.assertIn('id="g-sonuc"', ana)
+        self.assertIn('src="/klasik?gomulu=1"', ana)
+        self.assertIn('href="#sonuc"', ana)
+        liste = json.loads(self.al("/api/ekranlar")[2])
+        kimlikler = [e["kimlik"] for e in liste]
+        for k in ("ana", "rapor", "botlar", "analiz", "risk", "rejim", "likidite", "guven", "disiplin"):
+            self.assertIn(k, kimlikler)
+        _kod, baslik, govde = self.al("/klasik?gomulu=1")
+        metin = govde.decode("utf-8")
+        self.assertIn('class="gomulu"', metin)
+        self.assertIn('<section id="rapor"', metin)
+        self.assertEqual(baslik["X-Frame-Options"], "SAMEORIGIN")        # yalnız kendi panosunun içinde
+        self.assertIn("frame-ancestors 'self'", baslik["Content-Security-Policy"])
+        self.assertNotIn(' href="/klasik', metin.replace('target="_top" href="/', ""))
+        _kod, baslik, _govde = self.al("/klasik")                          # tek başına hali çerçeveye girmez
+        self.assertEqual(baslik["X-Frame-Options"], "DENY")
+        self.assertIn("frame-src 'self'", self.al("/")[1]["Content-Security-Policy"])
 
     def test_pano_ve_izinler(self):
-        kod, baslik, govde = self.al("/pano")
+        kod, baslik, govde = self.al("/")
         metin = govde.decode("utf-8")
         self.assertEqual(kod, 200)
         self.assertIn('id="g-uzay"', metin)

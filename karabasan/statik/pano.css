@@ -199,3 +199,17 @@ th:first-child,td:first-child{text-align:left}
 .yaz textarea{min-height:64px;resize:vertical}
 .md{white-space:pre-wrap;font:400 .8125rem/1.5 var(--rakam);overflow-wrap:anywhere;background:var(--gece);border:1px solid var(--cizgi);border-radius:6px;padding:12px;max-height:60vh;overflow-y:auto}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+/* Sonuçlar (10 Kasım 2026): kazanç ve bütün sonuç ekranları tek sekmede; ekran listesi telefonda yatay kayar (sayfa kaymaz). */
+.ekranlar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;-webkit-overflow-scrolling:touch}
+.ekranlar::-webkit-scrollbar{display:none}
+.ekranlar a{flex:none;min-height:40px;padding:0 13px;display:inline-flex;align-items:center;border:1px solid var(--cizgi);border-radius:999px;
+  color:var(--soluk);text-decoration:none;font:600 .8125rem/1 var(--baslik);white-space:nowrap}
+.ekranlar a[aria-current="page"]{color:var(--gece);background:var(--ay);border-color:var(--ay)}
+.sonuc-kutu{overflow:hidden;padding:0 14px}
+#sonucCerceve{display:block;width:100%;height:calc(100svh - var(--dok) - 190px);min-height:460px;border:0;background:var(--gece)}
+@media (min-width:1000px){
+  #g-sonuc{display:flex;flex-direction:column}
+  #g-sonuc .sonuc-kutu{flex:1;min-height:0}
+  #sonucCerceve{height:100%;min-height:0}
+}
