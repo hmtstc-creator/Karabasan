@@ -333,6 +333,13 @@ def sunucu_kur(klasor: Path, adres: str = "0.0.0.0", port: int = 8080, pano_ayar
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     port = int(os.environ.get("KARABASAN_PANEL_PORT", "8080"))
+    # Likidite ekranı: Binance'in herkese açık vadeli verisini yalnız panel süreci, arka planda çeker.
+    try:
+        from . import sonuc_likidite
+
+        sonuc_likidite.ag_ac()
+    except Exception:  # noqa: BLE001 - likidite açılamazsa sayfa yine çalışır
+        gunluk.exception("Likidite verisi açılamadı")
     sunucu = sunucu_kur(veri_klasoru(), port=port, pano_ayari={"arka_plan": True})
     gunluk.info("Sonuç sayfası %s numaralı kapıda hazır.", port)
     try:
