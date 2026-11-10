@@ -116,7 +116,8 @@ class SayfaTesti(unittest.TestCase):
     def test_dersler_ekrani_bosken_ne_bekledigini_soyler(self):
         ozet = sonuc.genel_ozet(self.klasor, SIMDI)
         html = sayfa.html_uret(ozet)
-        self.assertEqual([k for k, _ in sayfa.EKRANLAR], ["ana", "botlar", "islemler", "islemgrafik", "dersler", "rapor", "grafikler", "zaman", "analiz", "sinav", "kriterler"])
+        self.assertEqual([k for k, _ in sayfa.EKRANLAR], ["ana", "botlar", "islemler", "islemgrafik", "dersler", "rapor", "grafikler", "zaman", "analiz", "sinav", "kriterler",
+                                                         "risk", "rejim", "likidite", "guven", "disiplin"])
         self.assertIn("Henüz izlenmiş stop yok.", html)
         self.assertIn("Henüz ders yok. Bir botun 30 stopu izlenince", html)
         self.assertIn("Karar hiçbir ayarı değiştirmez.", html)

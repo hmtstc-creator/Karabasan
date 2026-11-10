@@ -21,6 +21,7 @@ import math
 from datetime import datetime, timezone
 from html import escape
 
+from . import ek_sayfalar
 from .kriterler import DUZENLEME_ADRESI, metin_degeri
 from .kriterler import liste as kriter_listesi
 from .stop_sonrasi import KARAR_ADI, carpan_metni, esik_metni, secenek_metni
@@ -49,6 +50,8 @@ EKRANLAR = [
     ("analiz", "Analiz"),
     ("sinav", "Sınav"),
     ("kriterler", "Kriterler"),
+    # 10 Kasım 2026: ek ekranlar (ek_sayfalar.py); yalnız Menü'de açılır, alt çubukta yoktur.
+    *ek_sayfalar.EK_EKRANLAR,
 ]
 # Telefondaki alt gezintide görünen kısa adlar (8 sekme 390 px'e sığsın diye).
 GEZINTI_ADLARI = {"ana": "Ana", "islemler": "İşlem", "dersler": "Ders", "kriterler": "Kriter", "grafikler": "Grafik",
@@ -62,6 +65,7 @@ MENU_ACIKLAMA = {
     "dersler": "Stop sonrası izleme", "rapor": "Gün gün kâr / zarar", "grafikler": "Seyir, düşüş, dağılım",
     "zaman": "Saat ve gün bazında", "analiz": "Karneler, coinler, risk", "sinav": "30 günlük sınav",
     "kriterler": "Ahmet Özel kriterleri",
+    **ek_sayfalar.EK_MENU_ACIKLAMA,
 }
 # Rapor ekranında seçilebilecek en çok bot sayısı (biçim kuralları bu kadarı için üretilir).
 RAPOR_EN_FAZLA = 16
@@ -2030,7 +2034,7 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
 {yenile}
 <meta name="robots" content="noindex">
 <title>Karabasan</title>
-<style>{STIL}</style>
+<style>{STIL}{ek_sayfalar.stil()}</style>
 </head>
 <body>
 <p class="kopuk-uyari" role="status">Sunucuya ulaşılamıyor. Ekrandaki sayılar son başarılı güncellemeden kalma.</p>
@@ -2053,6 +2057,7 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
 {_analiz_ekrani(ozet)}
 {_sinav_ekrani(ozet, yenileme_notu)}
 {_kriterler_ekrani()}
+{ek_sayfalar.ekranlar(ozet, saat_dilimi)}
 </main>
 </div>
 <nav class="gezinti" aria-label="Ekranlar">{gezinti}</nav>
