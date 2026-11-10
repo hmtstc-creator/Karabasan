@@ -14,6 +14,7 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from . import ek_sayfalar
 from . import karne as kr
 from . import stop_sonrasi as ss
 from .botlar import BOTLAR, ayarlari_yukle
@@ -468,7 +469,14 @@ def genel_ozet(veri_klasoru: Path, simdi: datetime | None = None) -> dict:
     calisan = [b for b in botlar if b["calisiyor"]]
     bir_gun_once = simdi - timedelta(days=1)
     son_gun = [i for i in son_islemler if i["cikis_zamani"] >= bir_gun_once]
+    # Ek ekranlar (Risk, Rejim, Likidite, Güven, Disiplin): yalnız okur; biri hata verirse öbürleri sürer.
+    ek = ek_sayfalar.veri_topla({
+        "veri_klasoru": veri_klasoru, "simdi": simdi, "donem": donem, "ayar": ayar, "botlar": botlar,
+        "islemler": tum_islemler, "bot_islemleri": bot_islemleri, "acik": acik_islemler,
+        "gecmis_test": gecmis_test, "izleme": izleme,
+    })
     return {
+        "ek": ek,
         "uretildi": simdi,
         "donem": donem["donem"],
         "gun": donem["gun"],
