@@ -506,7 +506,8 @@ function kayitYukle(k) {
 
 /* ------------------------------------------------------------------ ajan */
 var mesajlar = [], ajanDurum = null, ajanMesgul = false;
-var ONERILER = ['Canlı sonuçları yorumla', 'Şu an denediğim ayarı değerlendir', 'Daha sağlıklı bir ayar öner, test et ve kaydet', 'Önceki konuşmalarımızdan ne öğrendin?'];
+var ONERILER = ['Canlı sonuçları yorumla', 'Şu an denediğim ayarı değerlendir', 'Daha sağlıklı bir ayar öner, test et ve kaydet', 'Kayıtlı değerlerimi düzenle ve geliştirme raporu hazırla'];
+var RAPOR_ISTEMI = 'Geliştirme raporu hazırla: kayıtlı bütün değerlerimi oku ve düzenle, botların durumuna bak, umut veren ayarları canlı ayarla aynı dönemde test et, raporu kaydet ve bana kısaca özetle.';
 function mdHtml(m) {
   var h = '', liste = false;
   String(m || '').split('\n').forEach(function (s) {
@@ -523,11 +524,11 @@ function balonHtml(m) {
   var h = '<div class="balon ' + (m.rol === 'ahmet' ? 'ahmet' : 'ajan') + '">' + (m.bekliyor ? '<p class="sl">Düşünüyor…</p>' : m.rol === 'ahmet' ? '<p>' + esc(m.metin) + '</p>' : mdHtml(m.metin));
   if (m.hata) h += '<p class="eksi">' + esc(m.hata) + '</p>';
   if (m.araclar && m.araclar.length) h += '<div class="adim">' + m.araclar.map(esc).join(' · ') + '</div>';
-  if (m.eylemler && m.eylemler.length) h += '<div class="dugmeler">' + m.eylemler.map(function (e) { return e.tur === 'kayit' ? '<button class="dugme mor" type="button" data-kayit="' + esc(e.kimlik) + '" data-bot="' + esc(e.bot) + '">Laboratuvara yükle: ' + esc(e.ad) + '</button>' : ''; }).join('') + '</div>';
+  if (m.eylemler && m.eylemler.length) h += '<div class="dugmeler">' + m.eylemler.map(function (e) { return e.tur === 'rapor' ? '<button class="dugme mor" type="button" data-rapor="' + esc(e.ad) + '">Raporu aç: ' + esc(e.baslik || e.ad) + '</button>' : e.tur === 'kayit' ? '<button class="dugme mor" type="button" data-kayit="' + esc(e.kimlik) + '" data-bot="' + esc(e.bot) + '">Laboratuvara yükle: ' + esc(e.ad) + '</button>' : ''; }).join('') + '</div>';
   return h + '</div>';
 }
 function sohbetYaz() {
-  var bos = '<p class="kucuk">' + (ajanDurum && !ajanDurum.anahtar_var ? 'Ajan henüz açık değil: önce <a href="#ajan">Ajan sekmesinden</a> Anthropic API anahtarını gir.' : 'Henüz konuşma yok. Aşağıdan bir soru sor ya da hazır sorulardan birine dokun.') + '</p>';
+  var bos = '<p class="kucuk">' + (ajanDurum && !ajanDurum.anahtar_var ? 'Ajan henüz açık değil: önce <a href="#ajan">Ajan sekmesinden</a> ücretsiz Gemini anahtarını gir.' : 'Henüz konuşma yok. Aşağıdan bir soru sor ya da hazır sorulardan birine dokun.') + '</p>';
   var son = mesajlar.slice(-40).map(balonHtml).join('') || bos;
   $('sohbetAkis').innerHTML = son; $('dokGovde').innerHTML = mesajlar.slice(-8).map(balonHtml).join('') || bos;
   var g = $('dokGovde'); g.scrollTop = g.scrollHeight;
@@ -554,7 +555,7 @@ function ajanGonder(metin) {
     (function sor() {
       api('/api/ajan?id=' + v.id).then(function (d) {
         bek.araclar = d.adimlar || [];
-        if (d.durum === 'bitti') { bek.metin = d.yanit; bek.eylemler = d.eylemler || []; bitir(); if (bek.eylemler.length) botYukle(true); }
+        if (d.durum === 'bitti') { bek.metin = d.yanit; bek.eylemler = d.eylemler || []; bitir(); if (bek.eylemler.length) { botYukle(true); arsivYukle(); } }
         else if (d.durum === 'hata') bitir(d.hata);
         else { sohbetYaz(); setTimeout(sor, 1200); }
       }, function (h) { bitir(h.message); });
@@ -568,25 +569,44 @@ $('dokYaz').addEventListener('keydown', function (e) { if (e.key === 'Enter') { 
 $('sohbetGonder').addEventListener('click', function () { var e = $('sohbetYaz'); ajanGonder(e.value); e.value = ''; });
 function oneriTik(e) { var b = e.target.closest('button'); if (b) ajanGonder(b.textContent); }
 $('oneriler').addEventListener('click', oneriTik); $('dokOneri').addEventListener('click', oneriTik);
+function raporAc(ad) { location.hash = 'ajan'; var m = $('arsivMetin'); m.hidden = false; m.textContent = 'Yükleniyor…'; api('/api/ajan/arsiv?gun=' + encodeURIComponent('rapor:' + ad)).then(function (v) { m.textContent = v.metin; m.scrollIntoView(); }, function (h) { m.textContent = h.message; }); }
 function eylemTik(e) {
+  var r = e.target.closest('[data-rapor]'); if (r) { dokAc(false); raporAc(r.dataset.rapor); return; }
   var b = e.target.closest('[data-kayit]'); if (!b) return; var hedef = b.dataset.bot, id = b.dataset.kayit;
   var yukle = function () { var k = (sema().kayitlar || []).filter(function (x) { return x.id === id; })[0]; if (k) { kayitYukle(k); location.hash = 'lab'; dokAc(false); } };
   if (hedef !== bot) botSec(hedef).then(yukle); else botYukle(true).then(yukle);
 }
 $('dokGovde').addEventListener('click', eylemTik); $('sohbetAkis').addEventListener('click', eylemTik);
+var secSag = null;
 function ajanDurumYukle() {
   return api('/api/ajan/durum').then(function (d) {
-    ajanDurum = d;
-    $('ajanDurum').innerHTML = (d.anahtar_var ? '<span class="arti">Anahtar kayıtlı, ajan açık.</span>' : '<span class="uy">Anahtar girilmemiş, ajan kapalı.</span>') + '<br>Bugün ' + d.bugun_mesaj + ' / ' + d.gunluk_sinir + ' mesaj · yaklaşık ' + tr(d.bugun_yaklasik_usd, 2) + ' USD (kesin tutar Anthropic hesabındadır).';
+    ajanDurum = d; if (!secSag) secSag = d.saglayici;
+    var s = d.saglayicilar.filter(function (x) { return x.kod === secSag; })[0] || d.saglayicilar[0];
+    $('ajanModel').textContent = d.saglayici_adi + (d.model ? ' · ' + d.model : '') + ', düşük çaba' + (d.ucretsiz ? ' · ücretsiz' : '');
+    $('ajanDurum').innerHTML = (d.anahtar_var ? '<span class="arti">' + esc(d.saglayici_adi) + ' anahtarı kayıtlı, ajan açık.</span>' : '<span class="uy">' + esc(d.saglayici_adi) + ' anahtarı girilmemiş, ajan kapalı.</span>') +
+      '<br>Bugün ' + d.bugun_mesaj + ' / ' + d.gunluk_sinir + ' mesaj' + (d.bugun_yaklasik_usd != null ? ' · yaklaşık ' + tr(d.bugun_yaklasik_usd, 2) + ' USD' : d.ucretsiz ? ' · ücretsiz katman' : '');
+    $('saglayici').innerHTML = d.saglayicilar.map(function (x) { return '<button type="button" data-k="' + x.kod + '" aria-pressed="' + (x.kod === secSag) + '">' + esc(x.ad) + (x.ucretsiz ? ' (ücretsiz)' : '') + (x.kod === d.saglayici ? ' ✓' : '') + '</button>'; }).join('');
+    $('saglayiciNot').innerHTML = esc(s.not) + ' Anahtar: <span class="r">' + esc(s.anahtar_adresi) + '</span> (' + esc(s.anahtar_ipucu) + '). ' + (s.anahtar_var ? '<span class="arti">Bu sağlayıcının anahtarı kayıtlı.</span>' : '') +
+      (s.kod !== d.saglayici ? ' <button class="dugme mor" type="button" id="sagSec">Ajanı bununla çalıştır</button>' : ' <span class="ayr">Ajan şu an bununla çalışıyor.</span>');
+    $('anahtar').placeholder = s.anahtar_ipucu; $('anahtarEt').textContent = s.ad + ' API anahtarı';
+    $('modelAd').placeholder = s.varsayilan_model || (s.kendiliginden ? 'boş = en yeni flash modeli' : ''); $('modelAd').value = s.model || '';
+    $('modelSimdi').textContent = s.model ? s.model : (s.kendiliginden ? 'kendiliğinden' : s.varsayilan_model);
     $('dokYaz').placeholder = d.anahtar_var ? 'Ajana sor: bu sonuç ne anlama geliyor?' : 'Ajan kapalı: önce Ajan sekmesinden anahtar gir';
     sohbetYaz();
   }, function () { /* sessiz */ });
 }
-function anahtarIste(govde) { $('anahtarHata').hidden = true; api('/api/ajan/anahtar', govde).then(function () { $('anahtar').value = ''; ajanDurumYukle(); }, function (h) { $('anahtarHata').hidden = false; $('anahtarHata').textContent = h.message; }); }
+function ayarIste(govde) { $('anahtarHata').hidden = true; return api('/api/ajan/ayar', govde).then(function () { ajanDurumYukle(); }, function (h) { $('anahtarHata').hidden = false; $('anahtarHata').textContent = h.message; }); }
+$('saglayici').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; secSag = b.dataset.k; ajanDurumYukle(); });
+$('saglayiciNot').addEventListener('click', function (e) { if (e.target.id === 'sagSec') ayarIste({ saglayici: secSag }); });
+$('modelKaydet').addEventListener('click', function () { ayarIste({ saglayici: ajanDurum ? ajanDurum.saglayici : secSag, model: $('modelAd').value.trim() }).then(function () { if (ajanDurum && ajanDurum.saglayici !== secSag) ayarIste({ saglayici: secSag, model: $('modelAd').value.trim() }); }); });
+function anahtarIste(govde) { govde.saglayici = secSag; $('anahtarHata').hidden = true; api('/api/ajan/anahtar', govde).then(function () { $('anahtar').value = ''; if (!govde.sil && ajanDurum && ajanDurum.saglayici !== secSag && !ajanDurum.anahtar_var) ayarIste({ saglayici: secSag }); else ajanDurumYukle(); }, function (h) { $('anahtarHata').hidden = false; $('anahtarHata').textContent = h.message; }); }
 $('anahtarKaydet').addEventListener('click', function () { anahtarIste({ anahtar: $('anahtar').value.trim() }); });
 $('anahtarSil').addEventListener('click', function (e) { if (e.target.dataset.emin) { delete e.target.dataset.emin; e.target.textContent = 'Anahtarı sil'; anahtarIste({ sil: true }); } else { e.target.dataset.emin = '1'; e.target.textContent = 'Emin misin? Sil'; } });
+$('raporIste').addEventListener('click', function () { ajanGonder(RAPOR_ISTEMI); });
+$('raporlar').addEventListener('click', function (e) { var b = e.target.closest('[data-rapor]'); if (b) raporAc(b.dataset.rapor); });
 function arsivYukle() {
   api('/api/ajan/arsiv').then(function (v) {
+    $('raporlar').innerHTML = (v.raporlar || []).length ? '<div class="liste">' + v.raporlar.slice(0, 12).map(function (r) { return '<button type="button" data-rapor="' + esc(r.ad) + '"><b>' + esc(r.ad.slice(5, 10)) + '</b><span>' + esc(r.baslik) + '</span><span class="r ayr">aç</span></button>'; }).join('') + '</div>' : '<p class="kucuk">Henüz rapor yok.</p>';
     $('arsivGunler').innerHTML = '<button class="dugme mor" type="button" data-gun="dersler">Dersler</button>' + v.gunler.slice(0, 30).map(function (g) { return '<button class="dugme" type="button" data-gun="' + esc(g.gun) + '">' + esc(g.gun.slice(5)) + ' · ' + g.mesaj + '</button>'; }).join('');
   }, function () { /* sessiz */ });
 }

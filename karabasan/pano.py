@@ -15,7 +15,8 @@ Yazma adresleri (POST, JSON, "X-Karabasan: 1" başlığı zorunlu):
     /api/test          geçmiş testi başlatır (yalnız hesap; hiçbir şeyi değiştirmez)
     /api/kayit         ayar laboratuvarının adlı kayıtları (canlı botu değiştirmez)
     /api/ajan          ajana soru
-    /api/ajan/anahtar  ajanın Anthropic anahtarını kaydeder / siler (yalnız sunucudaki gizli dosyaya)
+    /api/ajan/anahtar  ajanın sağlayıcı anahtarını kaydeder / siler (yalnız sunucudaki gizli dosyaya)
+    /api/ajan/ayar     ajanın sağlayıcısını (Gemini / DeepSeek / Claude) ve model adını seçer
 
 Hiçbir adres canlı botların ayarını, kural dosyalarını ya da borsayı etkilemez.
 """
@@ -50,14 +51,14 @@ def _json(veri, kod: int = 200):
 
 
 class Pano:
-    def __init__(self, onbellek, ayar_deposu, getir=None, saat=None, cagir=None, oku=None):
+    def __init__(self, onbellek, ayar_deposu, getir=None, saat=None, cagir=None, oku=None, oa_cagir=None, modeller=None):
         from . import gecmis_test, uzay
 
         self.onbellek = onbellek
         self.kayitlar = ayar_deposu
         self.uzay = uzay.UzayServisi(getir, saat)
         self.testler = gecmis_test.TestYoneticisi(onbellek.klasor, getir, oku)
-        ek = {"cagir": cagir} if cagir else {}
+        ek = {ad: deger for ad, deger in (("cagir", cagir), ("oa_cagir", oa_cagir), ("modeller", modeller)) if deger}
         self.ajan = _ajan.Ajan(onbellek.klasor, ozet_al=lambda: json_icin(onbellek.ozet()), testler=self.testler,
                                uzay=self.uzay, kayitlar=ayar_deposu, saat=saat, **ek)
         self._dosyalar: dict[str, tuple[float, bytes, str]] = {}
@@ -137,13 +138,14 @@ class Pano:
         if yol == "/api/ajan/gecmis":
             return _json({"mesajlar": self.ajan.arsiv.mesajlar(60)})
         if yol == "/api/ajan/arsiv":
-            gun = tek("gun", 12)
+            gun = tek("gun", 24)
             if gun:
                 metin = self.ajan.arsiv.gun_oku(gun)
                 if metin is None:
                     raise IstekHatasi("O güne ait kayıt yok.", 404)
                 return _json({"gun": gun, "metin": metin})
-            return _json({"gunler": self.ajan.arsiv.gunler(), "dersler": self.ajan.arsiv.dersler()})
+            return _json({"gunler": self.ajan.arsiv.gunler(), "dersler": self.ajan.arsiv.dersler(),
+                          "raporlar": self.ajan.arsiv.raporlar()})
         raise IstekHatasi("Böyle bir adres yok.", 404)
 
     @staticmethod
@@ -187,10 +189,14 @@ class Pano:
                 baglam = veri.get("baglam") if isinstance(veri.get("baglam"), dict) else {}
                 return _json({"id": self.ajan.sor(veri.get("mesaj", ""), baglam)})
             if yol == "/api/ajan/anahtar":
+                saglayici = str(veri.get("saglayici") or self.ajan.ayar()["saglayici"])[:20]
                 if veri.get("sil") is True:
-                    _ajan.anahtar_sil(self.onbellek.klasor)
+                    _ajan.anahtar_sil(self.onbellek.klasor, saglayici)
                 else:
-                    _ajan.anahtar_yaz(self.onbellek.klasor, veri.get("anahtar", ""))
+                    _ajan.anahtar_yaz(self.onbellek.klasor, veri.get("anahtar", ""), saglayici)
+                return _json(self.ajan.durum())
+            if yol == "/api/ajan/ayar":
+                self.ajan.ayar_yaz(str(veri.get("saglayici", ""))[:20], veri.get("model") if isinstance(veri.get("model"), str) else None)
                 return _json(self.ajan.durum())
             raise IstekHatasi("Bu adres yalnız okunur.", 405)
         except IstekHatasi as hata:

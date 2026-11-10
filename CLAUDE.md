@@ -145,7 +145,7 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
   beri; en yeni 80 dosya). Ahmet "raporu oku" derse dosyayı kendin aç, sonucu
   düz Türkçe ve rakamla özetle, kanıtlanmamış şeyi kanıtlanmış gibi anlatma.
 - Gizli dosyaları okuma, içeriklerini yazma: `.env`, `telegram.env`,
-  `/root/karabasan.env`, `/root/.claude/.credentials.json`, `user_data/gizli/` (panodaki ajanın Anthropic anahtarı).
+  `/root/karabasan.env`, `/root/.claude/.credentials.json`, `user_data/gizli/` (panodaki ajanın API anahtarları).
 - Değişmez kurallar burada da geçerlidir: gerçek para kodu ya da anahtarı yok,
   sınav sürerken strateji ayarı değişmez, internete yeni kapı açılmaz (tek istisna aşağıdaki parolalı sayfa yayını). Üretilen
   dosyaları (`docker-compose.yml`, `user_data/config/`) elle düzenleme;
@@ -165,8 +165,10 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
   `uzman-paneli-ve-ahmet-ozel.md`, `stop9-ve-kaldirac.md`.
 - **Ana sayfa (`/`) kazancı gösteren sonuç sayfasıdır** (10 Kasım 2026 akşamı Ahmet: "kaç para kazandığımı gösteren ekranlar kayboldu,
   geri getir, yeni sayfaları da silme"; `/klasik` aynı sayfa). **Yeni pano `/pano`'da** (menüde "Yeni pano"): Karabasan Uzayı, ayar ve
-  geçmiş test laboratuvarı, ajan (Opus 5.5, düşük çaba; yalnız okur, test eder, laboratuvara kayıt yazar; canlı botu değiştiremez). Yazma yolları `/ayar/kayit` ve `/api/*`. Ayrıntı ve
+  geçmiş test laboratuvarı, ajan (varsayılan ücretsiz Gemini, düşük çaba; yalnız okur, test eder, laboratuvara kayıt yazar; canlı botu değiştiremez). Yazma yolları `/ayar/kayit` ve `/api/*`. Ayrıntı ve
   "gerçek sunucuda ilk kez" listesi: `docs/wiki/pano-uzay-ajan.md`. Renk Ahmet'in isteğiyle siyah.
+  Ajan varsayılan olarak ücretsiz Gemini'yle çalışır. **Ajanın geliştirme raporları** `user_data/kayit/ajan/raporlar/` altındadır;
+  Ahmet "raporu oku" derse sunucu oturumundan Read ile okut. Önerilen ayar canlıya değil, Ahmet onaylarsa yeni sanal bota gider (3. kural).
 - Sonuç sayfasında beş ek ekran (10 Kasım, Menü'de): Risk, Rejim, Likidite, Güven, Disiplin (`ek_sayfalar.py`). **Botlar Karabasan durumuna
   bakmıyor; puan canlıda hesaplanmıyor** (Rejim ekranı bunu söyler; karar Ahmet'in).
 - Eski sonuç sayfası ekranları, `/ayar` laboratuvarı (9 Kasım 2026'dan beri parametre pasif / etkili seçimi ve adlı kayıtlar; kayıtlar yalnız

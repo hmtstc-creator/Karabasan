@@ -86,3 +86,43 @@ Pano buradaki Chromium'da 1440 px ve 390 px'te, yapay veri ve sahte Anthropic ya
 - Uzaydaki "girişe uzaklık" tam sayıdır (eksik şart sayısı); eşiğe ne kadar kaldığı (sürekli uzaklık) hesaplanmıyor.
 - Ajan canlıya ayar taşıyamaz ve taşımamalı; yeni sanal bot isteği yine bulut oturumuna gelir.
 - Klasik ekranların (Dersler, Analiz, Zaman, İşlem grafiği) yeni görünüme taşınması.
+
+## 10 Kasım 2026 (2. tur): ücretsiz sağlayıcı ve geliştirme raporu
+
+Ahmet: "Ajan için para ödemek istemiyorum, Gemini ya da DeepSeek'teki en mantıklı free ajanlardan bağlayalım." Sonra: "Ajanı bağladıktan
+sonra benim değerlerimi organize etmeli, feedback raporu hazırlayıp sana sunmalı ve botları geliştirmeli."
+
+**Sağlayıcı seçimi** (`ajan.SAGLAYICILAR`, panoda Ajan sekmesi): varsayılan **Google Gemini ücretsiz katmanı**; DeepSeek ve Claude Opus 5.5
+seçenek olarak kaldı. Neden Gemini: kart istemeyen ücretsiz bir API katmanı var ve araç kullanmayı (function calling) destekliyor.
+DeepSeek'in API'si ücretli (ucuz, ama bakiye yüklemek gerekir); bu yüzden varsayılan değil. Gemini ve DeepSeek "OpenAI uyumlu" sohbet
+adresiyle çağrılır (`oa_cagir`), aynı araçlar ve sınırlarla. Gemini'de model adı boşsa anahtarın gördüğü modeller listelenir ve en yeni
+kararlı "flash" seçilir (`gemini_model_sec`); model kaldırılırsa (404) liste yenilenir. Panoda model adı elle de yazılabilir.
+Çaba: `reasoning_effort: "low"` gönderilir; model tanımazsa (400) onsuz bir kez daha denenir. Anahtarlar sağlayıcı başına ayrı dosya:
+`user_data/gizli/ajan_anahtar_gemini` vb. Seçim: `user_data/kayit/ajan/ayar.json`.
+
+Ahmet'e söylenenler: ücretsiz katmanın dakikalık ve günlük soru sınırı vardır, dolunca ajan o gün yanıt vermez (sayfa "kotası doldu" der).
+Google ücretsiz katmanda gönderilen verileri ürünlerini geliştirmek için kullanabilir; bu sistemde giden veri sanal bot sonuçları ve
+ayarlardır, gizli bilgi gitmez. **Güncel ücretsiz kota ve model adları bu oturumda internetten doğrulanamadı** (arama sınırı doldu);
+kod model adını sabitlemediği için ad değişse de çalışır.
+
+**Geliştirme raporu:** Ajan sekmesinde "Rapor hazırlat" düğmesi (ya da sohbette istemek). Ajan sırasıyla `tum_kayitlar` (bütün botların
+bütün kayıtları, canlı değerle yan yana), `canli_sonuclar`, `gecmis_testi` (umut veren kayıtlar ve tek değişiklikli adaylar, canlıyla
+aynı dönem, en az 90 gün) çalıştırır ve `rapor_yaz` ile kaydeder. Bölümler: Özet; Ahmet'in değerleri (gruplanmış, yinelenenler
+birleştirilmiş); Canlı botların durumu; Test edilen adaylar (seçim / doğrulama ayrı); Öneri (en çok bir iki yeni sanal bot adayı ya da
+"öneri yok" ve nedeni); Riskler; **Claude için yapılacaklar** (kopyalanabilir maddeler). Ajan Ahmet'in kayıtlarını silmez, adını
+değiştirmez; "düzenleme" raporda yapılır.
+
+Dosyalar: `user_data/kayit/ajan/raporlar/GGGG-AA-GG-SSDD.md` (dizin `README.md`'de). Panoda Ajan sekmesi → Geliştirme raporu listesi.
+
+**"Botları geliştirmeli" nasıl olur:** ajan canlı botu değiştiremez (3. kural; sınav sürüyor). Akış: rapor → Ahmet okur → Ahmet bulut
+oturumuna "raporu oku" der → bulut oturumu raporu sunucu oturumundan okur (aşağıda), önerilen adayı Ahmet'e anlatır → Ahmet onaylarsa
+**yeni bir sanal bot** olarak kurulur ve kendi 30 gününe başlar. Canlı dört bot dokunulmadan kalır.
+
+**Bulut oturumu raporu nasıl okur:** sunucu oturumuna (`list_sessions` → "Karabasan sunucu") "yalnız Read aracını kullan, Bash kullanma;
+`user_data/kayit/ajan/README.md`'yi ve en yeni `user_data/kayit/ajan/raporlar/*.md` dosyasını oku, aynen yaz" diye mesaj gönder
+(`kayit` altı onaysız okunur). Oturum kapalıysa Ahmet panodaki raporu açıp metni bu sohbete yapıştırır.
+
+Sınanan: sahte Gemini yanıtlarıyla araç döngüsü (düşünme imzası korunarak), {yol, deger} listesi biçiminde ayar, model seçimi ve
+yenilenmesi, kota hatası, rapor dosyası, panoda rapor açma (Chromium 1440 px). **Gerçek sunucuda ilk kez:** Gemini'ye gerçek çağrı
+(OpenAI uyumlu adres, `reasoning_effort`, araç şeması), model listesi, ücretsiz kotanın ajanın araç turlarına yetip yetmediği
+(rapor tek istekte 5–10 çağrı yapabilir).

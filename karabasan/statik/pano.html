@@ -112,9 +112,9 @@
 <!-- AJAN -->
 <section class="gorunum" id="g-ajan" hidden>
   <div class="sohbet levha">
-    <div class="blok"><span class="ust">Ajan · <span id="ajanModel">Claude Opus 5.5, düşük çaba</span></span>
+    <div class="blok"><span class="ust">Ajan · <span id="ajanModel">…</span></span>
       <h1>Parametreleri ve sonuçları konuş.</h1>
-      <p class="kucuk">Ajan canlı sonuçları okur, ayarları geçmişte test eder, beğendiğini laboratuvara kayıt olarak yazar ve konuştuklarınızı hatırlar. Canlı botları, sitenin kodunu ve sunucuyu değiştiremez.</p>
+      <p class="kucuk">Ajan canlı sonuçları okur, ayarları geçmişte test eder, beğendiğini laboratuvara kayıt olarak yazar, geliştirme raporu hazırlar ve konuştuklarınızı hatırlar. Canlı botları, sitenin kodunu ve sunucuyu değiştiremez.</p>
     </div>
     <div class="sohbet-akis" id="sohbetAkis"></div>
     <div class="oneri" id="oneriler"></div>
@@ -123,11 +123,22 @@
   </div>
   <aside class="sol levha">
     <div class="blok"><h2>Durum</h2><div id="ajanDurum" class="kucuk">…</div></div>
-    <div class="blok"><h2>Anthropic API anahtarı</h2>
-      <p class="kucuk">Ajan, Anthropic'in ücretli API'sini kullanır; her mesaj birkaç sent tutar. Anahtar yalnız bu sunucudaki gizli bir dosyada saklanır, sayfada bir daha gösterilmez.</p>
-      <input type="password" id="anahtar" autocomplete="off" placeholder="sk-ant-…" aria-label="Anthropic API anahtarı">
+    <div class="blok"><h2>Geliştirme raporu</h2>
+      <p class="kucuk">Ajan bütün kayıtlı ayarlarını okur ve gruplar, botların durumuna bakar, umut veren ayarları canlı ayarla aynı dönemde test eder ve bir rapor yazar. Rapor sana ve kodu yazan Claude oturumuna gider; bir öneri çıkarsa o oturum, sen onaylarsan, onu yeni bir sanal bot olarak kurar. Canlı botlar bu sırada değişmez.</p>
+      <button class="dugme ana" id="raporIste" type="button">Rapor hazırlat</button>
+      <div id="raporlar"></div>
+    </div>
+    <div class="blok"><h2>Yapay zekâ sağlayıcısı</h2>
+      <div class="seg" id="saglayici" role="group" aria-label="Sağlayıcı"></div>
+      <p class="kucuk" id="saglayiciNot"></p>
+      <label class="kucuk" for="anahtar" id="anahtarEt">API anahtarı</label>
+      <input type="password" id="anahtar" autocomplete="off" placeholder="" aria-label="API anahtarı">
       <div class="dugmeler"><button class="dugme mor" id="anahtarKaydet" type="button">Anahtarı kaydet</button><button class="dugme" id="anahtarSil" type="button">Anahtarı sil</button></div>
       <p class="hata-kutu" id="anahtarHata" hidden></p>
+      <details class="grup"><summary>Model adı <small id="modelSimdi"></small></summary>
+        <p class="kucuk">Boş bırakırsan kendiliğinden seçilir. Sağlayıcı bir modeli kaldırırsa buraya yenisinin adını yazabilirsin.</p>
+        <div class="yaz"><input type="text" id="modelAd" maxlength="80" placeholder="ör. gemini-2.5-flash" aria-label="Model adı"><button class="dugme" id="modelKaydet" type="button">Kaydet</button></div>
+      </details>
     </div>
     <div class="blok"><h2>Arşiv</h2>
       <p class="kucuk">Bütün konuşmalar gün gün saklanır. "Dersler" ajanın kalıcı notlarıdır; her konuşmanın başında okur.</p>

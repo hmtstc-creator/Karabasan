@@ -19,6 +19,7 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 | 2026-11-10 | Ana sayfa yine kazancı gösteren sonuç sayfası (`/` = `/klasik`); yeni pano silinmedi, `/pano`'ya taşındı (Menü'de "Yeni pano") | Ahmet: "kaç para kazandığımı gösteren ekranlar kayboldu, tüm ekranları geri getir, senin sayfalarını da silme" | pano-uzay-ajan |
 | 2026-11-10 | Sonuç sayfasına beş ek ekran (Menü'de): Risk, Rejim, Likidite, Güven, Disiplin. Yalnız okur; bot dosyası değişmedi | Ahmet: istemdeki aksiyonları al (`/yenikonu site-yeni-sayfalar-istemi`) | sonuc-sayfasi |
 | 2026-11-10 | Bulgu: botlar Karabasan durumuna (`izinli_durumlar`) bakmıyor; puan / durum / veto canlıda hesaplanmıyor, kaydedilmiyor. Kural yalnız yazım denetiminden geçiyor | Rejim ekibi buldu, kodla doğrulandı. Sınav sürerken değiştirilmez (3. kural); Ahmet'in kararı | sonuc-sayfasi |
+| 2026-11-10 | Ajan varsayılanı ücretsiz Gemini (DeepSeek ve Claude seçenek); ajana "geliştirme raporu" eklendi: kayıtlı değerleri gruplar, test eder, `user_data/kayit/ajan/raporlar/` altına yazar; öneri yeni sanal bot olarak bulut oturumuna gelir | Ahmet: "ajan için para ödemek istemiyorum"; "değerlerimi organize etmeli, rapor hazırlayıp sana sunmalı, botları geliştirmeli" | pano-uzay-ajan |
 
 ## Açık işler (güncel)
 
@@ -27,6 +28,6 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 3. Gerçek sunucuda ilk kez çalışacaklar: Caddy'nin yeni ayarı (POST /ayar/kayit), kayıt dosyasına yazma, /ayar gerçek Binance verisiyle.
 4. Gerçek sunucuda ilk kez: `/coinler` Binance `exchangeInfo` + `ticker/24hr` çağrıları (panel kapsayıcısından). Ahmet botların evreni de aynı süzgeçle genişlesin isterse ayrı karar (3. kural: sınav sürerken bot ayarı değişmez).
 5. Yeni pano gerçek sunucuda ilk kez çalışıyor: mum dosyalarının okunması, Binance çekimi, WebGL, Caddy `/api/*`, Anthropic çağrısı (liste: pano-uzay-ajan). Ahmet anahtarı girince ajanın ilk gerçek yanıtına bak.
-6. Ahmet ajan için Anthropic API anahtarı alacak (console.anthropic.com; abonelikten ayrı fatura) ve panoda Ajan sekmesinden girecek.
+6. Ahmet ücretsiz Gemini anahtarı alacak (aistudio.google.com/apikey) ve panoda Ajan sekmesinden girecek; sonra "Rapor hazırlat". Rapor gelince bulut oturumu sunucu oturumundan okur (pano-uzay-ajan, 2. tur).
 7. Ahmet'in kararı: Karabasan durum süzgeci canlıda yok (botlar durumdan bağımsız işlem açıyor). Yeni bot ve kendi 30 günü mü, sınav sonuna mı bırakılsın? Canlı puan kaydı için bir servis gerekir (fiyat verisi + `puan.py`, pandas'lı kapsayıcıda).
 8. Gerçek sunucuda ilk kez: beş ek ekran, özellikle Likidite'nin Binance çağrıları (panel kapsayıcısından, 5 dakikada bir en çok 13 GET).

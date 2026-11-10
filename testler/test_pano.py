@@ -25,6 +25,7 @@ from testler.veri import sahte_sinav_klasoru, yapay_mumlar
 
 KOK = Path(__file__).resolve().parent.parent
 ANAHTAR = "sk-ant-" + "a" * 40
+GEMINI = "AIzaSy" + "b" * 33
 
 
 def mum_dosyalari(klasor: Path, coinler=("ETH", "SOL")) -> None:
@@ -234,8 +235,22 @@ class AjanTesti(unittest.TestCase):
             self.istekler.append((json.loads(json.dumps(govde)), anahtar))
             return self.yanitlar.pop(0)
 
+        self.oa_istekler = []
+        self.oa_yanitlar = []
+        self.model_listesi = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3-flash-preview", "gemini-2.5-pro"]
+
+        def oa(govde, anahtar, adres, ad="", **_):
+            self.oa_istekler.append((json.loads(json.dumps(govde)), anahtar, adres))
+            yanit = self.oa_yanitlar.pop(0)
+            if isinstance(yanit, Exception):
+                raise yanit
+            return yanit
+
+        def modeller(anahtar, adres, ad=""):
+            return list(self.model_listesi)
+
         self.ajan = ajan.Ajan(self.klasor, ozet_al=lambda: {"botlar": [], "toplam": {}}, testler=self.testler,
-                              kayitlar=self.depo, saat=lambda: SIMDI, cagir=cagir)
+                              kayitlar=self.depo, saat=lambda: SIMDI, cagir=cagir, oa_cagir=oa, modeller=modeller)
 
     def tearDown(self):
         self.gecici.cleanup()
@@ -255,6 +270,7 @@ class AjanTesti(unittest.TestCase):
         yol = self.klasor / "gizli" / "ajan_anahtar"
         self.assertEqual(os.stat(yol).st_mode & 0o777, 0o600)
         self.assertNotIn("kayit", yol.parts)                           # sunucudaki oturumun onaysız okuduğu klasörde değil
+        self.ajan.ayar_yaz("anthropic")
         self.assertNotIn(ANAHTAR, json.dumps(self.ajan.durum()))
         self.assertTrue(self.ajan.durum()["anahtar_var"])
         ajan.anahtar_sil(self.klasor)
@@ -267,6 +283,7 @@ class AjanTesti(unittest.TestCase):
 
     def test_arac_dongusu_kayit_ve_hafiza(self):
         ajan.anahtar_yaz(self.klasor, ANAHTAR)
+        self.ajan.ayar_yaz("anthropic")
         dusunme = {"type": "thinking", "thinking": "", "signature": "imza"}
         self.yanitlar = [
             {"stop_reason": "tool_use", "usage": {"input_tokens": 2000, "output_tokens": 50}, "content": [
@@ -321,6 +338,7 @@ class AjanTesti(unittest.TestCase):
 
     def test_ret_sinir_ve_hata(self):
         ajan.anahtar_yaz(self.klasor, ANAHTAR)
+        self.ajan.ayar_yaz("anthropic")
         self.yanitlar = [{"stop_reason": "refusal", "usage": {}, "content": []}]
         self.assertIn("yanıtlayamıyorum", self.sor("x")["yanit"])
         self.yanitlar = [{"stop_reason": "tool_use", "usage": {}, "content": [{"type": "tool_use", "id": f"t{i}", "name": "arsivde_ara", "input": {"sorgu": "stop"}}]}
@@ -335,10 +353,172 @@ class AjanTesti(unittest.TestCase):
     def test_araclar_yalniz_okur_ya_da_kayit_yazar(self):
         adlar = {t["name"] for t in ajan.ARACLAR}
         self.assertEqual(adlar, {"canli_sonuclar", "parametreler", "uzay_durumu", "gecmis_testi", "ayar_kaydet",
-                                 "kayitlari_listele", "ders_yaz", "arsivde_ara"})
+                                 "kayitlari_listele", "ders_yaz", "arsivde_ara", "tum_kayitlar", "rapor_yaz"})
         kaynak = (KOK / "karabasan" / "ajan.py").read_text(encoding="utf-8")
         for yasak in ("subprocess", "os.system", "dry_run", "docker", "create_order"):
             self.assertNotIn(yasak, kaynak)
+
+
+    # -- ücretsiz sağlayıcı (Gemini) ve geliştirme raporu ------------------------
+    def test_varsayilan_saglayici_gemini_ve_anahtarlar_ayri(self):
+        self.assertEqual(self.ajan.ayar()["saglayici"], "gemini")
+        d = self.ajan.durum()
+        self.assertTrue(d["ucretsiz"])
+        self.assertFalse(d["anahtar_var"])
+        with self.assertRaises(ajan.AjanHatasi):
+            ajan.anahtar_yaz(self.klasor, ANAHTAR, "gemini")              # Claude anahtarı Gemini'ye yazılmaz
+        with self.assertRaises(ajan.AjanHatasi):
+            ajan.anahtar_yaz(self.klasor, "sk-" + "c" * 32, "gemini")
+        ajan.anahtar_yaz(self.klasor, GEMINI, "gemini")
+        ajan.anahtar_yaz(self.klasor, "sk-" + "d" * 32, "deepseek")
+        self.assertEqual(ajan.anahtar_oku(self.klasor, "gemini"), GEMINI)
+        self.assertIsNone(ajan.anahtar_oku(self.klasor, "anthropic"))
+        self.assertEqual(os.stat(self.klasor / "gizli" / "ajan_anahtar_gemini").st_mode & 0o777, 0o600)
+        self.assertNotIn(GEMINI, json.dumps(self.ajan.durum()))
+        self.assertTrue(self.ajan.durum()["anahtar_var"])
+        with self.assertRaises(ajan.AjanHatasi):
+            self.ajan.ayar_yaz("baska")
+        with self.assertRaises(ajan.AjanHatasi):
+            self.ajan.ayar_yaz("gemini", "../x y")
+        self.assertEqual(self.ajan.ayar_yaz("gemini", "models/gemini-9-flash")["model"]["gemini"], "gemini-9-flash")
+
+    def test_model_secimi(self):
+        self.assertEqual(ajan.gemini_model_sec(["gemini-2.5-flash", "gemini-3-flash-preview", "gemini-2.5-flash-lite"]), "gemini-2.5-flash")
+        self.assertEqual(ajan.gemini_model_sec(["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.5-flash-image"]), "gemini-3.5-flash")
+        self.assertEqual(ajan.gemini_model_sec(["gemini-3-flash-preview", "gemini-2.5-pro"]), "gemini-3-flash-preview")
+        self.assertIsNone(ajan.gemini_model_sec(["text-embedding-004"]))
+        for arac in ajan.araclar_oa():
+            metin = json.dumps(arac)
+            self.assertNotIn("additionalProperties", metin)                # bazı sağlayıcılar reddeder
+            self.assertNotIn('"enum"', metin)
+
+    def test_gemini_arac_dongusu_ve_rapor(self):
+        ajan.anahtar_yaz(self.klasor, GEMINI, "gemini")
+        self.depo.kaydet("smk-vadeli", "Ahmet stop 7", {"cikis.zarar_durdur_yuzde": 7}, ["k9"])
+        imzali = {"id": "c1", "type": "function", "function": {"name": "tum_kayitlar", "arguments": "{}"},
+                  "extra_content": {"google": {"thought_signature": "imza"}}}
+        rapor_metni = "## Özet\nKayıtlarını grupladım; stop 7 adayı doğrulamada canlıdan iyi değil. Öneri yok."
+        self.oa_yanitlar = [
+            ajan.AjanHatasi("çaba tanınmadı", 400),                        # model çaba ayarını tanımazsa onsuz yeniden denenir
+            {"choices": [{"finish_reason": "tool_calls", "message": {"role": "assistant", "content": None, "tool_calls": [imzali]}}],
+             "usage": {"prompt_tokens": 900, "completion_tokens": 40}},
+            {"choices": [{"finish_reason": "tool_calls", "message": {"role": "assistant", "content": None, "tool_calls": [
+                {"id": "c2", "type": "function", "function": {"name": "gecmis_testi", "arguments": json.dumps(
+                    {"bot": "smk-vadeli", "degerler": [{"yol": "cikis.zarar_durdur_yuzde", "deger": 7}], "pasif": ["k9"], "gun": 90})}},
+                {"id": "c3", "type": "function", "function": {"name": "rapor_yaz", "arguments": json.dumps({"baslik": "Geliştirme raporu", "metin": rapor_metni})}},
+                {"id": "c4", "type": "function", "function": {"name": "ayar_kaydet", "arguments": "{bozuk"}}]}}]},
+            {"choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": "Raporu yazdım: öneri yok."}}]},
+        ]
+        d = self.sor("Geliştirme raporu hazırla")
+        self.assertEqual(d["durum"], "bitti", d.get("hata"))
+        self.assertEqual(d["yanit"], "Raporu yazdım: öneri yok.")
+        ilk, anahtar, adres = self.oa_istekler[0]
+        self.assertEqual(anahtar, GEMINI)
+        self.assertIn("generativelanguage.googleapis.com", adres)
+        self.assertEqual(ilk["model"], "gemini-2.5-flash")                 # kararlı en yeni flash
+        self.assertEqual(ilk["reasoning_effort"], "low")
+        self.assertNotIn("reasoning_effort", self.oa_istekler[1][0])
+        self.assertEqual(ilk["messages"][0]["role"], "system")
+        mesajlar = self.oa_istekler[2][0]["messages"]
+        self.assertEqual(mesajlar[2]["tool_calls"][0]["extra_content"], {"google": {"thought_signature": "imza"}})  # imza korunur
+        kayitlar = json.loads(mesajlar[3]["content"])
+        self.assertEqual(kayitlar[0]["degisiklikler"], [{"yol": "cikis.zarar_durdur_yuzde", "ad": "Stop %", "canli": 9.0, "kayit": 7}])
+        sonuclar = self.oa_istekler[3][0]["messages"][-3:]
+        self.assertEqual([m["tool_call_id"] for m in sonuclar], ["c2", "c3", "c4"])
+        self.assertTrue(sonuclar[2]["content"].startswith("HATA"))         # bozuk girdi modele hata olarak döner
+        self.assertEqual(self.testler.cagrilar, [("smk-vadeli", {"cikis.zarar_durdur_yuzde": 7}, ["k9"], ["ETH", "SOL"], 90)])
+        self.assertEqual(self.depo.listele("smk-vadeli")[0]["ad"], "Ahmet stop 7")   # Ahmet'in kaydı değişmedi
+        raporlar = self.ajan.arsiv.raporlar()
+        self.assertEqual(len(raporlar), 1)
+        self.assertEqual(d["eylemler"], [{"tur": "rapor", "ad": raporlar[0]["ad"], "baslik": "Geliştirme raporu"}])
+        metin = self.ajan.arsiv.gun_oku("rapor:" + raporlar[0]["ad"])
+        self.assertIn("canlı botlar değişmedi", metin)
+        self.assertIn("Öneri yok.", metin)
+        self.assertIn("raporlar/", (self.klasor / "kayit" / "ajan" / "README.md").read_text(encoding="utf-8"))
+        self.assertIsNone(self.ajan.arsiv.gun_oku("rapor:../../gizli/ajan_anahtar"))
+        self.assertTrue(self.ajan.arsiv.ara("stop 7 adayı"))
+        self.assertEqual(self.ajan.durum()["bugun_token"], 940)
+        self.assertIsNone(self.ajan.durum()["bugun_yaklasik_usd"])        # ücretsiz katmanda dolar tahmini yok
+
+    def test_gemini_model_kaldirilinca_listeden_yenisi(self):
+        ajan.anahtar_yaz(self.klasor, GEMINI, "gemini")
+        bitti = {"choices": [{"finish_reason": "stop", "message": {"content": "tamam"}}]}
+        self.oa_yanitlar = [bitti]
+        self.sor("a")
+        self.model_listesi = ["gemini-3-flash"]                             # eski model kaldırıldı
+        self.ajan._oto_model["gemini"] = (0.0, "gemini-2.5-flash")          # bellekteki ad eskidi
+        self.oa_yanitlar = [ajan.AjanHatasi("yok", 404), bitti]
+        self.ajan._oto_model["gemini"] = (time.monotonic(), "gemini-2.5-flash")
+        self.assertEqual(self.sor("b")["yanit"], "tamam")
+        self.assertEqual(self.oa_istekler[-1][0]["model"], "gemini-3-flash")
+        self.ajan.ayar_yaz("gemini", "gemini-elle")                           # elle yazılan ad kendiliğinden değişmez
+        self.oa_yanitlar = [ajan.AjanHatasi("yok", 404)]
+        self.assertEqual(self.sor("c")["durum"], "hata")
+        self.assertEqual(self.oa_istekler[-1][0]["model"], "gemini-elle")
+
+    def test_kota_dolunca_anlasilir_hata(self):
+        ajan.anahtar_yaz(self.klasor, GEMINI, "gemini")
+        self.oa_yanitlar = [ajan.AjanHatasi("Google Gemini kotası doldu ya da çok sık soru soruldu. Biraz sonra yeniden dene.", 429)]
+        d = self.sor("x")
+        self.assertEqual(d["durum"], "hata")
+        self.assertIn("kotası", d["hata"])
+
+
+class OABaglantisi(unittest.TestCase):
+    """oa_cagir / oa_modeller sahte bir sunucuya karşı."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.gelen = []
+        cls.kodlar = []
+
+        class Isleyici(BaseHTTPRequestHandler):
+            def _yaz(self, kod, veri):
+                govde = json.dumps(veri).encode()
+                self.send_response(kod)
+                self.send_header("Content-Length", str(len(govde)))
+                self.end_headers()
+                self.wfile.write(govde)
+
+            def do_POST(self):  # noqa: N802
+                cls.gelen.append((dict(self.headers), json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
+                kod = cls.kodlar.pop(0) if cls.kodlar else 200
+                self._yaz(kod, {"choices": [{"message": {"content": "ok"}}]} if kod == 200 else [{"error": {"message": "kota"}}])
+
+            def do_GET(self):  # noqa: N802
+                cls.gelen.append((dict(self.headers), None))
+                self._yaz(200, {"object": "list", "data": [{"id": "models/gemini-2.5-flash"}, {"id": "models/gemini-2.5-pro"}]})
+
+            def log_message(self, *_):
+                pass
+
+        cls.sunucu = HTTPServer(("127.0.0.1", 0), Isleyici)
+        cls.adres = f"http://127.0.0.1:{cls.sunucu.server_port}"
+        threading.Thread(target=cls.sunucu.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sunucu.shutdown()
+        cls.sunucu.server_close()
+
+    def test_istek_ve_hatalar(self):
+        self.assertEqual(ajan.oa_cagir({"model": "m"}, GEMINI, self.adres + "/c", "Gemini", bekleme=0)["choices"][0]["message"]["content"], "ok")
+        self.assertEqual({k.lower(): v for k, v in self.gelen[-1][0].items()}["authorization"], "Bearer " + GEMINI)
+        self.assertEqual(ajan.oa_modeller(GEMINI, self.adres + "/m", "Gemini"), ["gemini-2.5-flash", "gemini-2.5-pro"])
+        self.kodlar[:] = [429, 429]
+        with self.assertRaises(ajan.AjanHatasi) as hata:
+            ajan.oa_cagir({}, GEMINI, self.adres + "/c", "Google Gemini", bekleme=0)
+        self.assertEqual(hata.exception.kod, 429)
+        self.assertIn("kotası", str(hata.exception))
+        self.kodlar[:] = [400]                                            # Google hata gövdesi liste olabilir
+        with self.assertRaises(ajan.AjanHatasi) as hata:
+            ajan.oa_cagir({}, GEMINI, self.adres + "/c", "Google Gemini", bekleme=0)
+        self.assertEqual(hata.exception.kod, 400)
+        self.assertIn("kota", str(hata.exception))
+        self.kodlar[:] = [403]
+        with self.assertRaises(ajan.AjanHatasi) as hata:
+            ajan.oa_cagir({}, GEMINI, self.adres + "/c", "Google Gemini", bekleme=0)
+        self.assertIn("anahtarı kabul edilmedi", str(hata.exception))
 
 
 class AnthropicBaglantisi(unittest.TestCase):
@@ -402,7 +582,9 @@ class Sunucu(unittest.TestCase):
         mum_dosyalari(cls.klasor, ("ETH",))
         cls.sunucu = panel.sunucu_kur(cls.klasor, adres="127.0.0.1", port=0, pano_ayari={
             "getir": sahte_getir, "saat": lambda: SIMDI, "oku": pd.read_pickle,
-            "cagir": lambda govde, anahtar, **_: metin_yaniti("Merhaba Ahmet.")})
+            "cagir": lambda govde, anahtar, **_: metin_yaniti("Merhaba Ahmet."),
+            "oa_cagir": lambda govde, anahtar, adres, ad="", **_: {"choices": [{"finish_reason": "stop", "message": {"content": "Merhaba Ahmet."}}]},
+            "modeller": lambda anahtar, adres, ad="": ["gemini-2.5-flash"]})
         cls.adres = f"http://127.0.0.1:{cls.sunucu.server_port}"
         threading.Thread(target=cls.sunucu.serve_forever, daemon=True).start()
 
@@ -516,10 +698,13 @@ class Sunucu(unittest.TestCase):
     def test_ajan_uctan_uca(self):
         self.assertEqual(self.gonder("/api/ajan", {"mesaj": "selam"})[0], 400)        # anahtar yok
         self.assertEqual(self.gonder("/api/ajan/anahtar", {"anahtar": "yanlis"})[0], 400)
-        kod, durum = self.gonder("/api/ajan/anahtar", {"anahtar": ANAHTAR})
+        self.assertEqual(self.gonder("/api/ajan/anahtar", {"anahtar": ANAHTAR})[0], 400)          # varsayılan Gemini: Claude anahtarı olmaz
+        kod, durum = self.gonder("/api/ajan/anahtar", {"anahtar": GEMINI, "saglayici": "gemini"})
         self.assertEqual(kod, 200)
         self.assertTrue(durum["anahtar_var"])
-        self.assertNotIn(ANAHTAR, json.dumps(durum))
+        self.assertEqual(durum["saglayici"], "gemini")
+        self.assertNotIn(GEMINI, json.dumps(durum))
+        self.assertEqual(self.gonder("/api/ajan/ayar", {"saglayici": "yok"})[0], 400)
         kod, v = self.gonder("/api/ajan", {"mesaj": "selam", "baglam": {"ekran": "Uzay", "bot": "smk-vadeli"}})
         self.assertEqual(kod, 200)
         d = bekle(lambda: (x := json.loads(self.al("/api/ajan?id=" + v["id"])[2]))["durum"] != "calisiyor" and x)
@@ -530,8 +715,9 @@ class Sunucu(unittest.TestCase):
         self.assertEqual(arsiv["gunler"][0]["gun"], "2026-11-07")
         self.assertIn("selam", json.loads(self.al("/api/ajan/arsiv?gun=2026-11-07")[2])["metin"])
         for yol in ("/api/ajan/durum", "/api/ajan/gecmis", "/api/ajan/arsiv", "/api/ozet"):
-            self.assertNotIn(ANAHTAR.encode(), self.al(yol)[2])                       # anahtar hiçbir yanıtta görünmez
-        self.assertFalse(self.gonder("/api/ajan/anahtar", {"sil": True})[1]["anahtar_var"])
+            self.assertNotIn(GEMINI.encode(), self.al(yol)[2])                        # anahtar hiçbir yanıtta görünmez
+        self.assertEqual(json.loads(self.al("/api/ajan/arsiv")[2])["raporlar"], [])
+        self.assertFalse(self.gonder("/api/ajan/anahtar", {"sil": True, "saglayici": "gemini"})[1]["anahtar_var"])
 
     def test_pano_acilamazsa_eski_sayfa_ana_sayfada_kalir(self):
         from unittest import mock
