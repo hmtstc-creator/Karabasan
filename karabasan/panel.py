@@ -12,6 +12,7 @@ Adresler:
     /defter      Emir defteri denemesinin özeti (BTC/USDT vadeli, sanal)
     /islem       Tek bir işlemin fiyat grafiği (?bot=<bot adı>&id=<işlem kimliği>)
     /detay       Bot detayı: işlem listesi, oranlar, günlük bütçe kullanımı (?bot=<bot adı>)
+    /coinler     Binance coin listesi: stable olmayanlar, hacim sınırını geçenler (?hacim=<milyon USDT>)
     /ayar        Kriter ayar laboratuvarı: geçmişe sarıp kriter sayılarını denemek (kaydetmez)
 
 Yalnız Python standart kütüphanesi ile karabasan paketini kullanır.
@@ -211,6 +212,13 @@ def isleyici_uret(onbellek: Onbellek):
                     bot = (sorgu.get("bot") or [""])[0][:40]
                     govde = detay.sayfa_uret(bot, onbellek.klasor)
                     self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"))
+                elif yol == "/coinler":
+                    from . import coinler
+
+                    sorgu = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "",
+                                                  max_num_fields=10)
+                    self._yanit(200, "text/html; charset=utf-8", coinler.sayfa_uret(sorgu).encode("utf-8"),
+                                izin=coinler.guvenlik_basligi())
                 elif yol == "/ayar":
                     from . import ayar_sayfa
 

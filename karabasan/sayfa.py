@@ -2017,7 +2017,9 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
         f'<span class="menu-alt">{MENU_ACIKLAMA.get(kimlik, "")}</span></a>'
         for kimlik, ad in EKRANLAR
     ) + ('<a href="/ayar"><span class="menu-ad">Kriter ayarı</span>'
-         '<span class="menu-alt">Geçmişe sar, kriterleri dene</span></a>' if yenile_saniye else "")
+         '<span class="menu-alt">Geçmişe sar, kriterleri dene</span></a>'
+         '<a href="/coinler"><span class="menu-ad">Coin listesi</span>'
+         '<span class="menu-alt">Stable hariç, hacim süzgeçli</span></a>' if yenile_saniye else "")
     t = ozet["toplam"]
     canli_sinif = "uyari" if t["calisan_bot"] < t["bot_sayisi"] else "arti"
 

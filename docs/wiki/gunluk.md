@@ -14,9 +14,11 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 | 2026-11-09 | CLAUDE.md 108 KB → ~10 KB; geçmiş `docs/wiki/` konu sayfalarına taşındı; `/yenikonu` komutu eklendi | Ahmet: "her sorduğumda 150 bin token harcama; kalıcı arşive not al" | README |
 | 2026-11-08 | /ayar tarama tablosuna "Sinyal" sütunu ve "her satırda 0 işlem" açıklaması | Ahmet: "ne değiştirirsem her satırda sıfır yazıyor". Hata değil: giriş şartları birlikte çok seyrek doğru, tek sayı oynatmak işlem açmıyor (yapay veride 4 botta satırların ~%88'i 0 işlem) | kriter-ayar-laboratuvari |
 | 2026-11-09 | Site için 5 trader / 5 görsel / 5 programcı ajanlı "yeni sayfalar" istemi yazıldı (kod yok, çalıştırılmadı) | Ahmet'in isteği | site-yeni-sayfalar-istemi |
+| 2026-11-10 | Sonuç sayfasına `/coinler` (menüde "Coin listesi"): Binance vadeli USDT coinleri, stable hariç, 24 saatlik USDT hacim sınırını geçenler (varsayılan 5 milyon, botlarla aynı; sınır sayfadan seçilir). Yalnız bakmak için; botların evrenini değiştirmez | Ahmet: "sitede Binance'deki tüm coinler olsun, stable hariç, hacim filtresi koy" | sonuc-sayfasi |
 
 ## Açık işler (güncel)
 
 1. Uyum 23 ve 12 aylık test 11 raporlarını sunucudaki oturumdan oku, Ahmet'e özetle (stop %9, SMK2 / SMDK2).
 2. Ahmet'in yön kararı: 12 aylık testler ve panel sınaması kenar göstermedi; long botu isteği (Ahmet 9 Kasım'da 2 long + 2 short beklediğini söyledi, bugün dördü de short).
 3. Gerçek sunucuda ilk kez çalışacaklar: Caddy'nin yeni ayarı (POST /ayar/kayit), kayıt dosyasına yazma, /ayar gerçek Binance verisiyle.
+4. Gerçek sunucuda ilk kez: `/coinler` Binance `exchangeInfo` + `ticker/24hr` çağrıları (panel kapsayıcısından). Ahmet botların evreni de aynı süzgeçle genişlesin isterse ayrı karar (3. kural: sınav sürerken bot ayarı değişmez).

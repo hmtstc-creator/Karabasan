@@ -66,3 +66,7 @@ grafikler, zaman, analiz, sınav, kriterler.
 - Alt çubuk: Ana, Botlar, İşlemler (= İşlem grafiği), Grafik, Analiz. Betik tazelemede bütün seçili düğmeleri korur.
 - **Gerçek sunucuda ilk kez:** panelin kapsayıcısından `fapi.binance.com/fapi/v1/klines`'a ulaşması (stop sonrası izleme `kayitci`
   kapsayıcısında ulaşıyor; panel kapsayıcısının ağı aynı olmalı, doğrulanmadı), sayfanın açılış süresi. 638 test geçiyor.
+
+## Coin listesi (`/coinler`, 10 Kasım 2026)
+
+`karabasan/coinler.py`: Binance vadeli `exchangeInfo` (işlemde, sürekli, USDT) + `ticker/24hr` (`quoteVolume`). Stable coinler `STABLE` kümesiyle çıkarılır (botların `SABIT_COINLER` listesini kapsar; test bunu doğrular). Hacim sınırı `?hacim=<milyon USDT>` (varsayılan 5, botlarla aynı); sayfada kutu ve hazır düğmeler var, betik yok. 5 dakika önbellek. Tablo hacme göre sıralı: coin, hacim, fiyat, 24 saatlik değişim. Yalnız bilgi: botların işlem evreni (`yapilandirma_uret.py`) değişmedi. Sınanmayan: gerçek Binance yanıtı (burada erişim yok; testler sahte veriyle).
