@@ -118,7 +118,7 @@ def _senaryo_karti(r: dict) -> str:
     sen, d = r.get("senaryo"), r["dusus"]["toplam"]
     if not sen:
         return ('<div class="kose kart risk-kart"><h3>Hepsi stopa giderse</h3>'
-                '<p class="bos">Veri yok: açık pozisyon ya da kapanmış işlem yok.</p></div>')
+                '<p class="bos">Şu an açık pozisyon yok; stopa gidecek bir şey yok.</p></div>')
     derin = ("▲ Bu, şimdiye kadarki en derin düşüşten daha derin olur." if sen["en_derinden_derin"]
              else "Bu, şimdiye kadarki en derin düşüşü geçmez.")
     return f"""<div class="kose kart risk-kart">

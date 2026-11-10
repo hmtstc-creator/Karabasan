@@ -420,7 +420,7 @@ def dikkat_adaylari(denetim: list, botlar: list, acik: list, seriler: dict, mal:
         if d["durum"] == "ihlal" and d["ad"] != "Sessiz bot":
             adaylar.append({"tur": "ihlal", "agirlik": d["adet"],
                             "ne": f"Kural denetimi: {d['ad']}", "sayi": f"{d['adet']} ihlal",
-                            "yapmali": "Kural ekranındaki örnek işlemlere bak ve Claude'a sor; ayar değiştirme."})
+                            "yapmali": "Bu ekrandaki kural denetiminde örnek işlemlere bak ve Claude'a sor; ayar değiştirme."})
     for b in botlar:
         if not b.get("calisiyor"):
             yas = b.get("gunluk_yasi_dakika")

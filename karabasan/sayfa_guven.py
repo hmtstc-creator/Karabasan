@@ -148,6 +148,8 @@ def _bot_karti(b: dict, v: dict) -> str:
     else:
         tdeger2 = (f'12 aylık test {s.isaretli_yuzde(b["gecmis_beklenti"], 3)} · sanal '
                    f'{s.isaretli_yuzde(b["sanal_beklenti"], 3)} (fark {s.isaretli(b["beklenti_farki"], 3)} puan)')
+        if b["sanal_beklenti"] is not None and (b["sanal_beklenti"] > 0) != (b["gecmis_beklenti"] > 0):
+            tdeger2 += ' · <span class="uyari">● yönler ters</span>'
     ogeler.append(_oge("12 aylık test ile sanal işlem", tdeger2,
                        "İkisi de işlem başına net sonuç, işlem tutarının yüzdesi. Sanal çok daha iyiyse "
                        "bu ay şanslı olabilir; sınav sonu kararında dikkate al."))

@@ -211,7 +211,9 @@ def hesapla(baglam: dict) -> dict:
         bot_dusus.append({"bot": b["bot"], "kod": b["kod"], **d})
 
     senaryo = None
-    if stopta_toplam is not None and toplam_dusus["simdiki"] is not None:
+    if not acik:
+        pass   # açık pozisyon yok: senaryo yok
+    elif stopta_toplam is not None and toplam_dusus["simdiki"] is not None:
         # Hepsi stopa giderse: bugünkü düşüşün üstüne stoptaki kayıp (tepe aynı kalır).
         derinlik = toplam_dusus["simdiki"] + stopta_toplam
         senaryo = {"dusus": derinlik, "dusus_yuzde": oran(derinlik, toplam_butce),
