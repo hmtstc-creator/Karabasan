@@ -163,8 +163,9 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
 - Sınav sürüyor; strateji ayarı değişmez (3. kural). Gerçek para yok (1. kural).
 - 12 aylık testlerde ve panel sınamasında hiçbir strateji kalıcı kenar göstermedi; ayrıntı: `docs/wiki/stratejiler-ilk-donem.md`,
   `uzman-paneli-ve-ahmet-ozel.md`, `stop9-ve-kaldirac.md`.
-- **Ana sayfa yeni panodur (10 Kasım 2026):** Karabasan Uzayı, ayar ve geçmiş test laboratuvarı, ajan (Opus 5.5, düşük çaba; yalnız okur,
-  test eder, laboratuvara kayıt yazar; canlı botu değiştiremez). Eski sayfa `/klasik`. Yazma yolları `/ayar/kayit` ve `/api/*`. Ayrıntı ve
+- **Ana sayfa (`/`) kazancı gösteren sonuç sayfasıdır** (10 Kasım 2026 akşamı Ahmet: "kaç para kazandığımı gösteren ekranlar kayboldu,
+  geri getir, yeni sayfaları da silme"; `/klasik` aynı sayfa). **Yeni pano `/pano`'da** (menüde "Yeni pano"): Karabasan Uzayı, ayar ve
+  geçmiş test laboratuvarı, ajan (Opus 5.5, düşük çaba; yalnız okur, test eder, laboratuvara kayıt yazar; canlı botu değiştiremez). Yazma yolları `/ayar/kayit` ve `/api/*`. Ayrıntı ve
   "gerçek sunucuda ilk kez" listesi: `docs/wiki/pano-uzay-ajan.md`. Renk Ahmet'in isteğiyle siyah.
 - Eski sonuç sayfası ekranları, `/ayar` laboratuvarı (9 Kasım 2026'dan beri parametre pasif / etkili seçimi ve adlı kayıtlar; kayıtlar yalnız
   deneme listesidir, canlı botları değiştirmez): `docs/wiki/sonuc-sayfasi.md`, `kriter-ayar-laboratuvari.md`.

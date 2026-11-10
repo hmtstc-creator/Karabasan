@@ -16,6 +16,7 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 | 2026-11-09 | Site için 5 trader / 5 görsel / 5 programcı ajanlı "yeni sayfalar" istemi yazıldı (kod yok, çalıştırılmadı) | Ahmet'in isteği | site-yeni-sayfalar-istemi |
 | 2026-11-10 | Sonuç sayfasına `/coinler` (menüde "Coin listesi"): Binance vadeli USDT coinleri, stable hariç, 24 saatlik USDT hacim sınırını geçenler (varsayılan 5 milyon, botlarla aynı; sınır sayfadan seçilir). Yalnız bakmak için; botların evrenini değiştirmez | Ahmet: "sitede Binance'deki tüm coinler olsun, stable hariç, hacim filtresi koy" | sonuc-sayfasi |
 | 2026-11-10 | Yeni pano canlıda: ana sayfa Karabasan Uzayı (coinlerin girişe uzaklığı, üç boyut), ayar ve geçmiş test laboratuvarı, ajan (Opus 5.5, düşük çaba; arşivli hafıza). Eski sayfa `/klasik`. Renk siyah. Caddy `/api/*` yazma yoluna izin verir | Ahmet: "akıl almaz bir site; coinleri uzayda göster; ayarlarımla anında geçmiş test; siteye ajan ekle; canlıya al; mordan siyaha çevir" | pano-uzay-ajan |
+| 2026-11-10 | Ana sayfa yine kazancı gösteren sonuç sayfası (`/` = `/klasik`); yeni pano silinmedi, `/pano`'ya taşındı (Menü'de "Yeni pano") | Ahmet: "kaç para kazandığımı gösteren ekranlar kayboldu, tüm ekranları geri getir, senin sayfalarını da silme" | pano-uzay-ajan |
 
 ## Açık işler (güncel)
 
