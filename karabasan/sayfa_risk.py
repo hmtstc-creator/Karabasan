@@ -31,6 +31,7 @@ padding:10px 0;border-top:1px solid var(--cizgi);min-height:44px}
 .risk-liste .risk-sag{font:700 1rem var(--rakam);text-align:right;white-space:nowrap}
 .risk-liste .alt{grid-column:1/-1}
 .risk-kart h3{margin-top:0}
+.risk-notr-cubuk .g-cubuk{fill:var(--holo)}
 .risk-veri-yok{color:var(--soluk);font-style:italic}
 """
 
@@ -222,7 +223,7 @@ def _gunluk_karti(r: dict) -> str:
 <div><dt>Bugün en çok</dt><dd>{_pct(bugun["yuzde"])}<span class="alt"> {s.sayi(bugun["en_cok"], 0)} USDT</span></dd></div>
 <div><dt>En yoğun gün</dt><dd>{_pct(en["yuzde"])}<span class="alt"> {escape(en["gun"])}</span></dd></div>
 </dl>
-{s._cubuk_grafigi(cubuklar, yukseklik=160.0, etiket_adim=2)}
+<div class="risk-notr-cubuk">{s._cubuk_grafigi(cubuklar, yukseklik=160.0, etiket_adim=2)}</div>
 <p class="g-not">Her çubuk: o gün aynı anda açık teminatın en büyük toplamı, toplam bütçenin yüzdesi olarak (kaldıraçsız).</p>
 {_eylem("Bu oran sürekli yükseliyorsa botlar aynı anda daha çok para bağlıyor demektir; kötü bir günde kayıp da büyür. "
         "İzle; yarıyı geçerse Claude'a sor.")}

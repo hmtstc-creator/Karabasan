@@ -225,7 +225,8 @@ def butce_tepesi(islemler: list, simdi: datetime | None = None) -> list[dict]:
     if not islemler:
         return []
     araliklar = [(i["giris_zamani"], i.get("cikis_zamani") or simdi, float(i.get("tutar") or 0.0))
-                 for i in islemler if (i.get("cikis_zamani") or simdi) is not None]
+                 for i in islemler
+                 if i.get("giris_zamani") is not None and (i.get("cikis_zamani") or simdi) is not None]
     olaylar = sorted([(a, +t) for a, _b, t in araliklar] + [(b, -t) for _a, b, t in araliklar],
                      key=lambda o: (o[0], o[1]))
     gunler = sorted({a.date() for a, _b, _t in araliklar} | {b.date() for _a, b, _t in araliklar})
@@ -247,7 +248,8 @@ def ust_uste_pozisyonlar(islemler: list, simdi: datetime) -> list[dict]:
     """Aynı botta aynı coinde zamanı çakışan iki pozisyon (motor buna izin vermez)."""
     gruplar: dict[tuple, list] = {}
     for i in islemler:
-        gruplar.setdefault((i.get("bot"), i.get("parite")), []).append(i)
+        if i.get("giris_zamani") is not None:
+            gruplar.setdefault((i.get("bot"), i.get("parite")), []).append(i)
     cikti = []
     for liste in gruplar.values():
         liste = sorted(liste, key=lambda i: i["giris_zamani"])
@@ -421,12 +423,14 @@ def dikkat_adaylari(denetim: list, botlar: list, acik: list, seriler: dict, mal:
             adaylar.append({"tur": "ihlal", "agirlik": d["adet"],
                             "ne": f"Kural denetimi: {d['ad']}", "sayi": f"{d['adet']} ihlal",
                             "yapmali": "Bu ekrandaki kural denetiminde örnek işlemlere bak ve Claude'a sor; ayar değiştirme."})
-    for b in botlar:
-        if not b.get("calisiyor"):
-            yas = b.get("gunluk_yasi_dakika")
-            adaylar.append({"tur": "sessiz", "agirlik": yas if yas is not None else 1e9,
-                            "ne": f"{b.get('kod')} sessiz", "sayi": "kayıt yok" if yas is None else f"{yas:.0f} dakikadır kayıt yok",
-                            "yapmali": "Telegram'da /durum yaz; bir saatten uzun sürerse Claude'a sor."})
+    sessiz = [b for b in botlar if not b.get("calisiyor")]
+    if sessiz:
+        yaslar = [b.get("gunluk_yasi_dakika") for b in sessiz]
+        bilinen = [y for y in yaslar if y is not None]
+        sayi = ("kayıt dosyası yok" if not bilinen else f"en uzun {max(bilinen):.0f} dakikadır kayıt yok")
+        adaylar.append({"tur": "sessiz", "agirlik": len(sessiz),
+                        "ne": f"Sessiz bot: {', '.join(str(b.get('kod')) for b in sessiz)}", "sayi": sayi,
+                        "yapmali": "Telegram'da /durum yaz; bir saatten uzun sürerse Claude'a sor."})
     toplam = sum(float(i.get("stopta_kayip") or 0.0) for i in acik)
     if acik and -toplam >= ACIK_RISK_ESIK:
         adaylar.append({"tur": "acik_risk", "agirlik": -toplam,
