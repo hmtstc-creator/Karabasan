@@ -2022,6 +2022,8 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
         for kimlik, ad in EKRANLAR
     ) + ('<a href="/ayar"><span class="menu-ad">Kriter ayarı</span>'
          '<span class="menu-alt">Geçmişe sar, kriterleri dene</span></a>'
+         '<a href="/pano"><span class="menu-ad">Yeni pano</span>'
+         '<span class="menu-alt">Karabasan Uzayı, laboratuvar, ajan</span></a>'
          '<a href="/coinler"><span class="menu-ad">Coin listesi</span>'
          '<span class="menu-alt">Stable hariç, hacim süzgeçli</span></a>' if yenile_saniye else "")
     t = ozet["toplam"]

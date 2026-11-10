@@ -429,8 +429,16 @@ class Sunucu(unittest.TestCase):
             except ValueError:
                 return hata.code, {}
 
+    def test_ana_sayfa_kazanci_gosteren_eski_ekranlardir(self):
+        """10 Kasım 2026, Ahmet: kazancı gösteren ekranlar ana sayfada kalır; yeni pano /pano adresindedir."""
+        ana = self.al("/")[2].decode("utf-8")
+        self.assertEqual(ana, self.al("/klasik")[2].decode("utf-8"))
+        self.assertIn('<section id="rapor"', ana)
+        self.assertIn('href="/pano"', ana)                             # menüden yeni panoya gidilir
+        self.assertIn('href="/"', self.al("/pano")[2].decode("utf-8"))  # panodan geri dönülür
+
     def test_pano_ve_izinler(self):
-        kod, baslik, govde = self.al("/")
+        kod, baslik, govde = self.al("/pano")
         metin = govde.decode("utf-8")
         self.assertEqual(kod, 200)
         self.assertIn('id="g-uzay"', metin)

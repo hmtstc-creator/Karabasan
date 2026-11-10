@@ -6,9 +6,9 @@ sunar. Salt okunurdur; hiçbir ayarı değiştirmez, hiçbir botu yönetmez.
     python3 -m karabasan.panel
 
 Adresler:
-    /            Yeni pano: Karabasan Uzayı, ayar ve geçmiş test laboratuvarı, ajan (karabasan.pano)
+    /            Türkçe sonuç sayfası (kazanç ve bütün ekranlar); /klasik aynı sayfadır
+    /pano        Yeni pano: Karabasan Uzayı, ayar ve geçmiş test laboratuvarı, ajan (karabasan.pano)
     /s/, /api/   Panonun dosyaları ve veri adresleri (karabasan.pano)
-    /klasik      Önceki Türkçe sonuç sayfası (bütün eski ekranlar)
     /veri.json   Aynı özetin ham hali
     /saglik      Sunucu ayakta mı (izleme için)
     /defter      Emir defteri denemesinin özeti (BTC/USDT vadeli, sanal)
@@ -187,17 +187,18 @@ def isleyici_uret(onbellek: Onbellek, pano_ayari: dict | None = None):
         def do_GET(self) -> None:  # noqa: N802 - http.server böyle adlandırır
             yol = self.path.split("?", 1)[0]
             try:
-                if yol == "/" or yol.startswith(("/s/", "/api/")) or yol in ("/index.html", "/pano"):
+                # 10 Kasım 2026 (Ahmet'in isteği): ana sayfa yine kazancı gösteren eski ekranlardır; yeni pano /pano'da.
+                if yol in ("/", "/index.html"):
+                    yol = "/klasik"
+                if yol.startswith(("/s/", "/api/")) or yol == "/pano":
                     sorgu = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "",
                                                   max_num_fields=20)
                     if pano is not None:
                         kod, tur, govde, etiket = pano.get(yol, sorgu)
                         self._yanit(kod, tur, govde, etiket, izin=_pano.GUVENLIK)
                         return
-                    if yol not in ("/", "/index.html"):
-                        self._yanit(503, "text/plain; charset=utf-8", "Yeni pano şu an açılamadı.\n".encode("utf-8"))
-                        return
-                    yol = "/klasik"
+                    self._yanit(503, "text/plain; charset=utf-8", "Yeni pano şu an açılamadı.\n".encode("utf-8"))
+                    return
                 if yol == "/saglik":
                     yas = onbellek.yas_saniye()
                     if yas is None:
