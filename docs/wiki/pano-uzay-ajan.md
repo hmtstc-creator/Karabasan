@@ -1,6 +1,10 @@
 # Yeni pano: Karabasan Uzayı, geçmiş test laboratuvarı ve ajan
 
 > 10 Kasım 2026, Ahmet'in isteği. Sitenin ana sayfası artık bu panodur; önceki bütün ekranlar `/klasik` adresinde durur.
+>
+> **Düzeltme (10 Kasım 2026 akşamı):** Ahmet "kaç para kazandığımı gösteren ekranlar kayboldu, tüm ekranları geri getir, senin
+> sayfalarını da silme" dedi. Ana sayfa (`/`) yine eski sonuç sayfasıdır (`/klasik` aynı); pano silinmedi, `/pano` adresinde ve
+> sonuç sayfasının Menü'sünde "Yeni pano". Panonun üst bağlantısı "Kazanç ve bütün ekranlar" `/`'a döner.
 
 ## Ahmet ne istedi
 
