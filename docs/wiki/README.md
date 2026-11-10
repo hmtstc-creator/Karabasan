@@ -17,7 +17,8 @@ Bu klasör projenin kalıcı hafızasıdır. `CLAUDE.md` kısa tutulur; geçmiş
 | [emir-defteri.md](emir-defteri.md) | BTC emir defteri denemesi (/defter) |
 | [uzman-paneli-ve-ahmet-ozel.md](uzman-paneli-ve-ahmet-ozel.md) | Panel sınaması (ZSD, TRG, ASYA, FON) ve Ahmet Özel stratejisi |
 | [kriter-ayar-laboratuvari.md](kriter-ayar-laboratuvari.md) | /ayar sayfası: pasif seçenekleri, adlı kayıtlar, Bot Kriterleri sayfası |
-| [sonuc-sayfasi.md](sonuc-sayfasi.md) | Sonuç sayfasının ekranları, görünüm, işlem grafiği |
+| [pano-uzay-ajan.md](pano-uzay-ajan.md) | Yeni ana sayfa: Karabasan Uzayı, ayar ve geçmiş test laboratuvarı, ajan (Opus 5.5), /api/ adresleri |
+| [sonuc-sayfasi.md](sonuc-sayfasi.md) | Eski sonuç sayfasının (/klasik) ekranları, görünüm, işlem grafiği |
 | [internet-erisimi.md](internet-erisimi.md) | Parolalı internet adresi (Caddy) |
 | [dogrulanacaklar.md](dogrulanacaklar.md) | Sunucuda henüz doğrulanmamış varsayımlar |
 | [site-yeni-sayfalar-istemi.md](site-yeni-sayfalar-istemi.md) | 5 trader + görsel + programcı ajanlı "yeni sayfalar" istemi (yapıştırılacak metin; henüz çalıştırılmadı) |

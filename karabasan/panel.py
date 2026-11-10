@@ -6,7 +6,9 @@ sunar. Salt okunurdur; hiçbir ayarı değiştirmez, hiçbir botu yönetmez.
     python3 -m karabasan.panel
 
 Adresler:
-    /            Türkçe sonuç sayfası
+    /            Yeni pano: Karabasan Uzayı, ayar ve geçmiş test laboratuvarı, ajan (karabasan.pano)
+    /s/, /api/   Panonun dosyaları ve veri adresleri (karabasan.pano)
+    /klasik      Önceki Türkçe sonuç sayfası (bütün eski ekranlar)
     /veri.json   Aynı özetin ham hali
     /saglik      Sunucu ayakta mı (izleme için)
     /defter      Emir defteri denemesinin özeti (BTC/USDT vadeli, sanal)
@@ -127,13 +129,24 @@ Sorun sürerse şu kimliği Claude'a gönder; ayrıntı sunucunun kaydındadır:
 <pre style="white-space:pre-wrap">{hata}</pre></body></html>"""
 
 
-def isleyici_uret(onbellek: Onbellek):
+def isleyici_uret(onbellek: Onbellek, pano_ayari: dict | None = None):
     from . import islem_grafik
+    from . import pano as _pano
 
     guvenlik = guvenlik_basligi()
     from . import ayar_kayit
 
     ayar_deposu = ayar_kayit.Depo(onbellek.klasor)
+    pano_ayari = dict(pano_ayari or {})
+    arka_plan = pano_ayari.pop("arka_plan", False)
+    # Yeni pano açılamazsa (örneğin sunucuda beklenmeyen bir eksik) site kapanmaz: ana sayfa eski sayfaya döner.
+    try:
+        pano = _pano.Pano(onbellek, ayar_deposu, **pano_ayari)
+        if arka_plan:
+            pano.arka_planda_isit()
+    except Exception:  # noqa: BLE001
+        gunluk.exception("Yeni pano açılamadı; ana sayfada eski sayfa sunuluyor")
+        pano = None
     mum_onbellegi = islem_grafik.MumOnbellegi()
 
     class Isleyici(BaseHTTPRequestHandler):
@@ -174,6 +187,17 @@ def isleyici_uret(onbellek: Onbellek):
         def do_GET(self) -> None:  # noqa: N802 - http.server böyle adlandırır
             yol = self.path.split("?", 1)[0]
             try:
+                if yol == "/" or yol.startswith(("/s/", "/api/")) or yol in ("/index.html", "/pano"):
+                    sorgu = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "",
+                                                  max_num_fields=20)
+                    if pano is not None:
+                        kod, tur, govde, etiket = pano.get(yol, sorgu)
+                        self._yanit(kod, tur, govde, etiket, izin=_pano.GUVENLIK)
+                        return
+                    if yol not in ("/", "/index.html"):
+                        self._yanit(503, "text/plain; charset=utf-8", "Yeni pano şu an açılamadı.\n".encode("utf-8"))
+                        return
+                    yol = "/klasik"
                 if yol == "/saglik":
                     yas = onbellek.yas_saniye()
                     if yas is None:
@@ -233,7 +257,7 @@ def isleyici_uret(onbellek: Onbellek):
                         govde = ayar_sayfa.ayar_sayfasi(istek, depo=ayar_deposu)
                         self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"),
                                     izin=ayar_sayfa.guvenlik_basligi())
-                elif yol in ("/", "/index.html"):
+                elif yol == "/klasik":
                     govde, etiket = onbellek.html()
                     self._yanit(200, "text/html; charset=utf-8", govde, etiket)
                 else:
@@ -247,9 +271,27 @@ def isleyici_uret(onbellek: Onbellek):
         do_HEAD = do_GET  # noqa: N815
 
         def do_POST(self) -> None:  # noqa: N802
-            """Tek yazma yolu: /ayar/kayit (ayar laboratuvarının adlı kayıtları). Canlı bota dokunmaz."""
+            """Yazma yolları: /ayar/kayit (eski ayar sayfasının kayıtları) ve panonun /api/ adresleri
+            (geçmiş testi başlatma, kayıt, ajana soru, ajan anahtarı). Hiçbiri canlı bota dokunmaz."""
             yol = self.path.split("?", 1)[0]
             try:
+                if yol.startswith("/api/") and pano is None:
+                    self._yanit(503, "text/plain; charset=utf-8", "Yeni pano şu an açılamadı.\n".encode("utf-8"))
+                    return
+                if yol.startswith("/api/"):
+                    if self.headers.get("X-Karabasan") != "1":
+                        self._yanit(403, "text/plain; charset=utf-8", "İstek reddedildi.\n".encode("utf-8"))
+                        return
+                    try:
+                        uzunluk = int(self.headers.get("Content-Length") or 0)
+                    except ValueError:
+                        uzunluk = -1
+                    if not 0 < uzunluk <= _pano.EN_FAZLA_GOVDE:
+                        self._yanit(413, "text/plain; charset=utf-8", "İstek çok büyük.\n".encode("utf-8"))
+                        return
+                    kod, tur, govde, etiket = pano.post(yol, self.rfile.read(uzunluk))
+                    self._yanit(kod, tur, govde, etiket, izin=_pano.GUVENLIK)
+                    return
                 if yol != "/ayar/kayit":
                     self._yanit(405, "text/plain; charset=utf-8", "Bu adres yalnız okunur.\n".encode("utf-8"))
                     return
@@ -283,14 +325,14 @@ def isleyici_uret(onbellek: Onbellek):
     return Isleyici
 
 
-def sunucu_kur(klasor: Path, adres: str = "0.0.0.0", port: int = 8080) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((adres, port), isleyici_uret(Onbellek(klasor)))
+def sunucu_kur(klasor: Path, adres: str = "0.0.0.0", port: int = 8080, pano_ayari: dict | None = None) -> ThreadingHTTPServer:
+    return ThreadingHTTPServer((adres, port), isleyici_uret(Onbellek(klasor), pano_ayari))
 
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     port = int(os.environ.get("KARABASAN_PANEL_PORT", "8080"))
-    sunucu = sunucu_kur(veri_klasoru(), port=port)
+    sunucu = sunucu_kur(veri_klasoru(), port=port, pano_ayari={"arka_plan": True})
     gunluk.info("Sonuç sayfası %s numaralı kapıda hazır.", port)
     try:
         sunucu.serve_forever()

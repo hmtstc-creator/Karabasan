@@ -146,7 +146,7 @@ def sayfa_uret(sorgu: dict, onbellek: Onbellek | None = None) -> str:
            '<meta name="viewport" content="width=device-width, initial-scale=1">'
            '<meta name="robots" content="noindex"><title>Coin listesi</title>'
            f'<style>{BICIM}</style></head><body><main>')
-    govde = ['<p><a href="/">&larr; Sonuç sayfası</a></p>', '<h1>Binance coin listesi</h1>',
+    govde = ['<p><a href="/klasik">&larr; Sonuç sayfası</a></p>', '<h1>Binance coin listesi</h1>',
              '<p class="soluk">Binance vadeli (USDT sözleşmeli) bütün coinler; stable coinler çıkarıldı. '
              'Yalnız son 24 saatte en az seçtiğin kadar USDT hacmi olanlar görünür. '
              'Bu sayfa yalnız bakmak içindir; botların işlem evrenini değiştirmez.</p>']

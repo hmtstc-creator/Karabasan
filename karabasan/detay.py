@@ -320,8 +320,8 @@ def sayfa_uret(bot: str, veri_klasoru: Path, getir=ig.mum_getir, simdi: datetime
 <meta name="theme-color" content="#04070d"><meta name="robots" content="noindex">
 <title>Karabasan · Bot detayı</title><style>{STIL}{ISLEM_STIL}{DETAY_STIL}</style></head>
 <body><div class="sayfa">
-<header class="ust baslik-cubugu"><a class="marka" href="/#ana">KARABASAN</a>
-<a class="ig-geri" href="/#islemler" style="margin-left:auto">← Ana sayfa</a></header>
+<header class="ust baslik-cubugu"><a class="marka" href="/klasik#ana">KARABASAN</a>
+<a class="ig-geri" href="/klasik#islemler" style="margin-left:auto">← Ana sayfa</a></header>
 <main><h2 class="ekran-baslik">Bot detayı</h2>
 <p class="dt-not">Simülasyonlar bu sayfa için mum verisinden yapılır (Binance vadeli 5 dakikalık, anahtarsız). Sanal işlemdir; borsaya emir gitmez.</p>
 {"".join(govde)}

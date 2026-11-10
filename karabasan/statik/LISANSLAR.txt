@@ -1,0 +1,8 @@
+Bu klasördeki üçüncü taraf dosyalar:
+
+three.min.js        three.js r128, MIT lisansı. Copyright 2010-2021 Three.js Authors. https://threejs.org
+bricolage*.woff2    Bricolage Grotesque (değişken yazı tipi), SIL Open Font License 1.1.
+                    Copyright 2022 The Bricolage Grotesque Project Authors (https://github.com/ateliertriay/bricolage).
+                    @fontsource-variable/bricolage-grotesque 5.3.0 paketinden alındı.
+
+Dosyalar depoda durur; pano hiçbir dış adresten betik, biçim ya da yazı tipi yüklemez.

@@ -572,7 +572,7 @@ class Sunucu(unittest.TestCase):
         self.assertIn("default-src 'none'", baslik)
 
     def test_ana_sayfa_formu_hala_yasak(self):
-        with urllib.request.urlopen(self.adres + "/", timeout=5) as y:
+        with urllib.request.urlopen(self.adres + "/klasik", timeout=5) as y:
             baslik = y.headers["Content-Security-Policy"]
             metin = y.read().decode("utf-8")
         self.assertIn("form-action 'none'", baslik)

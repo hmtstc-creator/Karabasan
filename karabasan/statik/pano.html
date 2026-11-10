@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Karabasan</title>
+<link rel="stylesheet" href="/s/pano.css">
+</head>
+<body>
+<header class="bas">
+  <a class="marka" href="#uzay">Karabasan</a>
+  <nav class="gez" aria-label="Ana gezinti">
+    <a href="#uzay">Uzay</a><a href="#lab">Ayar ve geçmiş test</a><a href="#ajan">Ajan</a><a href="/klasik">Klasik ekranlar</a>
+  </nav>
+  <span class="bosluk"></span>
+  <div class="seg" id="botsec" role="group" aria-label="Bot"></div>
+  <span class="cip" id="sinav" title="Sınav dönemi">…</span>
+</header>
+
+<main>
+<!-- UZAY -->
+<section class="gorunum" id="g-uzay">
+  <aside class="sol levha" aria-label="Süzgeçler">
+    <div class="blok"><span class="ust" id="anEt">Şu an</span>
+      <p class="cevap" id="cevap">Veri hazırlanıyor…</p>
+      <div class="sayac"><div><b class="ayr" id="s0">–</b><span>girişte</span></div><div><b id="s1">–</b><span>1–2 şart uzakta</span></div><div><b class="sl" id="s2">–</b><span>3 ve üstü eksik</span></div></div>
+    </div>
+    <div class="blok"><h2>Ne kadar yakın olanları göstereyim?</h2>
+      <label class="kucuk" for="enEksik">En çok <b class="r ayr" id="enEksikYazi">hepsi</b> şart eksik olanlar</label>
+      <input type="range" id="enEksik" min="0" max="12" step="1" value="12">
+    </div>
+    <div class="blok"><h2>Neyi bekliyor?</h2>
+      <p class="kucuk">Uzay dört bölgeye ayrılır. Coin, eksik şartlarının çoğunun ait olduğu bölgede durur.</p>
+      <div id="gruplar"></div>
+    </div>
+    <div class="blok"><h2>Göster</h2>
+      <input type="search" id="ara" placeholder="Coin ara (ör. SOL)" aria-label="Coin ara">
+      <label class="tik"><input type="checkbox" id="fAcik">Yalnız açık işlemi olanlar</label>
+      <label class="tik"><input type="checkbox" id="fIz" checked>Kuyruk: girişe yakın ve seçili coinlerin son 2 saatteki yolu</label>
+      <label class="tik"><input type="checkbox" id="fEt" checked>Coin adları</label>
+    </div>
+    <p class="kucuk">Uzayda sabit bir coin listesi gösterilir. Canlı botlar hacme göre seçilen daha geniş bir listede işlem yapar; burada görünmeyen bir coinde de işlem açabilirler.</p>
+  </aside>
+
+  <div class="uzay-kutu" id="uzay">
+    <canvas id="cv" aria-label="Coinlerin girişe uzaklığını gösteren üç boyutlu uzay"></canvas>
+    <div id="etiketler"></div>
+    <div class="uzay-rozet" id="uzayRozet" hidden>Senin ayarınla</div>
+    <div class="ipucu"><span><b>Merkez</b> = bütün şartlar doğru, giriş anı</span><span><b>Halka</b> = eksik şart sayısı</span><span><b>Yükseklik</b> = 24 saatlik pencerenin başından beri fiyat değişimi</span><span><b>Sürükle</b> döndür · <b>tekerlek / iki parmak</b> yaklaş · <b>coine dokun</b></span></div>
+    <div class="uzay-durum" id="uzayDurum">Mumlar indiriliyor ve şartlar hesaplanıyor…</div>
+  </div>
+
+  <div class="zaman levha">
+    <div class="zaman-ust"><h2>24 saatlik akış</h2><span class="kucuk">Altın çubuk: girişteki coin sayısı · mor alan: 1–2 şart uzaktakiler · çentik: giriş anı</span></div>
+    <svg id="akis" viewBox="0 0 960 54" preserveAspectRatio="none" role="img" aria-label="Son 24 saatte girişe yaklaşan coin sayısı"></svg>
+    <button class="oyna" id="oyna" type="button" aria-label="Oynat">▶</button>
+    <input type="range" id="zamanK" min="0" max="287" step="0.05" value="287" aria-label="Zamanı geri sar">
+    <span class="zaman-son"><b class="r ayr" id="saat">şimdi</b><button class="dugme" id="simdi" type="button">Şimdi</button></span>
+  </div>
+
+  <aside class="sag levha">
+    <div class="sekmeler" role="tablist" id="uzaySekme"><button role="tab" data-s="coin" aria-selected="true">Coin</button><button role="tab" data-s="hizli" aria-selected="false">Hızlı ayar</button><button role="tab" data-s="rapor" aria-selected="false">Rapor</button></div>
+    <div class="panolar">
+      <div class="pano" id="p-coin"></div>
+      <div class="pano" id="p-hizli" hidden></div>
+      <div class="pano" id="p-rapor" hidden></div>
+    </div>
+  </aside>
+</section>
+
+<!-- LABORATUVAR -->
+<section class="gorunum" id="g-lab" hidden>
+  <aside class="lab-sol levha">
+    <div class="blok"><span class="ust">Ayar ve geçmiş test</span>
+      <h1 id="labBaslik">Bot ayarı</h1>
+      <p class="kucuk" id="labAciklama"></p>
+      <p class="kucuk">Buradaki her şey denemedir: canlı botlar değişmez. Beğendiğin ayar yeni bir sanal bot ve kendi 30 günü demektir.</p>
+    </div>
+    <div class="blok">
+      <button class="dugme ana" id="testCalistir" type="button">Geçmiş testi çalıştır</button>
+      <label class="tik"><input type="checkbox" id="otoTest" checked>Ayar değişince kendiliğinden çalıştır</label>
+    </div>
+    <div class="blok"><h2>Test dönemi</h2>
+      <div class="seg" id="donem" role="group" aria-label="Dönem"></div>
+      <p class="kucuk" id="donemNot"></p>
+    </div>
+    <div class="blok"><h2>Coinler</h2>
+      <div class="coinler" id="coinler"></div>
+      <div class="dugmeler"><button class="dugme" id="coinHepsi" type="button">Verisi hazır olanların hepsi</button><button class="dugme" id="coinTemizle" type="button">Temizle</button></div>
+      <p class="kucuk" id="coinNot"></p>
+    </div>
+    <div class="blok"><h2>Kayıtlar</h2>
+      <p class="kucuk">Bir ayarı adıyla sakla, sonra tek dokunuşla geri yükle. Ajanın önerdiği ayarlar da buraya düşer.</p>
+      <div class="yaz"><input type="text" id="kayitAd" maxlength="60" placeholder="Kayıt adı" aria-label="Kayıt adı"><button class="dugme mor" id="kayitEkle" type="button">Kaydet</button></div>
+      <p class="hata-kutu" id="kayitHata" hidden></p>
+      <div id="kayitlar"></div>
+    </div>
+  </aside>
+
+  <div class="lab-orta levha">
+    <div class="blok">
+      <div class="dugmeler"><span class="cip" id="degisimSayisi">Canlı ayar</span><button class="dugme" id="canliyaDon" type="button">Canlı ayara dön</button><a class="dugme" href="#uzay" id="uzaydaGor">Bu ayarı uzayda gör</a></div>
+      <p class="hata-kutu" id="ayarHata" hidden></p>
+    </div>
+    <div id="parametreler"></div>
+  </div>
+
+  <aside class="lab-sag levha" id="sonuc" aria-live="polite"></aside>
+</section>
+
+<!-- AJAN -->
+<section class="gorunum" id="g-ajan" hidden>
+  <div class="sohbet levha">
+    <div class="blok"><span class="ust">Ajan · <span id="ajanModel">Claude Opus 5.5, düşük çaba</span></span>
+      <h1>Parametreleri ve sonuçları konuş.</h1>
+      <p class="kucuk">Ajan canlı sonuçları okur, ayarları geçmişte test eder, beğendiğini laboratuvara kayıt olarak yazar ve konuştuklarınızı hatırlar. Canlı botları, sitenin kodunu ve sunucuyu değiştiremez.</p>
+    </div>
+    <div class="sohbet-akis" id="sohbetAkis"></div>
+    <div class="oneri" id="oneriler"></div>
+    <div class="yaz"><textarea id="sohbetYaz" maxlength="4000" placeholder="Ajana yaz…" aria-label="Ajana mesaj"></textarea><button class="dugme ana" id="sohbetGonder" type="button">Gönder</button></div>
+    <p class="hata-kutu" id="sohbetHata" hidden></p>
+  </div>
+  <aside class="sol levha">
+    <div class="blok"><h2>Durum</h2><div id="ajanDurum" class="kucuk">…</div></div>
+    <div class="blok"><h2>Anthropic API anahtarı</h2>
+      <p class="kucuk">Ajan, Anthropic'in ücretli API'sini kullanır; her mesaj birkaç sent tutar. Anahtar yalnız bu sunucudaki gizli bir dosyada saklanır, sayfada bir daha gösterilmez.</p>
+      <input type="password" id="anahtar" autocomplete="off" placeholder="sk-ant-…" aria-label="Anthropic API anahtarı">
+      <div class="dugmeler"><button class="dugme mor" id="anahtarKaydet" type="button">Anahtarı kaydet</button><button class="dugme" id="anahtarSil" type="button">Anahtarı sil</button></div>
+      <p class="hata-kutu" id="anahtarHata" hidden></p>
+    </div>
+    <div class="blok"><h2>Arşiv</h2>
+      <p class="kucuk">Bütün konuşmalar gün gün saklanır. "Dersler" ajanın kalıcı notlarıdır; her konuşmanın başında okur.</p>
+      <div class="dugmeler" id="arsivGunler"></div>
+      <div class="md" id="arsivMetin" hidden></div>
+    </div>
+  </aside>
+</section>
+</main>
+
+<div class="dok" id="dok">
+  <div class="dok-ic">
+    <div class="dok-govde" id="dokGovde"></div>
+    <div class="oneri" id="dokOneri" hidden></div>
+    <div class="dok-satir">
+      <button class="dok-ad" id="dokAc" type="button" aria-expanded="false">Ajan</button>
+      <input type="text" id="dokYaz" maxlength="4000" placeholder="Ajana sor: bu sonuç ne anlama geliyor?" aria-label="Ajana sor">
+      <button class="dugme ana" id="dokGonder" type="button">Sor</button>
+    </div>
+  </div>
+</div>
+
+<script src="/s/three.min.js"></script>
+<script src="/s/pano.js"></script>
+</body>
+</html>

@@ -258,7 +258,7 @@ class SunucuTesti(unittest.TestCase):
             return yanit.status, yanit.headers, yanit.read().decode("utf-8")
 
     def test_ana_sayfa(self):
-        kod, baslik, govde = self._al("/")
+        kod, baslik, govde = self._al("/klasik")
         self.assertEqual(kod, 200)
         self.assertIn("text/html", baslik["Content-Type"])
         self.assertIn("Sınavın 12. günü.", govde)
@@ -272,7 +272,7 @@ class SunucuTesti(unittest.TestCase):
         self.assertEqual(len(veri["botlar"]), len(BOTLAR))
 
     def test_guvenlik_basligi_yalniz_sayfadaki_betige_izin_verir(self):
-        _kod, baslik, govde = self._al("/")
+        _kod, baslik, govde = self._al("/klasik")
         betik = re.findall(r"<script>(.*?)</script>", govde, re.S)
         self.assertEqual(len(betik), 1)
         ozet = base64.b64encode(hashlib.sha256(betik[0].encode("utf-8")).digest()).decode("ascii")
@@ -289,28 +289,28 @@ class SunucuTesti(unittest.TestCase):
         self.assertIn("sn önce", govde)
 
     def test_etag_degismeyince_304(self):
-        _kod, baslik, _govde = self._al("/")
-        istek = urllib.request.Request(self.adres + "/", headers={"If-None-Match": baslik["ETag"]})
+        _kod, baslik, _govde = self._al("/klasik")
+        istek = urllib.request.Request(self.adres + "/klasik", headers={"If-None-Match": baslik["ETag"]})
         with self.assertRaises(urllib.error.HTTPError) as hata:
             urllib.request.urlopen(istek, timeout=5)
         self.assertEqual(hata.exception.code, 304)
 
     def test_gzip_istenirse_sikistirir(self):
         import gzip
-        istek = urllib.request.Request(self.adres + "/", headers={"Accept-Encoding": "gzip"})
+        istek = urllib.request.Request(self.adres + "/klasik", headers={"Accept-Encoding": "gzip"})
         with urllib.request.urlopen(istek, timeout=5) as yanit:
             self.assertEqual(yanit.headers["Content-Encoding"], "gzip")
             metin = gzip.decompress(yanit.read()).decode("utf-8")
         self.assertIn("Sınavın 12. günü.", metin)
 
     def test_ek_guvenlik_basliklari(self):
-        _kod, baslik, _govde = self._al("/")
+        _kod, baslik, _govde = self._al("/klasik")
         self.assertEqual(baslik["X-Frame-Options"], "DENY")
         self.assertIn("camera=()", baslik["Permissions-Policy"])
         self.assertEqual(baslik["Cross-Origin-Opener-Policy"], "same-origin")
 
     def test_her_ekran_sayfada_bir_kez(self):
-        govde = self._al("/")[2]
+        govde = self._al("/klasik")[2]
         for kimlik, _ad in sayfa.EKRANLAR:
             self.assertEqual(govde.count(f'<section id="{kimlik}"'), 1, kimlik)
 

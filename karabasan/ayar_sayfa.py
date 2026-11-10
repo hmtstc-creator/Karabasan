@@ -689,8 +689,8 @@ def _kabuk(govde: str) -> str:
 <meta name="theme-color" content="#04070d"><meta name="robots" content="noindex">
 <title>Karabasan · Kriter ayarı</title><style>{STIL}{ISLEM_STIL}{AYAR_STIL}</style></head>
 <body><div class="sayfa">
-<header class="ust baslik-cubugu"><a class="marka" href="/#ana">KARABASAN</a>
-<a class="ig-geri" href="/#kriterler" style="margin-left:auto">← Ana sayfa</a></header>
+<header class="ust baslik-cubugu"><a class="marka" href="/klasik#ana">KARABASAN</a>
+<a class="ig-geri" href="/klasik#kriterler" style="margin-left:auto">← Ana sayfa</a></header>
 <main><h2 class="ekran-baslik">Kriter ayarı</h2>{govde}</main></div><script>{BETIK}</script></body></html>"""
 
 

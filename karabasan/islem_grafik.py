@@ -307,8 +307,8 @@ Bir muma dokununca açılış, tepe, dip ve kapanış görünür.</p>"""
 <meta name="theme-color" content="#070a12"><meta name="robots" content="noindex">
 <title>Karabasan · İşlem</title><style>{STIL}{ISLEM_STIL}</style></head>
 <body><div class="sayfa">
-<header class="ust baslik-cubugu"><a class="marka" href="/#ana">KARABASAN</a>
-<a class="ig-geri" href="/#islemgrafik" style="margin-left:auto">← İşlem listesi</a></header>
+<header class="ust baslik-cubugu"><a class="marka" href="/klasik#ana">KARABASAN</a>
+<a class="ig-geri" href="/klasik#islemgrafik" style="margin-left:auto">← İşlem listesi</a></header>
 <main><h2 class="ekran-baslik">{baslik}</h2>
 {govde}</main></div></body></html>"""
 
