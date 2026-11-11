@@ -1,0 +1,59 @@
+/* Karabasan TV panosu. Karar: 3 metreden okunur (büyük yazı), siyah zemin, dokunma yok, eski TV tarayıcılarında da açılsın diye sade CSS.
+   Ölçü 1920x1080'e göre vw/vh ile akar; 1280x720 televizyonda da aynı oran. */
+@font-face{font-family:"Bricolage";src:url("/s/bricolage.woff2") format("woff2");font-weight:200 800;font-display:swap}
+:root{--gece:#000;--yuzey:#0f0f0f;--cizgi:#2b2b2b;--kemik:#f4f4f4;--soluk:#a0a0a0;--ay:#f3d9a4;--arti:#6fdcae;--eksi:#ff8a7a}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--gece);color:var(--kemik);overflow:hidden;cursor:none}
+body{font:500 1.9vw/1.3 "Bricolage",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;display:flex;flex-direction:column;padding:2.2vh 3vw}
+.r{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.arti{color:var(--arti)}.eksi{color:var(--eksi)}.sl{color:var(--soluk)}.ay{color:var(--ay)}
+
+.tv-ust{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:1.6vh;border-bottom:1px solid var(--cizgi)}
+.tv-marka{font-weight:800;font-size:3vw;letter-spacing:-.02em}
+.tv-sinav{color:var(--soluk);font-size:1.9vw}
+.tv-saat{font-size:2.6vw;color:var(--ay)}
+
+.tv-ana{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;opacity:1;transition:opacity .5s}
+.tv-ana.gizli{opacity:0}
+.tv-bos{text-align:center;color:var(--soluk);font-size:2.6vw}
+.tv-baslik{font-size:2.2vw;color:var(--soluk);text-transform:uppercase;letter-spacing:.12em;margin-bottom:2vh}
+
+/* Ekran 1: büyük sayı */
+.buyuk{display:flex;flex-direction:column;align-items:center;text-align:center}
+.buyuk .sayi{font-size:15vw;font-weight:800;line-height:1;letter-spacing:-.03em}
+.buyuk .alt{font-size:2.6vw;color:var(--soluk);margin-top:1.2vh}
+.uclu{display:flex;justify-content:center;gap:5vw;margin-top:6vh}
+.uclu div{text-align:center;min-width:16vw}
+.uclu b{display:block;font-size:5vw;font-weight:800}
+.uclu span{font-size:1.9vw;color:var(--soluk)}
+
+/* Ekran 2: botlar */
+.botlar{display:flex;flex-wrap:wrap;justify-content:space-between}
+.bot{width:48.5%;background:var(--yuzey);border:1px solid var(--cizgi);border-radius:1.2vw;padding:2.4vh 2vw;margin-bottom:2.4vh}
+.bot .ad{display:flex;justify-content:space-between;align-items:baseline}
+.bot .ad b{font-size:3.2vw;font-weight:800}
+.bot .ad span{font-size:1.7vw;color:var(--soluk)}
+.bot .net{font-size:5.4vw;font-weight:800;line-height:1.1;margin:.6vh 0}
+.bot .sat{font-size:1.8vw;color:var(--soluk)}
+
+/* Ekran 3: gün gün çubuk */
+.cubuklar{display:flex;align-items:stretch;height:52vh;position:relative}
+.cubuklar .sifir{position:absolute;left:0;right:0;border-top:1px dashed #555}
+.cubuk{flex:1;position:relative;margin:0 .35vw}
+.cubuk i{position:absolute;left:0;right:0;border-radius:.3vw}
+.cubuk em{position:absolute;left:-50%;right:-50%;text-align:center;font-style:normal;font-size:1.25vw;color:var(--soluk);bottom:-3.6vh}
+.cubuk strong{position:absolute;left:-50%;right:-50%;text-align:center;font-size:1.25vw;font-weight:600}
+.tv-not2{margin-top:6vh;font-size:1.9vw;color:var(--soluk);text-align:center}
+
+/* Ekran 4: açık işlemler */
+.liste{width:100%;border-collapse:collapse}
+.liste th{font-size:1.6vw;color:var(--soluk);font-weight:500;text-align:left;padding:0 1vw 1.2vh;border-bottom:1px solid var(--cizgi)}
+.liste td{font-size:2.3vw;padding:1.3vh 1vw;border-bottom:1px solid #1a1a1a}
+.liste .s{text-align:right}
+.bos2{text-align:center;font-size:3vw;color:var(--soluk)}
+
+.tv-alt{display:flex;justify-content:space-between;align-items:center;padding-top:1.4vh;border-top:1px solid var(--cizgi);min-height:4vh}
+.tv-noktalar span{display:inline-block;width:1.1vw;height:1.1vw;border-radius:50%;background:#333;margin-right:.7vw}
+.tv-noktalar span.on{background:var(--ay)}
+.tv-not{font-size:1.5vw;color:var(--soluk)}
+.tv-not.uyari{color:#ffb65c}

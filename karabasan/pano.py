@@ -87,6 +87,8 @@ class Pano:
         tek = lambda ad, sinir=64: (sorgu.get(ad) or [""])[0][:sinir]  # noqa: E731
         if yol in ("/", "/index.html", "/pano"):
             return self._dosya("pano.html")
+        if yol == "/tv":
+            return self._dosya("tv.html")
         if yol.startswith("/s/"):
             return self._dosya(yol[3:]) or (404, "text/plain; charset=utf-8", "Böyle bir dosya yok.\n".encode("utf-8"), None)
         if not yol.startswith("/api/"):

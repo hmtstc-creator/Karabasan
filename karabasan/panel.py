@@ -196,7 +196,7 @@ def isleyici_uret(onbellek: Onbellek, pano_ayari: dict | None = None):
                 # panodur ve ilk sekmesi "Sonuçlar" bütün eski ve yeni ekranları gösterir. Pano açılamazsa eski sayfa.
                 if yol in ("/", "/index.html") and pano is None:
                     yol = "/klasik"
-                if yol.startswith(("/s/", "/api/")) or yol in ("/", "/index.html", "/pano"):
+                if yol.startswith(("/s/", "/api/")) or yol in ("/", "/index.html", "/pano", "/tv"):
                     sorgu = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "",
                                                   max_num_fields=20)
                     if pano is not None:
