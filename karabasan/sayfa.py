@@ -1884,7 +1884,8 @@ transform:translateY(-2px) rotate(45deg);transition:transform .2s}
 .menu[open] summary::after{transform:translateY(2px) rotate(-135deg)}
 .menu-liste{position:absolute;right:0;top:calc(100% + 8px);width:min(340px,calc(100vw - 32px));display:grid;grid-template-columns:1fr 1fr;
 gap:6px;padding:8px;border-radius:var(--r-buyuk);border:1px solid var(--cizgi);background:#0d111c;
-box-shadow:0 24px 48px -16px rgba(0,0,0,.85)}
+box-shadow:0 24px 48px -16px rgba(0,0,0,.85);
+max-height:calc(100vh - 90px);max-height:calc(100dvh - 90px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .menu-liste a{display:flex;flex-direction:column;gap:2px;min-height:56px;justify-content:center;padding:8px 12px;border-radius:var(--r-orta);
 text-decoration:none;color:var(--buz);border:1px solid transparent}
 .menu-liste a:hover,.menu-liste a:focus-visible{background:var(--yuzey2)}
@@ -1916,7 +1917,7 @@ p.guncelleme{margin:10px 0 0;font-size:.75rem;color:var(--soluk)}
 .baslik-cubugu .marka::before{margin-right:8px}
 .canli{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;padding:5px 8px}
 .menu summary{min-width:0;padding:0 12px}
-.menu-liste{position:fixed;left:16px;right:16px;top:62px;width:auto}}
+.menu-liste{position:fixed;left:16px;right:16px;top:62px;width:auto;max-height:calc(100vh - 78px);max-height:calc(100dvh - 78px)}}
 @media (min-width:900px){
 .baslik-cubugu{margin:-84px -24px 0;padding:12px 24px}
 .gezinti{display:none}
