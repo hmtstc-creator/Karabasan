@@ -16,6 +16,11 @@
 > Chromium'da sahte veriyle 390 ve 1280 px denendi, yatay taşma ve konsol hatası yok. **Gerçek sunucuda ilk kez:** çerçevenin Caddy
 > arkasında (parolalı) açılması, iPhone Safari'de çerçeve içi kaydırma.
 
+> **Gezinti toparlandı (11 Kasım 2026):** Ahmet "panoya geçince site başka yere geçiyor, sayfalar ve erişimler karışık" dedi. Neden: alt sayfaların
+> "Ana sayfa" bağlantıları eski `/klasik` sayfasına dönüyordu. Şimdi hepsi panoya (`/#sonuc-...`) döner ve ortak şeridi (`karabasan/site_gezinti.py`)
+> taşır; pano üst çubuğunda Kriter ayarı ve Coin listesi de var. Erişim haritası: `/` pano (Sonuçlar, Uzay, Ayar ve geçmiş test, Ajan);
+> `/ayar` `/detay` `/islem` `/coinler` `/defter` alt sayfalar; `/klasik` yalnız çerçevenin kaynağı (tek başına yedek). Gerçek telefonda ilk kez görülecek.
+
 ## Ahmet ne istedi
 
 - "Sabit bir kalıpta kaldı; bütün sitenin görselliğini ve mimarisini değiştir." İlk öneri (telefon ölçüsünde dört ekran) yetersiz bulundu:

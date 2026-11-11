@@ -15,6 +15,8 @@ import time
 import urllib.request
 from html import escape
 
+from . import site_gezinti
+
 TABAN = "https://fapi.binance.com"
 VARSAYILAN_HACIM_MILYON = 5.0  # botlarla aynı: en az 5 milyon USDT
 EN_FAZLA_HACIM_MILYON = 100_000.0
@@ -145,8 +147,8 @@ def sayfa_uret(sorgu: dict, onbellek: Onbellek | None = None) -> str:
     bas = ('<!doctype html><html lang="tr"><head><meta charset="utf-8">'
            '<meta name="viewport" content="width=device-width, initial-scale=1">'
            '<meta name="robots" content="noindex"><title>Coin listesi</title>'
-           f'<style>{BICIM}</style></head><body><main>')
-    govde = ['<p><a href="/klasik">&larr; Sonuç sayfası</a></p>', '<h1>Binance coin listesi</h1>',
+           f'<style>{BICIM}</style></head><body>' + site_gezinti.serit("coinler") + '<main>')
+    govde = ['<p><a href="/#sonuc">&larr; Pano</a></p>', '<h1>Binance coin listesi</h1>',
              '<p class="soluk">Binance vadeli (USDT sözleşmeli) bütün coinler; stable coinler çıkarıldı. '
              'Yalnız son 24 saatte en az seçtiğin kadar USDT hacmi olanlar görünür. '
              'Bu sayfa yalnız bakmak içindir; botların işlem evrenini değiştirmez.</p>']

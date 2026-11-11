@@ -11,6 +11,8 @@ import sqlite3
 import time
 from datetime import datetime, timezone
 from html import escape
+
+from . import site_gezinti
 from pathlib import Path
 
 UFUKLAR = ("5dk", "15dk")
@@ -175,7 +177,7 @@ def html_uret(ozet: dict, yenile_saniye: int = 30) -> str:
     bas = (f'<!doctype html><html lang="tr"><head><meta charset="utf-8">'
            f'<meta name="viewport" content="width=device-width, initial-scale=1">{yenile}'
            f'<meta name="robots" content="noindex"><title>Emir defteri denemesi</title>'
-           f'<style>{BICIM}</style></head><body><main>')
+           f'<style>{BICIM}</style></head><body>' + site_gezinti.serit("defter") + '<main>')
     son = "</main></body></html>"
     govde = ['<h1>Emir defteri denemesi</h1>',
              '<p class="soluk">BTC/USDT vadeli, 1 kat, yalnız sanal. Borsaya hiçbir emir gitmez. '

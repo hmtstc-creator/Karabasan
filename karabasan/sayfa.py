@@ -2043,8 +2043,14 @@ def html_uret(ozet: dict, saat_dilimi: str = "Europe/Bucharest", yenile_saniye: 
         for kimlik, ad in EKRANLAR
     ) + ('<a href="/ayar"><span class="menu-ad">Kriter ayarı</span>'
          '<span class="menu-alt">Geçmişe sar, kriterleri dene</span></a>'
-         '<a href="/"><span class="menu-ad">Pano</span>'
-         '<span class="menu-alt">Uzay, laboratuvar, ajan</span></a>'
+         + ('' if gomulu else '<a href="/"><span class="menu-ad">Pano</span>'
+            '<span class="menu-alt">Uzay, laboratuvar, ajan</span></a>') +
+         '<a href="/#uzay"><span class="menu-ad">Uzay</span>'
+         '<span class="menu-alt">Coinler girişe ne kadar yakın</span></a>'
+         '<a href="/#lab"><span class="menu-ad">Ayar ve geçmiş test</span>'
+         '<span class="menu-alt">Ayarını anında geçmişte dene</span></a>'
+         '<a href="/#ajan"><span class="menu-ad">Ajan</span>'
+         '<span class="menu-alt">Soru sor, rapor hazırlat</span></a>'
          '<a href="/coinler"><span class="menu-ad">Coin listesi</span>'
          '<span class="menu-alt">Stable hariç, hacim süzgeçli</span></a>' if yenile_saniye else "")
     t = ozet["toplam"]

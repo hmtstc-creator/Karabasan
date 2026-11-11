@@ -309,7 +309,7 @@ function raporYaz() {
       h += '<div class="blok"><h2>Gün gün (son ' + g.length + ' gün, USDT)</h2><div class="takvim">' + g.map(function (x) { var v = x.net_tutar || 0, a = Math.round((Math.min(1, Math.abs(v) / mx) * .7 + .12) * 100); return '<div title="' + esc(x.gun) + '" style="background:color-mix(in srgb,var(--' + (v >= 0 ? 'arti' : 'eksi') + ') ' + a + '%,var(--yuzey2))">' + isr(v, 1) + '</div>'; }).join('') + '</div></div>';
     }
   }
-  h += '<a class="dugme" href="/klasik">Ayrıntılı rapor, dersler ve işlem grafikleri (klasik ekranlar)</a>';
+  h += '<a class="dugme" href="#sonuc-rapor">Ayrıntılı rapor, dersler ve işlem grafikleri (Sonuçlar sekmesi)</a>';
   el.innerHTML = h;
 }
 $('p-rapor').addEventListener('click', function (e) { var b = e.target.closest('#olaylar button'); if (!b) return; T = +b.dataset.t; $('zamanK').value = T; oyna(false); kirli = true; sec(+b.dataset.c); });

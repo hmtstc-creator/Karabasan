@@ -21,6 +21,7 @@ from html import escape
 from pathlib import Path
 
 from . import botlar as _botlar
+from . import site_gezinti
 from .kural import kural_yukle
 from .sonuc import islemleri_oku
 from .stop_sonrasi import SPOT_ADRESI, VADELI_ADRESI, sembol
@@ -306,9 +307,9 @@ Bir muma dokununca açılış, tepe, dip ve kapanış görünür.</p>"""
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#070a12"><meta name="robots" content="noindex">
 <title>Karabasan · İşlem</title><style>{STIL}{ISLEM_STIL}</style></head>
-<body><div class="sayfa">
-<header class="ust baslik-cubugu"><a class="marka" href="/klasik#ana">KARABASAN</a>
-<a class="ig-geri" href="/klasik#islemgrafik" style="margin-left:auto">← İşlem listesi</a></header>
+<body>{site_gezinti.serit("islem")}<div class="sayfa">
+<header class="ust baslik-cubugu"><a class="marka" href="/">KARABASAN</a>
+<a class="ig-geri" href="/#sonuc-islemgrafik" style="margin-left:auto">← İşlem listesi</a></header>
 <main><h2 class="ekran-baslik">{baslik}</h2>
 {govde}</main></div></body></html>"""
 

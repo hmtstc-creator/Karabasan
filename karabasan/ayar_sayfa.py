@@ -23,6 +23,7 @@ from html import escape
 import pandas as pd
 
 from . import ayar as a
+from . import site_gezinti
 from . import ayar_kayit as _kayit
 from . import botlar as _botlar
 from .kural import ekleme_fiyati
@@ -688,9 +689,9 @@ def _kabuk(govde: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#04070d"><meta name="robots" content="noindex">
 <title>Karabasan · Kriter ayarı</title><style>{STIL}{ISLEM_STIL}{AYAR_STIL}</style></head>
-<body><div class="sayfa">
-<header class="ust baslik-cubugu"><a class="marka" href="/klasik#ana">KARABASAN</a>
-<a class="ig-geri" href="/klasik#kriterler" style="margin-left:auto">← Ana sayfa</a></header>
+<body>{site_gezinti.serit("ayar")}<div class="sayfa">
+<header class="ust baslik-cubugu"><a class="marka" href="/">KARABASAN</a>
+<a class="ig-geri" href="/#sonuc-kriterler" style="margin-left:auto">← Pano</a></header>
 <main><h2 class="ekran-baslik">Kriter ayarı</h2>{govde}</main></div><script>{BETIK}</script></body></html>"""
 
 
