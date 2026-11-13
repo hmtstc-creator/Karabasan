@@ -22,7 +22,16 @@ Ahmet araya girmez. `main` canlı olduğu için sunucu oturumu `main`'e **hiç**
 | 9 | Dal sayısı birikir | Birleşen / reddedilen `sunucu/` dalını ben silerim; günlük kaydı tutarım | Süreç |
 | 10 | Gerçek paraya geçiş | Gerçek hesap ancak Ahmet "site %200 hazır" deyince. O gün: deploy key silinir (tek dokunuş), sunucu oturumu kapatılır ya da kısıtlanır (CLAUDE.md), Binance anahtarı "yalnız işlem, çekim kapalı + sunucu IP'si ile sınırlı" olur, ilk gün çok küçük tutarla başlanır. Bu geçiş ayrı bir kontrol listesiyle yapılır, bu sayfa onun yerine geçmez | Ahmet'in kararı; o gün yeni sayfa açılır |
 
+## Güncelleme (13 Kasım akşamı): anahtar sunucu oturumu olmadan üretilir
+"Karabasan sunucu" oturumu `disconnected` görünüyor (son başlatma hatası 10 Kasım, `computer_unreachable`) ve bulut oturumundan ona mesaj
+`elevated_session_untrusted_device` ile reddedildi (bunu ancak Ahmet bir kartla onaylayabilir). Bu yüzden anahtar oturumdan değil koddan üretilir:
+`araclar/deploy_anahtari.sh` (kur.sh çağırır) sunucuda ed25519 anahtar çifti üretir, yalnız GENEL kısmı Telegram'dan bir kez yollar;
+özel kısım `/root/.ssh/karabasan_deploy` (600) içinde kalır. Anahtar varsa üstüne yazmaz. `ssh-keygen` yoksa `openssh-client` kurar.
+Git yapılandırması / push henüz yok; GitHub'a eklenip sınanınca ikinci adım. Sahte `ssh-keygen` ile sınandı (`test_deploy_anahtari.py`);
+**gerçek sunucuda ilk kez çalışacak**.
+
 ## Adımlar (Ahmet, telefondan, sırayla)
+(1. adım yukarıdaki güncellemeyle değişti: sunucu oturumuna mesaj gerekmez, Telegram'a gelen anahtarı kullan.)
 1. Ben sunucu oturumuna kısa bir talimat gönderirim: "SSH anahtarı üret, yalnız genel kısmı yaz, özel kısmı hiç gösterme." (bulut → sunucu mesajı; Ahmet hiçbir şey yazmaz)
 2. Genel anahtarı sana (Ahmet) gösteririm. GitHub uygulaması ya da tarayıcıda: depo → Settings → Deploy keys → Add deploy key → yapıştır → "Allow write access" işaretle.
 3. Ruleset (tablodaki 2. satır) ve Push protection (5. satır) aç. Bunları yaptığını yazınca ben sınarım: sunucu oturumundan `main`'e deneme yazdırırım, reddedilmeli; `sunucu/deneme` dalına yazdırırım, geçmeli.

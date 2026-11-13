@@ -324,6 +324,9 @@ print(' '.join(b[0] for b in BOTLAR))")"
     # ölçümden önce çalışır; oturumun açılması onu beklemesin.
     bash araclar/claude_sunucu.sh kur || echo "UYARI: sunucudaki Claude kurulamadı; botlar bundan etkilenmez."
 
+    # Sunucunun GitHub deploy anahtarı: yalnız anahtarı üretir, genel kısmı Telegram'a yollar (bir kez).
+    bash araclar/deploy_anahtari.sh || echo "UYARI: deploy anahtarı hazırlanamadı; botlar bundan etkilenmez."
+
     # ------------------------------------------------------------ analiz
     adim "Ek: analiz"
     # Tek seferlik ölçümler. İçeriği değişince sayı artırılır; sunucu bir sonraki
