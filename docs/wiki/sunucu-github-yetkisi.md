@@ -81,3 +81,8 @@ Sunucu oturumu bildirdi: eklentiler superpowers, ui-ux-pro-max, impeccable; MCP:
 web-design-guidelines, vercel-react-best-practices. GitHub MCP kurulmadı. Bunlar üçüncü kişi kodudur ve root yetkili sunucuda çalışır
 (sunucuda deploy anahtarı da var). **Gerçek paraya geçmeden önce hepsi silinir** (gerçek para kontrol listesine yazılır); o güne kadar
 yeni eklenti kurulumu Ahmet'in bilgisiyle olur ve kaynağı bu sayfaya yazılır.
+
+## 13 Kasım 21:15: sunucu-birlestir görevi gerçek GitHub'da sınandı, GEÇTİ
+Sunucu oturumu `sunucu/birlestirme-denemesi` dalını itti; görev (elle tetiklendi, `workflow_dispatch`) PR #8'i açtı, testleri koşturdu, birleştirdi ve dalı sildi
+(`4135920`). Deneme dosyası sonra silindi. Not: 10 dakikalık zamanlayıcı ilk 20 dakikada kendiliğinden çalışmadı (GitHub yeni zamanlayıcıları geciktirebilir);
+acele varsa görev "Actions > sunucu-birlestir > Run workflow" ile elle tetiklenebilir.
