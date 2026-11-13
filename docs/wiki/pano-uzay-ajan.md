@@ -117,6 +117,8 @@ kararlı "flash" seçilir (`gemini_model_sec`); model kaldırılırsa (404) list
 
 **Düzeltme (13 Kasım 2026):** Gemini anahtar biçim denetimi noktayı kabul etmiyordu; Google'ın yeni anahtarları `AQ.` ile başlar ve içinde nokta vardır, bu yüzden Ahmet'in anahtarı "anahtara benzemiyor" diye reddedildi. Denetim `[A-Za-z0-9_\-.]` olarak genişletildi (`ajan.SAGLAYICILAR`), `sk-` ile başlayanlar yine reddedilir; test: `test_varsayilan_saglayici_gemini_ve_anahtarlar_ayri`. Gerçek sunucuda ilk kez: yeni biçimli anahtarla Gemini'ye gerçek çağrı (sınanmadı; yalnız biçim denetimi sınandı).
 
+**503 (13 Kasım 2026):** Anahtar kaydedildi ama soruda 503 geldi: Google "model aşırı yüklü" der, anahtar sorunu değildir. Artık `_http` Gemini / DeepSeek çağrısını 3 kez dener (3 sn, 6 sn bekleyerek), 503 mesajı "çok yoğun" der; model otomatik seçiliyse ve 500 / 503 sürerse `yedek_model`'e (gemini-2.5-flash) geçilir, elle yazılmış model adına dokunulmaz. Test: `test_yogunlukta_503_yedek_modele_gecer`. Sunucuda sınanmadı; 503 panonun kendisinden (güncelleme sırasında kapsayıcı yeniden başlarken Caddy) geliyorsa bu değişiklik çözmez.
+
 Ahmet'e söylenenler: ücretsiz katmanın dakikalık ve günlük soru sınırı vardır, dolunca ajan o gün yanıt vermez (sayfa "kotası doldu" der).
 Google ücretsiz katmanda gönderilen verileri ürünlerini geliştirmek için kullanabilir; bu sistemde giden veri sanal bot sonuçları ve
 ayarlardır, gizli bilgi gitmez. **Güncel ücretsiz kota ve model adları bu oturumda internetten doğrulanamadı** (arama sınırı doldu);

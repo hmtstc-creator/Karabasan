@@ -460,6 +460,18 @@ class AjanTesti(unittest.TestCase):
         self.assertEqual(self.sor("c")["durum"], "hata")
         self.assertEqual(self.oa_istekler[-1][0]["model"], "gemini-elle")
 
+    def test_yogunlukta_503_yedek_modele_gecer(self):
+        ajan.anahtar_yaz(self.klasor, GEMINI, "gemini")
+        bitti = {"choices": [{"finish_reason": "stop", "message": {"content": "tamam"}}]}
+        self.model_listesi = ["gemini-3-flash"]
+        self.oa_yanitlar = [ajan.AjanHatasi("yoğun", 503), bitti]
+        self.assertEqual(self.sor("a")["yanit"], "tamam")
+        self.assertEqual([i[0]["model"] for i in self.oa_istekler], ["gemini-3-flash", "gemini-2.5-flash"])
+        self.ajan.ayar_yaz("gemini", "gemini-elle")                           # elle yazılan ad yedekle değişmez
+        self.oa_yanitlar = [ajan.AjanHatasi("yoğun", 503)]
+        self.assertEqual(self.sor("b")["durum"], "hata")
+        self.assertEqual(self.oa_istekler[-1][0]["model"], "gemini-elle")
+
     def test_kota_dolunca_anlasilir_hata(self):
         ajan.anahtar_yaz(self.klasor, GEMINI, "gemini")
         self.oa_yanitlar = [ajan.AjanHatasi("Google Gemini kotası doldu ya da çok sık soru soruldu. Biraz sonra yeniden dene.", 429)]
@@ -509,11 +521,18 @@ class OABaglantisi(unittest.TestCase):
         self.assertEqual(ajan.oa_cagir({"model": "m"}, GEMINI, self.adres + "/c", "Gemini", bekleme=0)["choices"][0]["message"]["content"], "ok")
         self.assertEqual({k.lower(): v for k, v in self.gelen[-1][0].items()}["authorization"], "Bearer " + GEMINI)
         self.assertEqual(ajan.oa_modeller(GEMINI, self.adres + "/m", "Gemini"), ["gemini-2.5-flash", "gemini-2.5-pro"])
-        self.kodlar[:] = [429, 429]
+        self.kodlar[:] = [429, 429, 429]
         with self.assertRaises(ajan.AjanHatasi) as hata:
             ajan.oa_cagir({}, GEMINI, self.adres + "/c", "Google Gemini", bekleme=0)
         self.assertEqual(hata.exception.kod, 429)
         self.assertIn("kotası", str(hata.exception))
+        self.kodlar[:] = [503, 503]                                       # geçici yoğunluk: üçüncü denemede yanıt gelir
+        self.assertEqual(ajan.oa_cagir({}, GEMINI, self.adres + "/c", "Google Gemini", bekleme=0)["choices"][0]["message"]["content"], "ok")
+        self.kodlar[:] = [503, 503, 503]
+        with self.assertRaises(ajan.AjanHatasi) as hata:
+            ajan.oa_cagir({}, GEMINI, self.adres + "/c", "Google Gemini", bekleme=0)
+        self.assertEqual(hata.exception.kod, 503)
+        self.assertIn("çok yoğun", str(hata.exception))
         self.kodlar[:] = [400]                                            # Google hata gövdesi liste olabilir
         with self.assertRaises(ajan.AjanHatasi) as hata:
             ajan.oa_cagir({}, GEMINI, self.adres + "/c", "Google Gemini", bekleme=0)

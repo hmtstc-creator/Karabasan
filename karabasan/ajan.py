@@ -523,14 +523,18 @@ def _http(istek: urllib.request.Request, ad: str, bekleme: float, deneme_sayisi:
                 raise AjanHatasi(f"{ad} anahtarı kabul edilmedi. Ajan sekmesinden anahtarı yeniden gir.", kod) from None
             if kod in (400, 404, 413, 422):
                 raise AjanHatasi(f"{ad} isteği reddetti ({kod}). {ayrinti}", kod) from None
-            son_hata = (f"{ad} kotası doldu ya da çok sık soru soruldu (ücretsiz katmanın dakikalık / günlük sınırı)"
-                        if kod == 429 else f"{ad} sunucu hatası ({kod})")
+            if kod == 429:
+                son_hata = f"{ad} kotası doldu ya da çok sık soru soruldu (ücretsiz katmanın dakikalık / günlük sınırı)"
+            elif kod == 503:
+                son_hata = f"{ad} şu an çok yoğun (503: model aşırı yüklü; anahtarında sorun yok)"
+            else:
+                son_hata = f"{ad} sunucu hatası ({kod})"
         except (urllib.error.URLError, TimeoutError, OSError) as hata:
             son_hata = f"{ad} adresine ulaşılamadı ({type(hata).__name__})"
         except ValueError:
             son_hata = f"{ad} anlaşılmayan bir yanıt verdi"
         if deneme + 1 < deneme_sayisi:
-            time.sleep(bekleme)
+            time.sleep(bekleme * (deneme + 1))   # 3 sn, sonra 6 sn: geçici yoğunluk çoğu zaman birkaç saniyede geçer
     raise AjanHatasi(son_hata + ". Biraz sonra yeniden dene.", son_kod)
 
 
@@ -538,7 +542,7 @@ def oa_cagir(govde: dict, anahtar: str, adres: str, ad: str = "Sağlayıcı", be
     """OpenAI uyumlu sohbet adresi (Gemini, DeepSeek): POST <adres>, Authorization: Bearer <anahtar>."""
     istek = urllib.request.Request(adres, data=json.dumps(govde).encode("utf-8"), method="POST", headers={
         "Content-Type": "application/json", "Authorization": f"Bearer {anahtar}"})
-    return _http(istek, ad, bekleme)
+    return _http(istek, ad, bekleme, deneme_sayisi=3)
 
 
 def oa_modeller(anahtar: str, adres: str, ad: str = "Sağlayıcı") -> list[str]:
@@ -790,6 +794,10 @@ class Ajan:
                     if yeni == model:
                         raise
                     model = govde["model"] = yeni
+                elif (hata.kod in (500, 503) and not self.ayar()["model"].get(saglayici)
+                      and s["yedek_model"] != model):
+                    # Seçilen en yeni model yoğunsa sağlayıcının bilinen kararlı yedek modeline geç.
+                    model = govde["model"] = s["yedek_model"]
                 else:
                     raise
                 yanit = self._oa_cagir(govde, anahtar, s["adres"], s["ad"])
