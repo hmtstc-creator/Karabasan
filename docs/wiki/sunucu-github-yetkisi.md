@@ -66,3 +66,12 @@ Böylece `main`'e doğrudan itme herkese kapalı olur (sunucuya da, bana da); be
 "onay bekleme" kuralı aynen geçerli. Yedek yol: sunucudaki deploy key'i silmek (tek dokunuş) ve eski düzene dönmek.
 
 Ruleset düzeltildi (13 Kasım): bypass boş, 'update' yerine 'pull_request'. main'e doğrudan itme herkese kapalı.
+
+## 13 Kasım 20:40: sunucu oturumu programlamayı doğrudan yürütür (Ahmet'in kararı)
+Ahmet: artık yalnız VPS'teki oturumla konuşup güncellemeleri ona yaptırmak istiyor. Sunucuya gizli anahtar VERİLMEDİ; yol:
+sunucu `sunucu/<konu>` dalını iter -> `.github/workflows/sunucu-birlestir.yml` (main'deki sürümle, 10 dakikada bir + elle) `araclar/sunucu_dal_birlestir.py` çalıştırır:
+PR açar, main ile birleştirip testleri koşturur (denetim dosyaları main'deki sürümle değiştirilir), `korunan_dosya_denetimi.py`'yi çalıştırır, geçerse squash birleştirir ve dalı siler.
+Korunan yollara (`.github/`, denetim araçları, `CLAUDE.md`) dokunan dal birleşmez; PR açık kalır. Bulut oturumu isteğe bağlı kalır (korunan yollar, çakışma, tasarım).
+Yerelde sahte `gh` ve yerel depoyla sınandı (korunan yol atlanır, testi geçen birleşir). **Gerçek GitHub'da ilk kez çalışacak.**
+Ahmet'in yapacağı: Settings > Actions > General > Workflow permissions: "Read and write permissions" + "Allow GitHub Actions to create and approve pull requests". Bu yapılmazsa görev PR açamaz.
+Gerçek paraya geçilirse: bu görev kapatılır (workflow silinir), deploy key silinir, sunucu oturumu kapatılır.

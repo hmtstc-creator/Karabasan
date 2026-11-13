@@ -133,7 +133,9 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
   yaptığın değişiklik bir sonraki güncellemede silinir. Sunucudan GitHub'a yazma
   yetkisi **yalnız `sunucu/...` dallarına** vardır (13 Kasım 2026'dan beri, deploy key; `main` ruleset ile kapalı, ayrıntı
   `docs/wiki/sunucu-github-yetkisi.md`). Kalıcı bir düzeltme gerekiyorsa `/root/calisma/karabasan` klonunda `sunucu/<konu>` dalına yaz
-  ve it; `main`'e asla itme, canlı klasörde (`/opt/karabasan-bot`) git push yapma. Bulut oturumu dalı diff'ini okuyup testlerle `main`'e alır. Acil bir geçici düzeltme yaparsan bunun
+  ve it; `main`'e asla itme, canlı klasörde (`/opt/karabasan-bot`) git push yapma. Dal `sunucu/...` adıyla itilince GitHub'daki `sunucu-birlestir` görevi (en geç 10 dakikada) testleri çalıştırır; geçerse PR açıp `main`'e birleştirir,
+  sonra sunucu 5 dakikada alır. Korunan yola (`.github/`, denetim dosyaları, `CLAUDE.md`) dokunan dal birleşmez; Ahmet'e söyle. Sunucuda numpy yok: testi sen
+  koşturamazsın, sonucu GitHub'daki PR'dan ya da dalın kaybolmasından anla. Strateji dosyası için commit mesajına `[hata-duzeltme]` şart (3. kural). Acil bir geçici düzeltme yaparsan bunun
   geçici olduğunu açıkça söyle.
 - En değerli işin teşhistir: `docker compose ps`, `docker compose logs`,
   `user_data/logs/` altındaki kayıtlar, `user_data/db/*.sqlite` (yalnız

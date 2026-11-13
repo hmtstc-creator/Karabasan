@@ -1,0 +1,26 @@
+# Sunucu oturumunun sunucu/... dallarını sınar, geçerse main'e birleştirir.
+# Her zaman main'deki sürümle çalışır (schedule); dal kendi iş akışını değiştirerek denetimi gevşetemez.
+name: sunucu-birlestir
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  birlestir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy pandas
+      - run: git config user.name "karabasan-birlestirici" && git config user.email "birlestirici@karabasan.invalid"
+      - run: python3 araclar/sunucu_dal_birlestir.py
+        env:
+          GH_TOKEN: ${{ github.token }}
