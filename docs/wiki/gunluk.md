@@ -28,6 +28,7 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 | 2026-11-13 | Sunucu oturumuna GitHub yazma yetkisi tasarlandı: deploy key + `main` ruleset + `sunucu/` dalları; CI testleri, korunan dosya denetimi, gizli bilgi / gerçek emir testi eklendi. Yetki henüz verilmedi | Ahmet: "nasıl olmazı değil nasıl oluru arıyoruz"; gerçek hesap yalnız "site %200 hazır" deyince | sunucu-github-yetkisi |
 | 2026-11-13 | Deploy key: `araclar/deploy_anahtari.sh` (kur.sh) sunucuda anahtar üretir, genel kısmı Telegram'a yollar; sunucu oturumu bağlantısız olduğu için oturumsuz yol seçildi | Ahmet: "Deploy key yapalım, bitirince diğerine geçeriz" | sunucu-github-yetkisi |
 | 2026-11-13 | Sunucu deploy key tamam: sunucu `sunucu/` dallarına yazar; `main` ruleset (bypass yok, PR şart) sunucunun ve doğrudan itmenin önünü kapattı; sınandı. `main` değişiklikleri PR açıp hemen birleştirilerek yapılır | Ahmet: "nasıl olmazı değil nasıl oluru"; ilk ruleset admin bypass'ı yüzünden sunucuyu engellemedi, düzeltildi | sunucu-github-yetkisi |
+| 2026-11-13 | Sunucuya eklentiler / skill'ler kuruldu (superpowers, ui-ux-pro-max, impeccable, context7 ve 4 skill); sunucu oturumu programlamayı doğrudan yürütür (`sunucu-birlestir` görevi). Gerçek paradan önce üçüncü kişi araçları silinecek | Ahmet: "vpste tek sohbette konuşup güncellemeleri o yapsın; skiller kuralım" | sunucu-github-yetkisi |
 
 ## Açık işler (güncel)
 
