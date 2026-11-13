@@ -213,3 +213,16 @@ th:first-child,td:first-child{text-align:left}
   #g-sonuc .sonuc-kutu{flex:1;min-height:0}
   #sonucCerceve{height:100%;min-height:0}
 }
+
+/* Telefon (13 Kasım 2026): üst gezinti tek satırda yatay kayar, bot seçimi tam genişlikte; üç ayrı satır olmaz. */
+@media (max-width:999px){
+  .bas{gap:8px 10px;padding:10px 0}
+  .marka{font-size:1.1rem}
+  .bas .bosluk{display:none}
+  .gez{flex-wrap:nowrap;overflow-x:auto;width:100%;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .gez::-webkit-scrollbar{display:none}
+  .gez a{flex:none;white-space:nowrap}
+  #botsec{display:flex;width:100%}
+  #botsec button{flex:1;padding:0 8px}
+  .cip{white-space:nowrap;margin-left:auto}
+}
