@@ -48,3 +48,9 @@ Git yapılandırması / push henüz yok; GitHub'a eklenip sınanınca ikinci ad�
 - `deploy_anahtari.sh` ayrıca `~/.ssh/config`'e `github-karabasan` adını yazar (yalnız bu anahtar, ilk bağlantıda `accept-new`).
 - Sıra: (1) `ssh -T git@github-karabasan` ve `sunucu/deneme` dalına deneme yazımı; (2) Ahmet `main` ruleset'ini kurar; (3) ancak ondan sonra "main'e yazma reddedilir" sınaması. **Ruleset yokken `main`'e deneme yazılmaz** (başarılı olur ve canlıya düşer).
 - Çalışma klasörü: sunucu oturumu `/root/calisma/karabasan` altında ayrı klon kullanır; `/opt/karabasan-bot` canlı dağıtımdır, orada push yapılmaz.
+
+## 13 Kasım 19:55: sunucu sınaması geçti
+Sunucu oturumu (Read + onaylı Bash): `/root/.ssh/config` bloğu var; `ssh -T git@github-karabasan` kimlik doğrulandı; GitHub parmak izi
+`SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU` yayımlananla aynı; `/root/calisma/karabasan` klonu açıldı; `sunucu/deneme` dalına yazıldı ve silindi.
+Sunucu oturumu bulut oturumuna mesaj atamaz (güvenilir cihaz hatası); gerekmiyor, bulut oturumu onun kaydını `list_events` ile okur.
+Kalan: `main` ruleset'inin sunucuyu gerçekten engellediği sınanacak.

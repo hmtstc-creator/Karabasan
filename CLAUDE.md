@@ -129,10 +129,10 @@ makinenin adı `karabasan` ise o oturum sensin.** O zaman şunlar geçerlidir:
   yapacağını bir cümleyle söyle.
 - **Bu klasör canlı dağıtımdır, çalışma kopyası değildir.** 5 dakikada bir
   `main` ile eşitlenir (`git reset --hard origin/main`); izlenen dosyalarda
-  yaptığın değişiklik bir sonraki güncellemede silinir. Sunucudan GitHub'a
-  yazma yetkisi yoktur. Kalıcı bir düzeltme gerekiyorsa: sorunu ve önerdiğin
-  değişikliği kısa ve kopyalanabilir biçimde yaz; Ahmet bunu GitHub'a
-  yazabilen bulut oturumuna iletir. Acil bir geçici düzeltme yaparsan bunun
+  yaptığın değişiklik bir sonraki güncellemede silinir. Sunucudan GitHub'a yazma
+  yetkisi **yalnız `sunucu/...` dallarına** vardır (13 Kasım 2026'dan beri, deploy key; `main` ruleset ile kapalı, ayrıntı
+  `docs/wiki/sunucu-github-yetkisi.md`). Kalıcı bir düzeltme gerekiyorsa `/root/calisma/karabasan` klonunda `sunucu/<konu>` dalına yaz
+  ve it; `main`'e asla itme, canlı klasörde (`/opt/karabasan-bot`) git push yapma. Bulut oturumu dalı diff'ini okuyup testlerle `main`'e alır. Acil bir geçici düzeltme yaparsan bunun
   geçici olduğunu açıkça söyle.
 - En değerli işin teşhistir: `docker compose ps`, `docker compose logs`,
   `user_data/logs/` altındaki kayıtlar, `user_data/db/*.sqlite` (yalnız
