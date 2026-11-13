@@ -41,3 +41,10 @@ Git yapılandırması / push henüz yok; GitHub'a eklenip sınanınca ikinci ad�
 - Ruleset'in "deploy key'i engelle, admin'i bırak" biçimde davranması GitHub'ın güncel ayarına bağlı; adım 3 bunu gerçek depoda sınar. Davranmazsa yedek: yalnız `main`'e "birleştirme isteği şart" kuralı koyup birleştirmeyi ben MCP aracıyla yaparım.
 - Sunucudaki `oto_guncelle.sh` yalnız okuma yoluyla çeker; deploy key'in sunucuda `git push` için yapılandırılması (`GIT_SSH_COMMAND`) henüz yazılmadı, adım 1'de sunucu oturumu yapar. Kalıcı olması için `kur.sh`'a eklenir mi, bakılacak.
 - CI'da `pip install numpy pandas` ilk kez gerçek GitHub'da çalışacak.
+
+## 13 Kasım akşamı: durum
+- Sunucu oturumu ("Uzak bağlantı durumu", `claude remote-control`) çalışıyor; bulut oturumundan mesaj atmak için Ahmet güven kartını onayladı (geri alınamaz: bulut oturumu yalnız Ahmet'in güvenilir cihazlarıyla çalışır).
+- Genel anahtar sunucu oturumundan Read ile okundu, Ahmet GitHub Deploy keys'e (write access) ekledi. Özel anahtar hiç okunmadı.
+- `deploy_anahtari.sh` ayrıca `~/.ssh/config`'e `github-karabasan` adını yazar (yalnız bu anahtar, ilk bağlantıda `accept-new`).
+- Sıra: (1) `ssh -T git@github-karabasan` ve `sunucu/deneme` dalına deneme yazımı; (2) Ahmet `main` ruleset'ini kurar; (3) ancak ondan sonra "main'e yazma reddedilir" sınaması. **Ruleset yokken `main`'e deneme yazılmaz** (başarılı olur ve canlıya düşer).
+- Çalışma klasörü: sunucu oturumu `/root/calisma/karabasan` altında ayrı klon kullanır; `/opt/karabasan-bot` canlı dağıtımdır, orada push yapılmaz.

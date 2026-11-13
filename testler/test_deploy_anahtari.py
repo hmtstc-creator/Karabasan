@@ -44,6 +44,10 @@ class DeployAnahtari(unittest.TestCase):
             mesaj = f.read()
         self.assertEqual(mesaj.count("ssh-ed25519 GENEL"), 1)
         self.assertNotIn("OZEL-GIZLI", mesaj)
+        with open(os.path.join(self.d, "ssh", "config")) as f:
+            yapi = f.read()
+        self.assertEqual(yapi.count("Host github-karabasan"), 1)
+        self.assertIn("IdentitiesOnly yes", yapi)
 
     def test_var_olan_anahtarin_ustune_yazmaz(self):
         os.makedirs(os.path.join(self.d, "ssh"))

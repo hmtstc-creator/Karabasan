@@ -3,7 +3,7 @@
 #
 # Yapılan: anahtar çiftini sunucuda üretir (yoksa), GENEL kısmı bir kez Ahmet'e Telegram'dan yollar.
 # Özel kısım /root/.ssh/karabasan_deploy dosyasında kalır (600); hiçbir yere gönderilmez, yazılmaz.
-# Yapılmayan: git yapılandırması, uzak adres, push. Anahtar GitHub'a eklenip sınanmadan bunlara dokunulmaz.
+# Ayrıca ~/.ssh/config'e github-karabasan adını yazar. Yapılmayan: canlı klasörün git ayarı, push (onları sunucu oturumu ayrı klasörde yapar).
 # Her çalıştırmada güvenle tekrarlanabilir: anahtar varsa üstüne yazılmaz, bildirim bir kez gider.
 set -u
 
@@ -31,6 +31,24 @@ else
 fi
 chmod 600 "$ANAHTAR"
 chmod 644 "$ANAHTAR.pub" 2> /dev/null || true
+
+# GitHub'a bu anahtarla bağlanmak için ayrı bir ad (github-karabasan). Yalnız bu anahtar kullanılır
+# (IdentitiesOnly). Sunucunun canlı klasörü https ile okumaya devam eder; buna dokunulmaz.
+# İlk bağlantıda GitHub'ın sunucu anahtarı kabul edilir (accept-new); parmak izi ilk sınamada gözle denetlenir.
+YAPI="$SSH_KLASORU/config"
+if ! grep -q "^Host github-karabasan$" "$YAPI" 2> /dev/null; then
+    {
+        echo ""
+        echo "Host github-karabasan"
+        echo "    HostName github.com"
+        echo "    User git"
+        echo "    IdentityFile $ANAHTAR"
+        echo "    IdentitiesOnly yes"
+        echo "    StrictHostKeyChecking accept-new"
+    } >> "$YAPI"
+    chmod 600 "$YAPI"
+    echo "SSH adı github-karabasan eklendi."
+fi
 
 if [ ! -f "$ISARET" ] && [ -s "$ANAHTAR.pub" ]; then
     bildir "Sunucunun GitHub anahtarı hazır. Bunu GitHub'a ekle (telefondan):
