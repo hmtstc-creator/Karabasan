@@ -27,6 +27,7 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 | 2026-11-13 | Ajan: Gemini 503 (aşırı yük) için 3 deneme + yedek modele geçiş | Ahmet: "Kayıt yaptı ama 503 hatası verdi" | pano-uzay-ajan |
 | 2026-11-13 | Sunucu oturumuna GitHub yazma yetkisi tasarlandı: deploy key + `main` ruleset + `sunucu/` dalları; CI testleri, korunan dosya denetimi, gizli bilgi / gerçek emir testi eklendi. Yetki henüz verilmedi | Ahmet: "nasıl olmazı değil nasıl oluru arıyoruz"; gerçek hesap yalnız "site %200 hazır" deyince | sunucu-github-yetkisi |
 | 2026-11-13 | Deploy key: `araclar/deploy_anahtari.sh` (kur.sh) sunucuda anahtar üretir, genel kısmı Telegram'a yollar; sunucu oturumu bağlantısız olduğu için oturumsuz yol seçildi | Ahmet: "Deploy key yapalım, bitirince diğerine geçeriz" | sunucu-github-yetkisi |
+| 2026-11-13 | Sunucu deploy key tamam: sunucu `sunucu/` dallarına yazar; `main` ruleset (bypass yok, PR şart) sunucunun ve doğrudan itmenin önünü kapattı; sınandı. `main` değişiklikleri PR açıp hemen birleştirilerek yapılır | Ahmet: "nasıl olmazı değil nasıl oluru"; ilk ruleset admin bypass'ı yüzünden sunucuyu engellemedi, düzeltildi | sunucu-github-yetkisi |
 
 ## Açık işler (güncel)
 
@@ -38,4 +39,4 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 6. Ahmet ücretsiz Gemini anahtarı alacak (aistudio.google.com/apikey) ve panoda Ajan sekmesinden girecek; sonra "Rapor hazırlat". Rapor gelince bulut oturumu sunucu oturumundan okur (pano-uzay-ajan, 2. tur).
 7. Ahmet'in kararı: Karabasan durum süzgeci canlıda yok (botlar durumdan bağımsız işlem açıyor). Yeni bot ve kendi 30 günü mü, sınav sonuna mı bırakılsın? Canlı puan kaydı için bir servis gerekir (fiyat verisi + `puan.py`, pandas'lı kapsayıcıda).
 8. Gerçek sunucuda ilk kez: beş ek ekran, özellikle Likidite'nin Binance çağrıları (panel kapsayıcısından, 5 dakikada bir en çok 13 GET).
-9. Sunucu GitHub yetkisi (sunucu-github-yetkisi.md): Telegram'a gelen genel anahtarı Ahmet GitHub'a ekleyecek (Deploy keys, write access); sonra git/push yapılandırması, ruleset, push protection ve iki sınama (main reddedilir, sunucu/ dalı geçer). Sunucu oturumu bağlantısız (10 Kasım'dan beri); `confirm_repository_trust` kartı Ahmet'in kararı.
+9. (TAMAM 13 Kasım; yalnız Push protection açılışı Ahmet'ten teyit bekliyor) Sunucu GitHub yetkisi (sunucu-github-yetkisi.md): Telegram'a gelen genel anahtarı Ahmet GitHub'a ekleyecek (Deploy keys, write access); sonra git/push yapılandırması, ruleset, push protection ve iki sınama (main reddedilir, sunucu/ dalı geçer). Sunucu oturumu bağlantısız (10 Kasım'dan beri); `confirm_repository_trust` kartı Ahmet'in kararı.
