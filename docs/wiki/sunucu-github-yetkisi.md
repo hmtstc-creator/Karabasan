@@ -54,3 +54,13 @@ Sunucu oturumu (Read + onaylı Bash): `/root/.ssh/config` bloğu var; `ssh -T gi
 `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU` yayımlananla aynı; `/root/calisma/karabasan` klonu açıldı; `sunucu/deneme` dalına yazıldı ve silindi.
 Sunucu oturumu bulut oturumuna mesaj atamaz (güvenilir cihaz hatası); gerekmiyor, bulut oturumu onun kaydını `list_events` ile okur.
 Kalan: `main` ruleset'inin sunucuyu gerçekten engellediği sınanacak.
+
+## 13 Kasım 19:59: ruleset sınaması BAŞARISIZ (sunucu main'e yazabildi), düzeltme bekliyor
+Sunucu oturumu `git push origin HEAD:main` yaptı; GitHub "Bypassed rule violations ... Cannot update this protected ref" yazıp işlemi kabul etti
+(`68cab67`, yalnız bir txt; bulut oturumu geri aldı). Neden: ruleset `main-koruma` (id 27228018) kuralları `deletion`, `non_fast_forward`, `update`;
+bypass listesi tek giriş: **RepositoryRole 5 = Repository admin, always**. Yazma yetkili deploy key bu bypass'a dahil oldu (ya da GitHub onu yönetici sayıyor).
+Bulut oturumu da Ahmet'in hesabıyla (`hmtstc-creator`, admin) yazdığı için ikisini role göre ayırmak mümkün değil.
+**Çözüm (Ahmet'in onayı bekliyor):** bypass listesini boşalt ve `update` kuralı yerine **"Require a pull request before merging"** (0 onay) koy.
+Böylece `main`'e doğrudan itme herkese kapalı olur (sunucuya da, bana da); ben `sunucu/` dalını ya da kendi dalımı birleştirme isteğiyle açıp anında birleştiririm
+(onay beklenmez, birkaç saniye). Silme ve zorla itme engelleri kalır. Bu CLAUDE.md'deki "doğrudan main" alışkanlığını "PR aç, hemen birleştir"e çevirir; Ahmet'in
+"onay bekleme" kuralı aynen geçerli. Yedek yol: sunucudaki deploy key'i silmek (tek dokunuş) ve eski düzene dönmek.
