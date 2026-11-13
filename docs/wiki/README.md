@@ -22,6 +22,7 @@ Bu klasör projenin kalıcı hafızasıdır. `CLAUDE.md` kısa tutulur; geçmiş
 | [internet-erisimi.md](internet-erisimi.md) | Parolalı internet adresi (Caddy) |
 | [dogrulanacaklar.md](dogrulanacaklar.md) | Sunucuda henüz doğrulanmamış varsayımlar |
 | [site-yeni-sayfalar-istemi.md](site-yeni-sayfalar-istemi.md) | 5 trader + görsel + programcı ajanlı "yeni sayfalar" istemi (10 Kasım'da çalıştırıldı; sonuç sonuc-sayfasi.md) |
+| [sunucu-github-yetkisi.md](sunucu-github-yetkisi.md) | Sunucu oturumuna GitHub yazma yetkisi: riskler, tedbirler, Ahmet'in telefon adımları |
 | [siradaki-isler.md](siradaki-isler.md) | 9 Kasım öncesi sıradaki işler listesi (eski; güncel liste günlükte) |
 
 ## Yazma kuralları

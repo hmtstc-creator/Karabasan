@@ -1,0 +1,22 @@
+# Her dalda ve her birleştirme isteğinde testleri çalıştırır.
+# Sunucudaki oturumun yazdığı dallar ancak bu testler geçerse ana dala alınır.
+name: testler
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy pandas
+      - run: python3 -m unittest discover -s testler -t .
+      - name: Korunan dosya denetimi (sınav sürerken strateji değişmez)
+        if: github.event_name == 'pull_request'
+        run: python3 araclar/korunan_dosya_denetimi.py "origin/${{ github.base_ref }}" HEAD

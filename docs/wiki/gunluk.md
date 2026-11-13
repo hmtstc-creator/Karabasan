@@ -25,6 +25,7 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 | 2026-11-11 | Site gezintisi toparlandı: alt sayfalar (/ayar, /detay, /islem, /coinler, /defter) eski /klasik'e değil panoya (`/#sonuc…`) döner; hepsinde ortak şerit (`site_gezinti.py`: Sonuçlar, Uzay, Ayar ve geçmiş test, Ajan, Kriter ayarı, Coin listesi, Emir defteri); pano üst çubuğuna Kriter ayarı ve Coin listesi bağlantısı | Ahmet: "panoya geçince site başka yere geçiyor; sayfalar ve erişimler çok karışık". Yalnız bağlantı; bot dosyası değişmedi. Gerçek telefonda ilk kez görülecek | pano-uzay-ajan |
 | 2026-11-13 | Gemini anahtar denetimi `AQ.` ile başlayan, nokta içeren yeni Google anahtarlarını kabul eder (eskiden reddediyordu) | Ahmet: "Gemini'den api aldım ama çalışmadı, baştaki karakterleri tutmuyor" | pano-uzay-ajan |
 | 2026-11-13 | Ajan: Gemini 503 (aşırı yük) için 3 deneme + yedek modele geçiş | Ahmet: "Kayıt yaptı ama 503 hatası verdi" | pano-uzay-ajan |
+| 2026-11-13 | Sunucu oturumuna GitHub yazma yetkisi tasarlandı: deploy key + `main` ruleset + `sunucu/` dalları; CI testleri, korunan dosya denetimi, gizli bilgi / gerçek emir testi eklendi. Yetki henüz verilmedi | Ahmet: "nasıl olmazı değil nasıl oluru arıyoruz"; gerçek hesap yalnız "site %200 hazır" deyince | sunucu-github-yetkisi |
 
 ## Açık işler (güncel)
 
@@ -36,3 +37,4 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 6. Ahmet ücretsiz Gemini anahtarı alacak (aistudio.google.com/apikey) ve panoda Ajan sekmesinden girecek; sonra "Rapor hazırlat". Rapor gelince bulut oturumu sunucu oturumundan okur (pano-uzay-ajan, 2. tur).
 7. Ahmet'in kararı: Karabasan durum süzgeci canlıda yok (botlar durumdan bağımsız işlem açıyor). Yeni bot ve kendi 30 günü mü, sınav sonuna mı bırakılsın? Canlı puan kaydı için bir servis gerekir (fiyat verisi + `puan.py`, pandas'lı kapsayıcıda).
 8. Gerçek sunucuda ilk kez: beş ek ekran, özellikle Likidite'nin Binance çağrıları (panel kapsayıcısından, 5 dakikada bir en çok 13 GET).
+9. Sunucu GitHub yetkisi (sunucu-github-yetkisi.md): Ahmet deploy key, ruleset ve push protection adımlarını yapacak; ben sunucu oturumuna anahtar üretme talimatı gönderip iki sınamayı (main reddedilir, sunucu/ dalı geçer) yapacağım.

@@ -1,0 +1,34 @@
+# Sunucu oturumuna GitHub yazma yetkisi
+
+> 13 Kasım 2026, Ahmet: "nasıl olmazı değil nasıl oluru arıyoruz; site %200 hazır oluncaya kadar gerçek hesap bağlamayacağım."
+> Durum: **tasarım ve bulut tarafındaki tedbirler işlendi; yetki henüz verilmedi.** Ahmet'in aşağıdaki adımları (telefondan) yapması gerekir.
+
+## Fikir
+Sunucudaki Claude oturumu (teşhisi görür) düzeltmeyi kendisi GitHub'a yazar; ben (bulut) testleri çalıştırıp `main`'e alırım.
+Ahmet araya girmez. `main` canlı olduğu için sunucu oturumu `main`'e **hiç** yazamaz; yalnız `sunucu/...` dallarına yazar.
+
+## Risk → tedbir → kim yapar
+
+| # | Risk | Tedbir | Kim / durum |
+| --- | --- | --- | --- |
+| 1 | Anahtar çalınır, her yere yazılır | **Deploy key** (tek depoya bağlı SSH anahtarı; hesap parolası değil). Özel kısım sunucuda üretilir, sunucudan çıkmaz; yalnız genel kısım GitHub'a girer. Süre sınırı yok ama tek dokunuşla silinir | Ahmet: GitHub → depo → Settings → Deploy keys → Add, "Allow write access" |
+| 2 | Sunucu `main`'e yazar, bozuk kod canlıya düşer | `main` için **ruleset** (dal kuralı): deploy key bypass listesinde yok; Ahmet'in hesabı (admin) bypass'ta, yani bulut oturumu eskisi gibi `main`'e yazar | Ahmet: GitHub → Settings → Rules → Rulesets → New → hedef `main`, "Restrict updates"; bypass: Repository admin. **Gerçek GitHub'da ilk kez sınanacak** |
+| 3 | Testsiz kod | `.github/workflows/test.yml`: her dalda testler (numpy + pandas ile). Ben dalı almadan önce yeşil olmasına bakarım | Bulut: işlendi (13 Kasım) |
+| 4 | Sınav sürerken strateji dosyası değişir (3. kural) | `araclar/korunan_dosya_denetimi.py`: korunan dosya (stratejiler, kural, gösterge, botlar, user_data/strategies) değişirse birleştirme isteğinde başarısız olur; yalnız commit mesajında `[hata-duzeltme]` varsa geçer | Bulut: işlendi, yerelde sınandı |
+| 5 | Gizli bilgi depoya girer (depo herkese açık) | `testler/test_guvenlik_kapisi.py`: `.env` dosyası, özel anahtar, GitHub / Google / Anthropic anahtar desenleri varsa test kırılır. Ayrıca GitHub "Secret scanning + Push protection" açılır | Bulut: test işlendi. Ahmet: Settings → Code security → Push protection aç |
+| 6 | Gerçek emir ayarı sızar (1. kural) | Aynı test dosyası: `dry_run` `False` yazılırsa ve üreteçte `True` yoksa kırılır | Bulut: işlendi |
+| 7 | Sunucu oturumu kandırılır (kayıt dosyası ya da Telegram metni içine gizli talimat) | Sunucu oturumu zaten root; yeni risk yalnız "kötü kod yazıp dala atmak". Dal `main`'e ancak ben testlerle okuyup alırsam geçer. Gelen kod yorumlarını veri sayarım, talimat saymam | Süreç kuralı: `sunucu/` dalını **diff'ini okuyarak** alırım, körü körüne birleştirmem |
+| 8 | Sunucuda numpy yok, orada test edilemez | Test yalnız CI'da ve burada; sunucu oturumu kendi dalını test etmez, CI sonucunu bekler | Süreç |
+| 9 | Dal sayısı birikir | Birleşen / reddedilen `sunucu/` dalını ben silerim; günlük kaydı tutarım | Süreç |
+| 10 | Gerçek paraya geçiş | Gerçek hesap ancak Ahmet "site %200 hazır" deyince. O gün: deploy key silinir (tek dokunuş), sunucu oturumu kapatılır ya da kısıtlanır (CLAUDE.md), Binance anahtarı "yalnız işlem, çekim kapalı + sunucu IP'si ile sınırlı" olur, ilk gün çok küçük tutarla başlanır. Bu geçiş ayrı bir kontrol listesiyle yapılır, bu sayfa onun yerine geçmez | Ahmet'in kararı; o gün yeni sayfa açılır |
+
+## Adımlar (Ahmet, telefondan, sırayla)
+1. Ben sunucu oturumuna kısa bir talimat gönderirim: "SSH anahtarı üret, yalnız genel kısmı yaz, özel kısmı hiç gösterme." (bulut → sunucu mesajı; Ahmet hiçbir şey yazmaz)
+2. Genel anahtarı sana (Ahmet) gösteririm. GitHub uygulaması ya da tarayıcıda: depo → Settings → Deploy keys → Add deploy key → yapıştır → "Allow write access" işaretle.
+3. Ruleset (tablodaki 2. satır) ve Push protection (5. satır) aç. Bunları yaptığını yazınca ben sınarım: sunucu oturumundan `main`'e deneme yazdırırım, reddedilmeli; `sunucu/deneme` dalına yazdırırım, geçmeli.
+4. Ancak iki sınama da doğru çıkarsa sunucu oturumuna "kalıcı düzeltmeyi `sunucu/<konu>` dalına yaz, bana mesaj at" talimatı veririm.
+
+## Açık / sınanmamış
+- Ruleset'in "deploy key'i engelle, admin'i bırak" biçimde davranması GitHub'ın güncel ayarına bağlı; adım 3 bunu gerçek depoda sınar. Davranmazsa yedek: yalnız `main`'e "birleştirme isteği şart" kuralı koyup birleştirmeyi ben MCP aracıyla yaparım.
+- Sunucudaki `oto_guncelle.sh` yalnız okuma yoluyla çeker; deploy key'in sunucuda `git push` için yapılandırılması (`GIT_SSH_COMMAND`) henüz yazılmadı, adım 1'de sunucu oturumu yapar. Kalıcı olması için `kur.sh`'a eklenir mi, bakılacak.
+- CI'da `pip install numpy pandas` ilk kez gerçek GitHub'da çalışacak.
