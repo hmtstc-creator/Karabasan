@@ -75,3 +75,9 @@ Korunan yollara (`.github/`, denetim araçları, `CLAUDE.md`) dokunan dal birle�
 Yerelde sahte `gh` ve yerel depoyla sınandı (korunan yol atlanır, testi geçen birleşir). **Gerçek GitHub'da ilk kez çalışacak.**
 Ahmet'in yapacağı: Settings > Actions > General > Workflow permissions: "Read and write permissions" + "Allow GitHub Actions to create and approve pull requests". Bu yapılmazsa görev PR açamaz.
 Gerçek paraya geçilirse: bu görev kapatılır (workflow silinir), deploy key silinir, sunucu oturumu kapatılır.
+
+## 13 Kasım: sunucuya kurulan üçüncü kişi araçları
+Sunucu oturumu bildirdi: eklentiler superpowers, ui-ux-pro-max, impeccable; MCP: context7; skill'ler: frontend-design, design-taste-frontend,
+web-design-guidelines, vercel-react-best-practices. GitHub MCP kurulmadı. Bunlar üçüncü kişi kodudur ve root yetkili sunucuda çalışır
+(sunucuda deploy anahtarı da var). **Gerçek paraya geçmeden önce hepsi silinir** (gerçek para kontrol listesine yazılır); o güne kadar
+yeni eklenti kurulumu Ahmet'in bilgisiyle olur ve kaynağı bu sayfaya yazılır.
