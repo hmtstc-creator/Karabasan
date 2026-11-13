@@ -64,3 +64,5 @@ Bulut oturumu da Ahmet'in hesabıyla (`hmtstc-creator`, admin) yazdığı için 
 Böylece `main`'e doğrudan itme herkese kapalı olur (sunucuya da, bana da); ben `sunucu/` dalını ya da kendi dalımı birleştirme isteğiyle açıp anında birleştiririm
 (onay beklenmez, birkaç saniye). Silme ve zorla itme engelleri kalır. Bu CLAUDE.md'deki "doğrudan main" alışkanlığını "PR aç, hemen birleştir"e çevirir; Ahmet'in
 "onay bekleme" kuralı aynen geçerli. Yedek yol: sunucudaki deploy key'i silmek (tek dokunuş) ve eski düzene dönmek.
+
+Ruleset düzeltildi (13 Kasım): bypass boş, 'update' yerine 'pull_request'. main'e doğrudan itme herkese kapalı.
