@@ -369,6 +369,10 @@ class AjanTesti(unittest.TestCase):
             ajan.anahtar_yaz(self.klasor, ANAHTAR, "gemini")              # Claude anahtarı Gemini'ye yazılmaz
         with self.assertRaises(ajan.AjanHatasi):
             ajan.anahtar_yaz(self.klasor, "sk-" + "c" * 32, "gemini")
+        ajan.anahtar_yaz(self.klasor, "AQ." + "Ab8R" * 12, "gemini")      # yeni biçim: AQ. ile başlar, nokta içerir
+        self.assertEqual(ajan.anahtar_oku(self.klasor, "gemini"), "AQ." + "Ab8R" * 12)
+        with self.assertRaises(ajan.AjanHatasi):
+            ajan.anahtar_yaz(self.klasor, "AQ. boşluklu anahtar değil", "gemini")
         ajan.anahtar_yaz(self.klasor, GEMINI, "gemini")
         ajan.anahtar_yaz(self.klasor, "sk-" + "d" * 32, "deepseek")
         self.assertEqual(ajan.anahtar_oku(self.klasor, "gemini"), GEMINI)

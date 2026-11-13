@@ -115,6 +115,8 @@ kararlı "flash" seçilir (`gemini_model_sec`); model kaldırılırsa (404) list
 Çaba: `reasoning_effort: "low"` gönderilir; model tanımazsa (400) onsuz bir kez daha denenir. Anahtarlar sağlayıcı başına ayrı dosya:
 `user_data/gizli/ajan_anahtar_gemini` vb. Seçim: `user_data/kayit/ajan/ayar.json`.
 
+**Düzeltme (13 Kasım 2026):** Gemini anahtar biçim denetimi noktayı kabul etmiyordu; Google'ın yeni anahtarları `AQ.` ile başlar ve içinde nokta vardır, bu yüzden Ahmet'in anahtarı "anahtara benzemiyor" diye reddedildi. Denetim `[A-Za-z0-9_\-.]` olarak genişletildi (`ajan.SAGLAYICILAR`), `sk-` ile başlayanlar yine reddedilir; test: `test_varsayilan_saglayici_gemini_ve_anahtarlar_ayri`. Gerçek sunucuda ilk kez: yeni biçimli anahtarla Gemini'ye gerçek çağrı (sınanmadı; yalnız biçim denetimi sınandı).
+
 Ahmet'e söylenenler: ücretsiz katmanın dakikalık ve günlük soru sınırı vardır, dolunca ajan o gün yanıt vermez (sayfa "kotası doldu" der).
 Google ücretsiz katmanda gönderilen verileri ürünlerini geliştirmek için kullanabilir; bu sistemde giden veri sanal bot sonuçları ve
 ayarlardır, gizli bilgi gitmez. **Güncel ücretsiz kota ve model adları bu oturumda internetten doğrulanamadı** (arama sınırı doldu);

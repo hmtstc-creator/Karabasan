@@ -61,8 +61,9 @@ SAGLAYICILAR = {
         "adres": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         "model_adresi": "https://generativelanguage.googleapis.com/v1beta/openai/models",
         "model": "", "yedek_model": "gemini-2.5-flash",
-        "anahtar": re.compile(r"^(?!sk-)[A-Za-z0-9_\-]{20,200}$"),
-        "anahtar_adresi": "aistudio.google.com/apikey", "anahtar_ipucu": "Genelde AIza… ile başlar",
+        # Eski anahtarlar AIza… ile başlar; yeni biçim AQ.… ile başlar ve içinde nokta vardır.
+        "anahtar": re.compile(r"^(?!sk-)[A-Za-z0-9_\-.]{20,200}$"),
+        "anahtar_adresi": "aistudio.google.com/apikey", "anahtar_ipucu": "AIza… ya da AQ.… ile başlar",
         "not": "Ücretsiz katman: kart istemez; dakikada ve günde soru sınırı vardır, sınır dolunca ajan o gün yanıt vermez.",
     },
     "deepseek": {

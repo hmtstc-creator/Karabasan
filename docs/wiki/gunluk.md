@@ -23,6 +23,7 @@ Karar ve değişikliklerin kısa, tarihli kaydı (en yeni altta). Ayrıntı ilgi
 | 2026-11-11 | Telefonda Menü açılır listesi kaydırılabilir yapıldı (`.menu-liste`: `max-height` + `overflow-y:auto`, `sayfa.py`); uzun liste ekrana sığmayıp tıklanmıyordu | Ahmet: "alt menü çok uzun kalıyor ve tıklanmıyor, kaydırılabilir yap". Yalnız görünüm; bot dosyası değişmedi. Gerçek telefonda ilk kez görülecek |
 | 2026-11-10 | Tek bütün site: ana sayfa pano, ilk sekme "Sonuçlar" (kazanç ve eski / yeni 16 ekran, panonun siyah biçiminde), sonra Uzay, Ayar ve geçmiş test, Ajan | Ahmet: "uzay sayfası ve yeni format nereye gitti? Eski ile yeni formatın hepsini bütün yapıp yeni formatta yapman lazım" | pano-uzay-ajan |
 | 2026-11-11 | Site gezintisi toparlandı: alt sayfalar (/ayar, /detay, /islem, /coinler, /defter) eski /klasik'e değil panoya (`/#sonuc…`) döner; hepsinde ortak şerit (`site_gezinti.py`: Sonuçlar, Uzay, Ayar ve geçmiş test, Ajan, Kriter ayarı, Coin listesi, Emir defteri); pano üst çubuğuna Kriter ayarı ve Coin listesi bağlantısı | Ahmet: "panoya geçince site başka yere geçiyor; sayfalar ve erişimler çok karışık". Yalnız bağlantı; bot dosyası değişmedi. Gerçek telefonda ilk kez görülecek | pano-uzay-ajan |
+| 2026-11-13 | Gemini anahtar denetimi `AQ.` ile başlayan, nokta içeren yeni Google anahtarlarını kabul eder (eskiden reddediyordu) | Ahmet: "Gemini'den api aldım ama çalışmadı, baştaki karakterleri tutmuyor" | pano-uzay-ajan |
 
 ## Açık işler (güncel)
 
