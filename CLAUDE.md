@@ -23,8 +23,9 @@ bağlantıya dokunmak, bir dosyayı bu sohbete iletmek, Hetzner'in web panelinde
 bir düğmeye basmak. Ona asla SSH ya da terminal komutu verme. Sunucuda bir şey
 değişecekse kodu değiştirip ana dala işle; sunucu kendisi alır.
 
-**GitHub'da onay beklenmez.** Ahmet açıkça istedi: değişiklikleri doğrudan
-`main` dalına işle, birleştirme isteği açıp onay bekleme.
+**GitHub'da onay beklenmez.** Ahmet açıkça istedi: onay bekleme. 13 Kasım 2026'dan beri `main`'e doğrudan itme
+kapalıdır (ruleset, bypass yok; sunucunun deploy anahtarı yüzünden). Değişikliği çalışma dalına it, REST ile PR aç ve hemen
+birleştir (`gh api -X POST repos/hmtstc-creator/Karabasan/pulls ...`, sonra `PUT .../pulls/N/merge -f merge_method=squash`).
 
 ## Ana dal canlıdır
 
