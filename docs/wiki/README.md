@@ -19,6 +19,7 @@ Bu klasör projenin kalıcı hafızasıdır. `CLAUDE.md` kısa tutulur; geçmiş
 | [kriter-ayar-laboratuvari.md](kriter-ayar-laboratuvari.md) | /ayar sayfası: pasif seçenekleri, adlı kayıtlar, Bot Kriterleri sayfası |
 | [pano-uzay-ajan.md](pano-uzay-ajan.md) | Yeni ana sayfa: Karabasan Uzayı, ayar ve geçmiş test laboratuvarı, ajan (Opus 5.5), /api/ adresleri |
 | [sonuc-sayfasi.md](sonuc-sayfasi.md) | Eski sonuç sayfasının (/klasik) ekranları, görünüm, işlem grafiği |
+| [saglama-sayfasi.md](saglama-sayfasi.md) | /sagla: kâr rakamını kayıt ve emirlerden baştan hesaplayan sağlama sayfası |
 | [internet-erisimi.md](internet-erisimi.md) | Parolalı internet adresi (Caddy) |
 | [dogrulanacaklar.md](dogrulanacaklar.md) | Sunucuda henüz doğrulanmamış varsayımlar |
 | [site-yeni-sayfalar-istemi.md](site-yeni-sayfalar-istemi.md) | 5 trader + görsel + programcı ajanlı "yeni sayfalar" istemi (10 Kasım'da çalıştırıldı; sonuç sonuc-sayfasi.md) |

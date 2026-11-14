@@ -15,6 +15,7 @@ BAGLANTILAR = (
     ("Ayar ve geçmiş test", "/#lab", "lab"),
     ("Ajan", "/#ajan", "ajan"),
     ("Kriter ayarı", "/ayar", "ayar"),
+    ("Sağlama", "/sagla", "sagla"),
     ("Coin listesi", "/coinler", "coinler"),
     ("Emir defteri", "/defter", "defter"),
 )
