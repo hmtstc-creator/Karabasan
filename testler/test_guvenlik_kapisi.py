@@ -5,6 +5,7 @@ ya da gerçek emir ayarı yazarsa dal ana dala alınmadan önce burada durur.
 """
 import os
 import re
+import subprocess
 import unittest
 
 KOK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,9 +28,25 @@ def dosyalar():
             yield os.path.join(yol, ad)
 
 
+def depoya_girecekler():
+    """git'in izleyeceği ya da izleyebileceği dosyalar (.gitignore'daki yerel gizli dosyalar hariç).
+
+    Sunucuda .env ve telegram.env bilerek diskte durur ve git tarafından yok sayılır; kapı,
+    depoya girebilecek dosyalara bakar. Git deposu değilse None döner: o zaman bütün dosyalar sınanır.
+    """
+    try:
+        cikti = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                               cwd=KOK, capture_output=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return {os.path.abspath(os.path.join(KOK, p)) for p in cikti.decode("utf-8", "ignore").split("\0") if p}
+
+
 class GuvenlikKapisi(unittest.TestCase):
     def test_gizli_dosya_yok(self):
-        bulunan = [d for d in dosyalar() if os.path.basename(d) in YASAK_DOSYA]
+        izleyecekler = depoya_girecekler()
+        bulunan = [d for d in dosyalar()
+                   if os.path.basename(d) in YASAK_DOSYA and (izleyecekler is None or os.path.abspath(d) in izleyecekler)]
         self.assertEqual(bulunan, [])
 
     def test_gizli_anahtar_deseni_yok(self):
