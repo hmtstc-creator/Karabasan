@@ -14,6 +14,7 @@ Adresler:
     /defter      Emir defteri denemesinin özeti (BTC/USDT vadeli, sanal)
     /islem       Tek bir işlemin fiyat grafiği (?bot=<bot adı>&id=<işlem kimliği>)
     /detay       Bot detayı: işlem listesi, oranlar, günlük bütçe kullanımı (?bot=<bot adı>)
+    /sagla       Sağlama: kâr rakamını kayıt ve emirlerden baştan hesaplayıp denetler (?mum=1: Binance mumlarıyla da)
     /coinler     Binance coin listesi: stable olmayanlar, hacim sınırını geçenler (?hacim=<milyon USDT>)
     /ayar        Kriter ayar laboratuvarı: geçmişe sarıp kriter sayılarını denemek (kaydetmez)
 
@@ -243,6 +244,19 @@ def isleyici_uret(onbellek: Onbellek, pano_ayari: dict | None = None):
                     bot = (sorgu.get("bot") or [""])[0][:40]
                     govde = detay.sayfa_uret(bot, onbellek.klasor)
                     self._yanit(200, "text/html; charset=utf-8", govde.encode("utf-8"))
+                elif yol == "/sagla":
+                    from . import saglama
+
+                    sorgu = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "",
+                                                  max_num_fields=5)
+                    mum_fn = None
+                    if (sorgu.get("mum") or [""])[0] == "1":
+                        mum_fn = islem_grafik.mum_getir
+                    ozet = onbellek.ozet()
+                    uret = lambda: saglama.genel(onbellek.klasor, ozet, mum_fn)  # noqa: E731
+                    sonuc = saglama.mum_sonucu_onbellekli(uret) if mum_fn else uret()
+                    self._yanit(200, "text/html; charset=utf-8", saglama.sayfa_uret(sonuc).encode("utf-8"),
+                                izin=saglama.guvenlik_basligi())
                 elif yol == "/coinler":
                     from . import coinler
 
